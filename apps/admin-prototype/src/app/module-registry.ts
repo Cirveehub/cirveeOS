@@ -36,46 +36,46 @@ import type { PermissionString } from '@/auth'
  */
 export const PERSONA_MODULES: Record<string, string[]> = {
   /* Management — Super Admin, CEO and Unit Head are intentionally absent. */
-  'exec-assistant': ['command-centre', 'meetings', 'approvals', 'my-referral'],
+  'exec-assistant': ['command-centre', 'meetings', 'approvals', 'my-referral', 'my-workspace'],
 
   /* HR & People */
-  hr: ['command-centre', 'people', 'payroll', 'approvals', 'my-referral'],
-  recruiter: ['command-centre', 'people', 'my-referral'],
+  hr: ['command-centre', 'people', 'payroll', 'approvals', 'my-referral', 'my-workspace'],
+  recruiter: ['command-centre', 'people', 'my-referral', 'my-workspace'],
 
   /* Finance & Legal */
-  finance: ['command-centre', 'reports', 'finance', 'payroll', 'referral', 'approvals', 'my-referral'],
-  'finance-officer': ['command-centre', 'finance', 'my-referral'],
-  legal: ['command-centre', 'approvals', 'people', 'my-referral'],
+  finance: ['command-centre', 'reports', 'finance', 'payroll', 'referral', 'approvals', 'my-referral', 'my-workspace'],
+  'finance-officer': ['command-centre', 'finance', 'my-referral', 'my-workspace'],
+  legal: ['command-centre', 'approvals', 'people', 'my-referral', 'my-workspace'],
 
   /* Growth */
-  'growth-head': ['command-centre', 'crm', 'referral', 'engage', 'approvals', 'my-referral'],
-  'sales-exec': ['command-centre', 'crm', 'my-referral'],
-  partnerships: ['command-centre', 'corporate', 'crm', 'my-referral'],
+  'growth-head': ['command-centre', 'crm', 'referral', 'engage', 'approvals', 'my-referral', 'my-workspace'],
+  'sales-exec': ['command-centre', 'crm', 'my-referral', 'my-workspace'],
+  partnerships: ['command-centre', 'corporate', 'crm', 'my-referral', 'my-workspace'],
 
   /* Customer Experience */
-  'student-support': ['command-centre', 'support', 'academy', 'my-referral'],
-  'community-manager': ['command-centre', 'support', 'engage', 'reputation', 'my-referral'],
+  'student-support': ['command-centre', 'support', 'academy', 'my-referral', 'my-workspace'],
+  'community-manager': ['command-centre', 'support', 'engage', 'reputation', 'my-referral', 'my-workspace'],
 
   /* Education */
-  'curriculum-lead': ['command-centre', 'learn', 'outcomes', 'my-referral'],
+  'curriculum-lead': ['command-centre', 'learn', 'outcomes', 'my-referral', 'my-workspace'],
   // `command-centre` is here so `/home` stays reachable — sign-in sends
   // everyone there and it redirects a Tutor straight to `/teaching`. It is
   // kept out of their *sidebar* by `moduleInSidebar`, not out of their reach.
-  tutor: ['command-centre', 'teaching', 'my-referral'],
+  tutor: ['command-centre', 'teaching', 'my-referral', 'my-workspace'],
 
   /* Programs & Delivery */
-  'academy-ops': ['command-centre', 'academy', 'learn', 'outcomes', 'my-referral'],
-  'programme-coordinator': ['command-centre', 'academy', 'my-referral'],
+  'academy-ops': ['command-centre', 'academy', 'learn', 'outcomes', 'my-referral', 'my-workspace'],
+  'programme-coordinator': ['command-centre', 'academy', 'my-referral', 'my-workspace'],
 
   /* Media */
-  'media-lead': ['command-centre', 'reputation', 'engage', 'learn', 'my-referral'],
-  marketing: ['command-centre', 'engage', 'reputation', 'my-referral'],
+  'media-lead': ['command-centre', 'reputation', 'engage', 'learn', 'my-referral', 'my-workspace'],
+  marketing: ['command-centre', 'engage', 'reputation', 'my-referral', 'my-workspace'],
 
   /* Technology & Systems */
-  'technology-lead': ['command-centre', 'automation', 'physical', 'approvals', 'settings', 'my-referral'],
+  'technology-lead': ['command-centre', 'automation', 'physical', 'approvals', 'settings', 'my-referral', 'my-workspace'],
 
   /* Learners, parents and clients */
-  employee: ['command-centre', 'my-referral'],
+  employee: ['command-centre', 'my-referral', 'my-workspace'],
   student: ['command-centre', 'my-learning', 'my-referral'],
   parent: ['command-centre', 'my-referral'],
   'corporate-client': ['command-centre', 'my-referral'],
@@ -91,6 +91,10 @@ export const PERSONA_MODULES: Record<string, string[]> = {
 export const PERSONA_HOME_PATH: Record<string, string> = {
   student: '/my-learning',
   tutor: '/teaching',
+  // The bare Employee persona has no separate job to run — their Home *is*
+  // the workspace dashboard, so sending them to a generic one first would be
+  // the duplicate landing page this map exists to avoid.
+  employee: '/my-workspace',
 }
 
 /**
@@ -151,6 +155,7 @@ export type NavGroup =
   | 'people'
   | 'money'
   | 'operations'
+  | 'personal'
   | 'system'
 
 export const NAV_GROUPS: { id: NavGroup; label: string }[] = [
@@ -160,6 +165,7 @@ export const NAV_GROUPS: { id: NavGroup; label: string }[] = [
   { id: 'people', label: 'People' },
   { id: 'money', label: 'Money' },
   { id: 'operations', label: 'Operations' },
+  { id: 'personal', label: 'Personal' },
   { id: 'system', label: 'System' },
 ]
 

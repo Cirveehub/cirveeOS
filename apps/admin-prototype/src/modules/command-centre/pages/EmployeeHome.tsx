@@ -41,15 +41,14 @@ import type {
   AttendanceState,
   CallOutcome,
   Employee,
-  Kobo,
   LeaveType,
   Task,
   UserId,
 } from '@/mocks'
-import { activityId, leaveId } from '@/mocks/types'
+import { activityId } from '@/mocks/types'
 import { formatDate, formatNumber, formatRelative, humanize, pluralize } from '@/lib/format'
 import { useCurrentUserId } from '@/auth'
-import { raiseRequest } from '@/modules/people/writes'
+import { requestLeave } from '@/modules/my-workspace/writes'
 import {
   Alert,
   Badge,
@@ -648,62 +647,13 @@ function RequestLeaveModal({
     setTouched(true)
     if (!employee || days === 0 || balanceError || !reason.trim()) return
 
-    const year = TODAY.slice(0, 4)
-    const existing = leaveRequestsCollection.all()
-    const highest = existing.reduce((max, r) => {
-      const n = Number(r.ref.split('-')[2])
-      return Number.isFinite(n) && n > max ? n : max
-    }, 0)
-    const before = type === 'unpaid' ? 0 : (balance?.remaining ?? 0)
-    const stamp = nowIso()
-    const ref = `LV-${year}-${String(highest + 1).padStart(4, '0')}`
-    const id = leaveId(`leave-ui-${Date.now().toString(36)}`)
-
-    leaveRequestsCollection.insert({
-      id,
-      ref,
-      employeeId: employee.id,
-      type,
-      fromDate,
-      toDate,
-      days,
-      balanceBefore: before,
-      balanceAfter: type === 'unpaid' ? 0 : before - days,
-      reason: reason.trim(),
-      approvalRequestId: null,
-      status: 'requested',
-      decidedAt: null,
-      createdAt: stamp,
-      createdBy: userId,
-      updatedAt: stamp,
-      updatedBy: userId,
-    })
-
-    // Without this, the request sits on the record but never reaches the
-    // Approvals queue at all — nothing else in the app raises it.
-    const approval = raiseRequest({
-      type: 'leave',
-      title: `${humanize(type)} leave — ${personName(employee.personId)}, ${pluralize(days, 'day')}`,
-      justification: reason.trim(),
-      amount: 0 as Kobo,
-      unitId: employee.unitId,
-      branchId: employee.branchId,
-      relatedEntityType: 'LeaveRequest',
-      relatedEntityId: id as string,
-      relatedEntityRef: ref,
-      impact: [
-        {
-          text: `${pluralize(days, 'day')} of ${humanize(type).toLowerCase()} leave, ${formatDate(fromDate)} to ${formatDate(toDate)}.`,
-          entityType: 'LeaveRequest',
-          entityId: id as string,
-          entityRef: ref,
-        },
-      ],
-    })
-    if (approval) {
-      leaveRequestsCollection.update(id, { approvalRequestId: approval.id, updatedAt: nowIso(), updatedBy: userId })
+    // One implementation, in `my-workspace/writes` — this used to be a second
+    // inline copy of the same insert-plus-raise, which is how the two drift.
+    const result = requestLeave({ employee, userId, type, fromDate, toDate, reason })
+    if (!result.ok) {
+      toast.error(result.reason ?? 'That request could not be raised.')
+      return
     }
-
     toast.success(
       `${pluralize(days, 'day')} of ${humanize(type).toLowerCase()} leave requested. Your balance is untouched until it is approved.`,
     )

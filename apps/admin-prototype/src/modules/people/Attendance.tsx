@@ -10,15 +10,19 @@
  */
 
 import { useMemo, useState } from 'react'
-import { Lock, ScanLine } from 'lucide-react'
+import { Lock, MessageSquareQuote, ScanLine } from 'lucide-react'
+import toast from 'react-hot-toast'
 
 import { formatDate, formatNumber, formatPercent, formatTime } from '@/lib/format'
+import { useCurrentUserId } from '@/auth'
+import { acceptAttendanceExplanation } from '@/modules/my-workspace/writes'
 import {
   Alert,
   Badge,
   Button,
   Card,
   CardBody,
+  CardHeader,
   ColumnPicker,
   DataTable,
   EmptyState,
@@ -95,6 +99,7 @@ const CONSEQUENCE_LABEL: Record<string, string> = {
 
 export default function Attendance() {
   const state = useScreenState()
+  const actingUserId = useCurrentUserId()
 
   const events = useCollection(attendanceEventsCollection)
   const employees = useCollection(employeesCollection)
@@ -236,6 +241,11 @@ export default function Attendance() {
 
   const columns = visible.map((key) => allColumns[key]).filter(Boolean)
 
+  // Explained by the employee on their own screen, not yet accepted here.
+  // The `overrideReason` column has existed all along with nothing in the app
+  // able to write it; this is the other half of that.
+  const awaitingReview = events.filter((r) => r.overrideReason && !r.overriddenByUserId)
+
   return (
     <Page>
       <PageHeader
@@ -268,6 +278,48 @@ export default function Attendance() {
           icon={Lock}
         />
       </div>
+
+      {awaitingReview.length > 0 && (
+        <Card className="mb-6">
+          <CardHeader
+            title={`${formatNumber(awaitingReview.length)} ${awaitingReview.length === 1 ? 'day has' : 'days have'} an explanation waiting on you`}
+            description="Written by the employee against a flagged day. Accepting it marks the day excused and records who accepted."
+          />
+          <CardBody>
+            <ul className="flex flex-col gap-2">
+              {awaitingReview.slice(0, 8).map((row) => (
+                <li
+                  key={row.id}
+                  className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-border px-4 py-3"
+                >
+                  <span className="min-w-0">
+                    <span className="block text-body-14 text-text">
+                      {personName(employees.find((e) => e.id === row.employeeId)?.personId ?? null)} ·{' '}
+                      {formatDate(row.date)} · {ATTENDANCE_STATE_LABEL[row.state] ?? row.state}
+                    </span>
+                    <span className="mt-1 flex items-start gap-1.5 text-body-12 text-text-secondary">
+                      <MessageSquareQuote size={13} className="mt-0.5 shrink-0" aria-hidden="true" />
+                      {row.overrideReason}
+                    </span>
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="shrink-0"
+                    onClick={() => {
+                      const result = acceptAttendanceExplanation(row.id as string, 'excused', actingUserId)
+                      if (!result.ok) toast.error(result.reason ?? 'That could not be accepted.')
+                      else toast.success('Accepted. The day is now excused, with your name against it.')
+                    }}
+                  >
+                    Accept
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </CardBody>
+        </Card>
+      )}
 
       <Card>
         <CardBody padding="none">

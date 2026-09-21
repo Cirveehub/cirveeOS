@@ -197,6 +197,13 @@ export interface RaiseInput {
   relatedEntityId: string
   relatedEntityRef: string
   impact: Array<{ text: string; entityType: string; entityId: string; entityRef: string }>
+  /**
+   * Who is raising it. Defaults to the seed's fixed user for the admin screens
+   * that pre-date sign-in; the personal module passes the signed-in person, so
+   * their own leave request is not filed under somebody else's name — which
+   * also decides whether the self-approval block bites.
+   */
+  requesterUserId?: UserId
 }
 
 /**
@@ -228,7 +235,7 @@ export function raiseRequest(input: RaiseInput): ApprovalRequest | null {
     type: input.type,
     title: input.title,
     justification: input.justification,
-    requesterUserId: CURRENT_USER_ID,
+    requesterUserId: input.requesterUserId ?? CURRENT_USER_ID,
     amount: input.amount,
     unitId: input.unitId,
     branchId: input.branchId,

@@ -21,7 +21,7 @@ export default defineModule({
   label: 'My referral',
   icon: Gift,
   base: '/my-referral',
-  group: 'growth',
+  group: 'personal',
   depth: 'deep',
   summary: 'Your referral link, who signed up with it, and what you have earned.',
   routes: [{ path: '', element: <Page /> }],

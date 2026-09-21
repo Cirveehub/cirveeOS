@@ -11,6 +11,7 @@ import Academy from './academy'
 import Learn from './learn'
 import Teaching from './teaching'
 import MyLearning from './my-learning'
+import MyWorkspace from './my-workspace'
 import MyReferral from './my-referral'
 import Outcomes from './outcomes'
 import People from './people'
@@ -43,6 +44,7 @@ export const modules: ModuleDef[] = [
   Learn,
   Teaching,
   MyLearning,
+  MyWorkspace,
   MyReferral,
   Outcomes,
   People,
