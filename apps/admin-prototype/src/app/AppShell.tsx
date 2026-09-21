@@ -65,7 +65,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     <div className="flex h-screen overflow-hidden bg-canvas">
       <aside
         className={cn(
-          'flex shrink-0 flex-col border-r border-border bg-surface transition-[width] duration-200',
+          'flex min-h-0 shrink-0 flex-col border-r border-border bg-surface transition-[width] duration-200',
           collapsed ? 'w-[68px]' : 'w-[248px]',
         )}
       >
