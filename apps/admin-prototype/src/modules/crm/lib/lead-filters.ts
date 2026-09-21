@@ -1,0 +1,179 @@
+/**
+ * Lead filtering, shared by `/crm/leads` and `/crm/pipeline`.
+ *
+ * Both screens read the same query string, so switching between the list and
+ * the board keeps the filters — and a filtered board is as linkable as a
+ * filtered list.
+ */
+
+import { useMemo } from 'react'
+import { TODAY, leadsCollection, peopleCollection, useCollection } from '@/mocks'
+import type { Lead, LeadSource, LeadStage, Person } from '@/mocks/types'
+import { CLOSED_STAGES } from './lookups'
+import type { QueryState } from './view-state'
+
+export const FILTER_KEYS = [
+  'q',
+  'stage',
+  'owner',
+  'source',
+  'referrer',
+  'course',
+  'branch',
+  'unit',
+  'created',
+  'days',
+  'next',
+  'view',
+] as const
+
+export interface SavedView {
+  key: string
+  label: string
+  description: string
+  params: Record<string, string | undefined>
+}
+
+/** Seeded saved views. A user-made view is appended in session. */
+export const SAVED_VIEWS: SavedView[] = [
+  {
+    key: 'my-open',
+    label: 'My open leads',
+    description: 'Everything assigned to you that is still in the pipeline.',
+    params: { owner: 'me', stage: 'new,contacted,qualified,counselling,application,payment_pending' },
+  },
+  {
+    key: 'stalled',
+    label: 'Stalled 15+ days',
+    description: 'Open leads that have not moved stage in over a fortnight.',
+    params: { days: '15', stage: 'new,contacted,qualified,counselling,application,payment_pending' },
+  },
+  {
+    key: 'no-next-action',
+    label: 'No next action',
+    description: 'Open leads with nothing scheduled. Every lead needs a next action.',
+    params: { next: 'none', stage: 'new,contacted,qualified,counselling,application,payment_pending' },
+  },
+  {
+    key: 'this-week',
+    label: "This week's new",
+    description: 'Leads created in the last seven days.',
+    params: { created: '7d' },
+  },
+  {
+    key: 'payment-pending',
+    label: 'Payment pending',
+    description: 'Leads waiting on money to land.',
+    params: { stage: 'payment_pending' },
+  },
+]
+
+export const CREATED_RANGES: Array<{ value: string; label: string; days: number }> = [
+  { value: '7d', label: 'Last 7 days', days: 7 },
+  { value: '30d', label: 'Last 30 days', days: 30 },
+  { value: '90d', label: 'Last 90 days', days: 90 },
+  { value: '365d', label: 'Last 12 months', days: 365 },
+]
+
+export const NEXT_ACTION_OPTIONS = [
+  { value: 'yes', label: 'Has a next action' },
+  { value: 'none', label: 'No next action' },
+  { value: 'overdue', label: 'Next action overdue' },
+]
+
+function dateDaysAgo(days: number): string {
+  return new Date(Date.parse(`${TODAY}T00:00:00Z`) - days * 86_400_000).toISOString().slice(0, 10)
+}
+
+export interface LeadFilterInput {
+  q: string
+  stages: LeadStage[]
+  owners: string[]
+  sources: LeadSource[]
+  referrer?: string
+  course?: string
+  branch?: string
+  unit?: string
+  created?: string
+  minDaysInStage?: number
+  nextAction?: string
+}
+
+export function readLeadFilters(query: QueryState, currentUserId: string): LeadFilterInput {
+  const owners = query.getList('owner').map((o) => (o === 'me' ? currentUserId : o))
+  const days = Number(query.get('days'))
+  return {
+    q: query.get('q') ?? '',
+    stages: query.getList('stage') as LeadStage[],
+    owners,
+    sources: query.getList('source') as LeadSource[],
+    referrer: query.get('referrer'),
+    course: query.get('course'),
+    branch: query.get('branch'),
+    unit: query.get('unit'),
+    created: query.get('created'),
+    minDaysInStage: Number.isFinite(days) && days > 0 ? days : undefined,
+    nextAction: query.get('next'),
+  }
+}
+
+export function applyLeadFilters(
+  leads: Lead[],
+  filters: LeadFilterInput,
+  personById: Map<string, Person>,
+): Lead[] {
+  const q = filters.q.trim().toLowerCase()
+  const createdFrom = filters.created
+    ? dateDaysAgo(CREATED_RANGES.find((r) => r.value === filters.created)?.days ?? 30)
+    : null
+
+  return leads.filter((lead) => {
+    if (lead.archivedAt) return false
+    if (filters.stages.length && !filters.stages.includes(lead.stage)) return false
+    if (filters.owners.length && !filters.owners.includes(lead.ownerUserId)) return false
+    if (filters.sources.length && !filters.sources.includes(lead.originalSource)) return false
+    if (filters.referrer && lead.referrerPersonId !== filters.referrer) return false
+    if (filters.course && lead.courseInterestId !== filters.course) return false
+    if (filters.branch && lead.branchId !== filters.branch) return false
+    if (filters.unit && lead.unitId !== filters.unit) return false
+    if (createdFrom && lead.createdAt.slice(0, 10) < createdFrom) return false
+    if (filters.minDaysInStage !== undefined && lead.daysInStage < filters.minDaysInStage) return false
+
+    if (filters.nextAction === 'yes' && !lead.nextAction) return false
+    if (filters.nextAction === 'none' && lead.nextAction) return false
+    if (filters.nextAction === 'overdue') {
+      if (!lead.nextActionDueAt) return false
+      if (lead.nextActionDueAt.slice(0, 10) >= TODAY) return false
+    }
+
+    if (q) {
+      const person = personById.get(lead.personId as string)
+      const haystack = [
+        lead.ref,
+        person ? `${person.firstName} ${person.lastName}` : '',
+        person?.email ?? '',
+        person?.phone ?? '',
+        person?.whatsapp ?? '',
+      ]
+        .join(' ')
+        .toLowerCase()
+      if (!haystack.includes(q)) return false
+    }
+
+    return true
+  })
+}
+
+export function useFilteredLeads(filters: LeadFilterInput): Lead[] {
+  const leads = useCollection(leadsCollection)
+  const people = useCollection(peopleCollection)
+
+  return useMemo(() => {
+    const personById = new Map(people.map((p) => [p.id as string, p]))
+    return applyLeadFilters(leads, filters, personById)
+  }, [leads, people, filters])
+}
+
+export function isOpenLead(lead: Lead): boolean {
+  return !CLOSED_STAGES.includes(lead.stage)
+}

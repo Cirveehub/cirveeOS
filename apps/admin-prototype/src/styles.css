@@ -1,0 +1,378 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   Cirvee OS — design tokens
+   Reconciled from docs/cirvee-design-system @ main@07a6d47.
+
+   Two deliberate corrections to the source, per docs/build-plan.md §5:
+   1. ONE purple. The source ran six (#6d00e7, #7f00ff, #7c3aed, #5a00c0,
+      #6d28d9, #5200b3). Everything here reconciles to #6d00e7, expanded
+      into a proper 25–900 ramp.
+   2. ONE neutral ramp. The source ran three simultaneously (Tailwind gray-*,
+      Untitled-UI ui-*, and a stray neutral-* pair). We keep ui-* only, and
+      fill the gaps the source left at 300 and 800.
+   ========================================================================== */
+
+@font-face {
+  font-family: "Vastago Grotesk";
+  src: url("/fonts/VastagoGrotesk-Light.otf") format("opentype");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Vastago Grotesk";
+  src: url("/fonts/VastagoGrotesk-Regular.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Vastago Grotesk";
+  src: url("/fonts/VastagoGrotesk-Medium.otf") format("opentype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Vastago Grotesk";
+  src: url("/fonts/VastagoGrotesk-SemiBold.otf") format("opentype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Vastago Grotesk";
+  src: url("/fonts/VastagoGrotesk-Bold.otf") format("opentype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Vastago Grotesk";
+  src: url("/fonts/VastagoGrotesk-Black.otf") format("opentype");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme {
+  /* ---- Type ---------------------------------------------------------- */
+  --font-sans: "Vastago Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, monospace;
+
+  /* ---- Brand purple — the single source of truth ---------------------- */
+  --color-primary-25: #f9f8ff;
+  --color-primary-50: #f4f0ff;
+  --color-primary-100: #ede9fe;
+  --color-primary-200: #d9cbfd;
+  --color-primary-300: #c0a3fa;
+  --color-primary-400: #9d63f5;
+  --color-primary-500: #6d00e7;
+  --color-primary-600: #6000cc;
+  --color-primary-700: #5200b3;
+  --color-primary-800: #440095;
+  --color-primary-900: #350073;
+
+  /* ---- Neutral ramp (Untitled UI) ------------------------------------ */
+  --color-ui-25: #f9fafb;
+  --color-ui-50: #f2f4f7;
+  --color-ui-100: #eaecf0;
+  --color-ui-200: #e4e7ec;
+  --color-ui-300: #cfd4dc;
+  --color-ui-400: #98a2b3;
+  --color-ui-500: #667085;
+  --color-ui-600: #475467;
+  --color-ui-700: #344054;
+  --color-ui-800: #1d2939;
+  --color-ui-900: #101828;
+  --color-ui-950: #101326;
+
+  /* ---- Semantic ------------------------------------------------------- */
+  --color-success-25: #f0fdf4;
+  --color-success-100: #c2f1d6;
+  --color-success-400: #22a355;
+  --color-success-500: #10b981;
+  --color-success-600: #15803d;
+  --color-success-700: #166534;
+
+  --color-warning-25: #fff9eb;
+  --color-warning-100: #fef0c7;
+  --color-warning-500: #ff9800;
+  --color-warning-600: #b45309;
+  --color-warning-700: #92400e;
+
+  --color-danger-25: #fef3f2;
+  --color-danger-100: #f7c3be;
+  --color-danger-500: #d92d20;
+  --color-danger-600: #b42318;
+  --color-danger-700: #912018;
+
+  --color-info-25: #eff4fe;
+  --color-info-100: #e0e7ff;
+  --color-info-500: #6366f1;
+  --color-info-600: #4f46e5;
+  --color-info-700: #4338ca;
+
+  --color-teal-100: #d1faf1;
+  --color-teal-700: #0b6b5a;
+
+  /* ---- Radius (source set) ------------------------------------------- */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-3xl: 24px;
+
+  /* ---- Elevation — kept flat, per the brand book --------------------- */
+  --shadow-sm: 0 1px 2px 0 rgb(16 24 40 / 0.05);
+  --shadow-md: 0 4px 8px -2px rgb(16 24 40 / 0.1), 0 2px 4px -2px rgb(16 24 40 / 0.06);
+  --shadow-lg: 0 12px 16px -4px rgb(16 24 40 / 0.08), 0 4px 6px -2px rgb(16 24 40 / 0.03);
+  --shadow-2xl: 0 24px 48px -12px rgb(16 24 40 / 0.18);
+  --shadow-toast: 0 8px 24px -4px rgb(16 24 40 / 0.14);
+}
+
+/* ==========================================================================
+   Role tokens. Components reference THESE, never a raw ramp step, so the
+   dark theme is a single re-declaration rather than a sweep of dark: classes.
+   ========================================================================== */
+
+:root {
+  --color-canvas: var(--color-ui-25);
+  --color-surface: #ffffff;
+  --color-surface-raised: #ffffff;
+  --color-surface-sunken: var(--color-ui-50);
+  --color-surface-hover: var(--color-ui-25);
+
+  --color-border: var(--color-ui-100);
+  --color-border-strong: var(--color-ui-200);
+  --color-border-interactive: var(--color-ui-300);
+
+  --color-text: var(--color-ui-900);
+  --color-text-secondary: var(--color-ui-600);
+  --color-text-muted: var(--color-ui-500);
+  --color-text-label: var(--color-ui-700);
+  --color-text-disabled: var(--color-ui-400);
+
+  --color-accent: var(--color-primary-500);
+  --color-accent-hover: var(--color-primary-600);
+  --color-accent-wash: var(--color-primary-25);
+  --color-accent-subtle: var(--color-primary-100);
+  --color-on-accent: #ffffff;
+  --color-on-danger: #ffffff;
+  --color-on-warning: #16161d;
+
+  /* Semantic ink on a NEUTRAL surface — error text, negative money, deltas. */
+  --color-danger-text: var(--color-danger-600);
+  --color-success-text: var(--color-success-700);
+  --color-warning-text: var(--color-warning-700);
+  --color-info-text: var(--color-info-700);
+
+  /* Semantic TINTS — badge, chip and alert fills, with the ink and hairline
+     that belong on them. These are a separate triple from `*-text` above: the
+     ink that reads on a pale green chip is not the ink that reads on white,
+     and in dark mode the chip itself has to darken. Always use them together:
+     `bg-success-fill text-success-ink border-success-line`. */
+  --color-success-fill: var(--color-success-25);
+  --color-success-ink: var(--color-success-700);
+  --color-success-line: var(--color-success-100);
+
+  --color-warning-fill: var(--color-warning-25);
+  --color-warning-ink: var(--color-warning-700);
+  --color-warning-line: var(--color-warning-100);
+
+  --color-danger-fill: var(--color-danger-25);
+  --color-danger-ink: var(--color-danger-700);
+  --color-danger-line: var(--color-danger-100);
+
+  --color-info-fill: var(--color-info-25);
+  --color-info-ink: var(--color-info-700);
+  --color-info-line: var(--color-info-100);
+
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --color-canvas: #15181d;
+  --color-surface: #1a1d23;
+  --color-surface-raised: #21252c;
+  --color-surface-sunken: #12151a;
+  --color-surface-hover: #21252c;
+
+  --color-border: #262a31;
+  --color-border-strong: #2f333b;
+  --color-border-interactive: #3a3f48;
+
+  --color-text: #f2f4f7;
+  --color-text-secondary: #b6bdc9;
+  --color-text-muted: #98a2b3;
+  --color-text-label: #d0d5dd;
+  --color-text-disabled: #7d8595;
+
+  --color-accent: #b388ff;
+  --color-accent-hover: #c4a3ff;
+  --color-accent-wash: #191526;
+  --color-accent-subtle: #241d3d;
+  --color-on-accent: #2a0055;
+
+  /* The brand book's rule — "the dark theme lightens the purple and the ink
+     has to darken with it" — applies to the accent, whose fill inverts. The
+     danger and warning fills are fixed ramp steps that do NOT lighten, so
+     their ink must stay light. The source token set set `on-danger` to
+     #3a0a10 here, which put near-black ink on #b42318 at roughly 1.4:1. */
+  --color-on-danger: #ffffff;
+  --color-on-warning: #16161d;
+
+  --color-danger-text: #fda29b;
+  --color-success-text: #75e0a7;
+  --color-warning-text: #fec84b;
+  --color-info-text: #a4bcfd;
+
+  --color-success-fill: #0e2b1a;
+  --color-success-ink: #75e0a7;
+  --color-success-line: #17442a;
+
+  --color-warning-fill: #2a2110;
+  --color-warning-ink: #fec84b;
+  --color-warning-line: #4a3a10;
+
+  --color-danger-fill: #2e1414;
+  --color-danger-ink: #fda29b;
+  --color-danger-line: #4a1f1b;
+
+  --color-info-fill: #1a1f3d;
+  --color-info-ink: #a4bcfd;
+  --color-info-line: #2a3160;
+
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-canvas: var(--color-canvas);
+  --color-surface: var(--color-surface);
+  --color-surface-raised: var(--color-surface-raised);
+  --color-surface-sunken: var(--color-surface-sunken);
+  --color-surface-hover: var(--color-surface-hover);
+  --color-border: var(--color-border);
+  --color-border-strong: var(--color-border-strong);
+  --color-border-interactive: var(--color-border-interactive);
+  --color-text: var(--color-text);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-muted: var(--color-text-muted);
+  --color-text-label: var(--color-text-label);
+  --color-text-disabled: var(--color-text-disabled);
+  --color-accent: var(--color-accent);
+  --color-accent-hover: var(--color-accent-hover);
+  --color-accent-wash: var(--color-accent-wash);
+  --color-accent-subtle: var(--color-accent-subtle);
+  --color-on-accent: var(--color-on-accent);
+  --color-on-danger: var(--color-on-danger);
+  --color-on-warning: var(--color-on-warning);
+  --color-danger-text: var(--color-danger-text);
+  --color-success-text: var(--color-success-text);
+  --color-warning-text: var(--color-warning-text);
+  --color-info-text: var(--color-info-text);
+  --color-success-fill: var(--color-success-fill);
+  --color-success-ink: var(--color-success-ink);
+  --color-success-line: var(--color-success-line);
+  --color-warning-fill: var(--color-warning-fill);
+  --color-warning-ink: var(--color-warning-ink);
+  --color-warning-line: var(--color-warning-line);
+  --color-danger-fill: var(--color-danger-fill);
+  --color-danger-ink: var(--color-danger-ink);
+  --color-danger-line: var(--color-danger-line);
+  --color-info-fill: var(--color-info-fill);
+  --color-info-ink: var(--color-info-ink);
+  --color-info-line: var(--color-info-line);
+}
+
+/* ==========================================================================
+   Base
+   ========================================================================== */
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  /* The app is a fixed-viewport shell, not a scrolling document: the sidebar
+     and topbar stay put, and only the content well (`<main>`) scrolls. That
+     only holds if `html`/`body`/`#root` all actually equal the viewport
+     height — left at their default `height: auto`, they size to whatever
+     their tallest descendant wants to be, and the *page* grows past 100vh
+     even though every internal flex box is behaving. */
+  html, body, #root {
+    height: 100%;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    font-feature-settings: "tnum" 0;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 20px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Numerals line up in tables and money columns. */
+  table, .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* No `border-radius` here — it would override the element's own radius and
+     square off every focused card, button and input. The outline follows
+     whatever radius the element already has. */
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-border-interactive);
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover { background-color: var(--color-ui-400); background-clip: content-box; }
+}
+
+@layer utilities {
+  /* Type scale from the brand book. Weight signals hierarchy before size. */
+  .text-display-40 { font-size: 40px; line-height: 44px; font-weight: 600; letter-spacing: -0.4px; }
+  .text-display-32 { font-size: 32px; line-height: 38px; font-weight: 600; letter-spacing: -0.3px; }
+  .text-heading-24 { font-size: 24px; line-height: 32px; font-weight: 700; letter-spacing: -0.2px; }
+  .text-heading-20 { font-size: 20px; line-height: 28px; font-weight: 700; letter-spacing: -0.1px; }
+  .text-heading-18 { font-size: 18px; line-height: 26px; font-weight: 600; }
+  .text-body-15   { font-size: 15px; line-height: 22px; }
+  .text-body-14   { font-size: 14px; line-height: 20px; }
+  .text-body-13   { font-size: 13px; line-height: 18px; }
+  .text-body-12   { font-size: 12px; line-height: 16px; }
+  .text-label-11  { font-size: 11px; line-height: 14px; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase; }
+  .text-label-10  { font-size: 10px; line-height: 13px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; }
+
+  .animate-in { animation: fade-in 140ms ease-out; }
+  .animate-slide-up { animation: slide-up 180ms cubic-bezier(0.16, 1, 0.3, 1); }
+  .animate-scale-in { animation: scale-in 140ms cubic-bezier(0.16, 1, 0.3, 1); }
+}
+
+@keyframes fade-in { from { opacity: 0 } to { opacity: 1 } }
+@keyframes slide-up { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: none } }
+@keyframes scale-in { from { opacity: 0; transform: scale(0.97) } to { opacity: 1; transform: none } }
+@keyframes shimmer { 100% { transform: translateX(100%) } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
