@@ -1,10 +1,3 @@
-/**
- * Demo controls — prototype scaffolding, and it should look like scaffolding.
- *
- * Everything here drives `demo` in the store, which the module-local
- * `useModuleData` hooks read. It is the only screen in the app that is not a
- * claim about the real product.
- */
 import { useState } from 'react'
 import toast from 'react-hot-toast'
 import { AlertTriangle, Clock, FlaskConical, Inbox, RotateCcw, Timer, Zap } from 'lucide-react'

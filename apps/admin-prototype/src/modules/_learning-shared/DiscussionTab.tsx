@@ -1,15 +1,3 @@
-/**
- * Cohort discussion — shared by the Tutor's `CohortScreen` and the Student's
- * `MyCourse`. Deliberately a flat, reverse-chronological post feed rather
- * than a threaded forum: nothing else in Cirvee OS has an adjacent
- * comment/thread model to build on, and a full forum is materially more
- * than "cohort discussion" needs to mean.
- *
- * This component only renders and collects input — every write goes through
- * a callback supplied by the caller, so `postToDiscussion`/`deleteDiscussionPost`
- * stay owned by each module's own `writes.ts`, the same one-writes-file-per-
- * module convention used everywhere else in this build.
- */
 import { useState } from 'react'
 import { Pin, Trash2 } from 'lucide-react'
 
@@ -28,7 +16,6 @@ export function DiscussionTab({
   currentPersonId: string | undefined
   onPost: (body: string) => void
   onDelete: (postId: string) => void
-  /** Only supplied by the Tutor's call site — a student cannot pin. */
   onPin?: (postId: string, pinned: boolean) => void
 }) {
   const [draft, setDraft] = useState('')

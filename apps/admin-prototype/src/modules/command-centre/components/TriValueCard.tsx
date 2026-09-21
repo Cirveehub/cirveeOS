@@ -1,12 +1,3 @@
-/**
- * The tri-value card the spec asks for — "Pending approvals · unresolved
- * tickets · attention flags", each segment its own link.
- *
- * `@/ui`'s `StatCard` holds one value, so this is built here. It borrows the
- * StatCard shell exactly (same radius, hairline, label scale) so the row does
- * not break. It belongs in `src/ui/` if a second module wants it.
- */
-
 import type { LucideIcon } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
@@ -17,7 +8,6 @@ export interface TriValueSegment {
   label: string
   value: number
   to: string
-  /** Rising is bad on all three of these, so a non-zero value is never "good". */
   tone?: 'neutral' | 'warning' | 'danger'
 }
 

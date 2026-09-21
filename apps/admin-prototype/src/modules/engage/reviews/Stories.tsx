@@ -1,11 +1,3 @@
-/**
- * The proof queue.
- *
- * Each asset is drafted automatically off a real event — a certificate issued,
- * a placement confirmed — and the source event is visible on every row, per the
- * spec. Nothing leaves the queue without consent: an asset whose subject has
- * not agreed sits in the queue rather than quietly going out.
- */
 import { useMemo, useState } from 'react'
 import { ExternalLink, Image, ShieldAlert, Wand2 } from 'lucide-react'
 
@@ -39,12 +31,9 @@ import {
   CONSENT_LABEL,
   CONSENT_TONE,
   ErrorPanel,
-  ModuleHeader,
-  PROOF_STATUS_LABEL,
-  PROOF_STATUS_TONE,
-  PROOF_TYPE_LABEL,
-  REVIEW_COMPLIANCE_NOTE,
-  Screen,
+  STORY_STATUS_LABEL,
+  STORY_STATUS_TONE,
+  STORY_TYPE_LABEL,
   useModuleData,
   usePersonName,
   useUserName,
@@ -60,7 +49,7 @@ const STATUSES: ProofAsset['status'][] = [
   'discarded',
 ]
 
-export default function ProofQueue() {
+export default function Stories() {
   const allAssets = useCollection(proofAssetsCollection)
   const { loading, error, rows: assets, retry } = useModuleData(allAssets, 'reputation.proof')
 
@@ -103,7 +92,7 @@ export default function ProofQueue() {
           personName(asset.subjectPersonId).toLowerCase().includes(term) ||
           asset.sourceEventRef.toLowerCase().includes(term) ||
           asset.sourceEventType.toLowerCase().includes(term) ||
-          PROOF_TYPE_LABEL[asset.type].toLowerCase().includes(term) ||
+          STORY_TYPE_LABEL[asset.type].toLowerCase().includes(term) ||
           (asset.channel ?? '').toLowerCase().includes(term)
         )
       })
@@ -119,7 +108,7 @@ export default function ProofQueue() {
   const columns: Array<Column<ProofAsset>> = [
     {
       key: 'subject',
-      header: 'Subject',
+      header: 'Who',
       pinned: true,
       minWidth: 200,
       accessor: (row) => personName(row.subjectPersonId),
@@ -128,19 +117,19 @@ export default function ProofQueue() {
     },
     {
       key: 'type',
-      header: 'Type',
+      header: 'Story',
       width: 180,
       cell: (row) => (
         <Badge tone="accent" size="sm">
-          {PROOF_TYPE_LABEL[row.type]}
+          {STORY_TYPE_LABEL[row.type]}
         </Badge>
       ),
-      sortValue: (row) => PROOF_TYPE_LABEL[row.type],
+      sortValue: (row) => STORY_TYPE_LABEL[row.type],
       sortable: true,
     },
     {
       key: 'source',
-      header: 'Source event',
+      header: 'What happened',
       minWidth: 260,
       cell: (row) => (
         <span className="min-w-0">
@@ -166,14 +155,14 @@ export default function ProofQueue() {
     },
     {
       key: 'assignee',
-      header: 'Assignee',
+      header: 'Who is making it',
       minWidth: 180,
       cell: (row) =>
         row.assigneeUserId ? (
           <span>{userName(row.assigneeUserId)}</span>
         ) : (
           <Badge tone="warning" size="sm">
-            Unassigned
+            Nobody yet
           </Badge>
         ),
       sortValue: (row) => (row.assigneeUserId ? userName(row.assigneeUserId) : ''),
@@ -184,11 +173,11 @@ export default function ProofQueue() {
       header: 'Status',
       width: 150,
       cell: (row) => (
-        <Badge tone={PROOF_STATUS_TONE[row.status]} size="sm">
-          {PROOF_STATUS_LABEL[row.status]}
+        <Badge tone={STORY_STATUS_TONE[row.status]} size="sm">
+          {STORY_STATUS_LABEL[row.status]}
         </Badge>
       ),
-      sortValue: (row) => PROOF_STATUS_LABEL[row.status],
+      sortValue: (row) => STORY_STATUS_LABEL[row.status],
       sortable: true,
     },
     {
@@ -235,7 +224,7 @@ export default function ProofQueue() {
     },
     {
       key: 'review',
-      header: 'Review',
+      header: '',
       width: 130,
       cell: (row) => (
         <Button
@@ -253,12 +242,7 @@ export default function ProofQueue() {
   ]
 
   return (
-    <Screen>
-      <ModuleHeader
-        title="Proof queue"
-        description="Assets drafted automatically off real events, each one naming the event it came from."
-      />
-
+    <>
       {notice && (
         <Alert tone="success" className="mb-4" onDismiss={() => setNotice(null)}>
           {notice}
@@ -266,23 +250,23 @@ export default function ProofQueue() {
       )}
 
       {error ? (
-        <ErrorPanel onRetry={retry} what="The proof queue" />
+        <ErrorPanel onRetry={retry} what="Stories" />
       ) : (
         <>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <StatCard
-              label="Drafted"
+              label="To make"
               value={formatNumber(figures.drafted)}
               icon={Wand2}
               variant={figures.drafted > 0 ? 'warning' : 'default'}
-              caption={`${formatNumber(figures.unassigned)} of them have no assignee`}
+              caption={`${formatNumber(figures.unassigned)} with nobody on them yet`}
               loading={loading}
             />
             <StatCard
-              label="In production"
+              label="Being made"
               value={formatNumber(figures.inProduction)}
               icon={Image}
-              caption="Being made right now"
+              caption="Someone is on it"
               loading={loading}
             />
             <StatCard
@@ -302,34 +286,28 @@ export default function ProofQueue() {
             />
           </div>
 
-          <Alert className="mt-6" tone="info" icon={Wand2} title="The queue fills itself">
-            A certificate being issued or a placement being confirmed drafts an asset within seconds,
-            which is why the drafted column reads as a backlog rather than a to-do list. Nothing is
-            published without consent from the person it is about, whatever state the asset is in.
-          </Alert>
-
           <Card className="mt-6">
             <CardBody padding="none">
               <TableToolbar>
                 <FilterBar
                   search={search}
                   onSearchChange={setSearch}
-                  searchPlaceholder="Search by subject, source event or channel"
+                  searchPlaceholder="Search by person, what happened or channel"
                   values={filters}
                   onFilterChange={(key, value) => setFilters((prev) => ({ ...prev, [key]: value }))}
                   onClearAll={clear}
                   filters={[
                     {
                       key: 'type',
-                      label: 'Type',
-                      options: TYPES.map((type) => ({ value: type, label: PROOF_TYPE_LABEL[type] })),
+                      label: 'Story',
+                      options: TYPES.map((type) => ({ value: type, label: STORY_TYPE_LABEL[type] })),
                     },
                     {
                       key: 'status',
                       label: 'Status',
                       options: STATUSES.map((status) => ({
                         value: status,
-                        label: PROOF_STATUS_LABEL[status],
+                        label: STORY_STATUS_LABEL[status],
                       })),
                     },
                     {
@@ -342,10 +320,10 @@ export default function ProofQueue() {
                     },
                     {
                       key: 'assignment',
-                      label: 'Assignment',
+                      label: 'Maker',
                       options: [
-                        { value: 'assigned', label: 'Assigned' },
-                        { value: 'unassigned', label: 'Unassigned' },
+                        { value: 'assigned', label: 'Someone is on it' },
+                        { value: 'unassigned', label: 'Nobody yet' },
                       ],
                     },
                   ]}
@@ -362,13 +340,13 @@ export default function ProofQueue() {
                 density="compact"
                 minWidth={2330}
                 bordered={false}
-                caption="Proof assets with type, the source event that drafted them, drafted date, assignee, status, channel, published link and consent status"
+                caption="Stories to make, what happened to prompt each one, who is making it, status, channel, published link and consent"
                 empty={
                   filtered ? (
                     <EmptyState
                       variant="search"
-                      title="No assets match these filters"
-                      message="Try another type, status or consent state, or clear the search."
+                      title="No stories match these filters"
+                      message="Try another story type, status or consent state, or clear the search."
                       action={
                         <Button size="sm" variant="secondary" onClick={clear}>
                           Clear filters
@@ -378,8 +356,8 @@ export default function ProofQueue() {
                   ) : (
                     <EmptyState
                       icon={Image}
-                      title="Nothing in the proof queue"
-                      message="Assets are drafted automatically when a certificate is issued or a placement is confirmed. An empty queue means no such event has happened, not that the engine is off."
+                      title="No stories to make"
+                      message="A story is drafted automatically when a certificate is issued or a placement is confirmed. Nothing has happened yet that is worth telling."
                     />
                   )
                 }
@@ -388,7 +366,7 @@ export default function ProofQueue() {
               {rows.length > 0 && (
                 <div className="border-t border-border px-4 py-3">
                   <p className="text-body-12 text-text-secondary">
-                    {formatNumber(rows.length)} {rows.length === 1 ? 'asset' : 'assets'} · oldest draft{' '}
+                    {formatNumber(rows.length)} {rows.length === 1 ? 'story' : 'stories'} · oldest{' '}
                     {formatDate(rows[rows.length - 1].draftedAt)}
                   </p>
                 </div>
@@ -406,21 +384,12 @@ export default function ProofQueue() {
           setNotice(message)
         }}
       />
-    </Screen>
+    </>
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Review and approve an asset                                                */
-/* -------------------------------------------------------------------------- */
-
 const CHANNEL_OPTIONS = ['Instagram', 'LinkedIn', 'WhatsApp status', 'Campus signage', 'Website']
 
-/**
- * Approval is the gate. Consent is checked in `writes.ts` as well as here, so
- * an asset whose subject has not agreed cannot be approved even if this UI
- * were bypassed.
- */
 function ReviewAssetModal({
   asset,
   onClose,
@@ -440,7 +409,7 @@ function ReviewAssetModal({
   const [discarding, setDiscarding] = useState(false)
   const [touched, setTouched] = useState(false)
 
-  if (!asset) return <Modal open={false} onClose={onClose} title="Proof asset" />
+  if (!asset) return <Modal open={false} onClose={onClose} title="Story" />
 
   const effectiveChannel = channel || asset.channel || ''
   const effectiveAssignee = assigneeUserId || (asset.assigneeUserId as string | null) || ''
@@ -469,7 +438,7 @@ function ReviewAssetModal({
     setTouched(true)
     if (!effectiveAssignee) return
     startProofProduction(asset, effectiveAssignee as UserId)
-    onDone(`${asset.sourceEventRef} moved into production with ${userName(effectiveAssignee)}.`)
+    onDone(`${asset.sourceEventRef} is now being made by ${userName(effectiveAssignee)}.`)
     reset()
   }
 
@@ -477,7 +446,7 @@ function ReviewAssetModal({
     setTouched(true)
     if (discardReason.trim().length < 5) return
     discardProofAsset(asset, discardReason.trim())
-    onDone(`${asset.sourceEventRef} discarded. The row stays on the queue with the reason.`)
+    onDone(`${asset.sourceEventRef} discarded. The row stays on the list with the reason.`)
     reset()
   }
 
@@ -486,7 +455,7 @@ function ReviewAssetModal({
       open
       onClose={onClose}
       size="lg"
-      title={`${PROOF_TYPE_LABEL[asset.type]} — ${personName(asset.subjectPersonId)}`}
+      title={`${STORY_TYPE_LABEL[asset.type]} — ${personName(asset.subjectPersonId)}`}
       description={`Drafted automatically from ${asset.sourceEventType} ${asset.sourceEventRef} on ${formatDateTime(asset.draftedAt)}.`}
       footer={
         <>
@@ -495,7 +464,7 @@ function ReviewAssetModal({
           </Button>
           {asset.status === 'drafted' && (
             <Button variant="secondary" onClick={produce}>
-              Move to production
+              Start making it
             </Button>
           )}
           {!discarding && asset.status !== 'discarded' && asset.status !== 'published' && (
@@ -517,11 +486,11 @@ function ReviewAssetModal({
     >
       <div className="flex flex-col gap-4">
         <KeyValueList columns={2}>
-          <KeyValue label="Subject">{personName(asset.subjectPersonId)}</KeyValue>
-          <KeyValue label="Type">{PROOF_TYPE_LABEL[asset.type]}</KeyValue>
+          <KeyValue label="Who">{personName(asset.subjectPersonId)}</KeyValue>
+          <KeyValue label="Story">{STORY_TYPE_LABEL[asset.type]}</KeyValue>
           <KeyValue label="Status">
-            <Badge tone={PROOF_STATUS_TONE[asset.status]} size="sm">
-              {PROOF_STATUS_LABEL[asset.status]}
+            <Badge tone={STORY_STATUS_TONE[asset.status]} size="sm">
+              {STORY_STATUS_LABEL[asset.status]}
             </Badge>
           </KeyValue>
           <KeyValue label="Consent">
@@ -529,11 +498,11 @@ function ReviewAssetModal({
               {CONSENT_LABEL[asset.consentStatus]}
             </Badge>
           </KeyValue>
-          <KeyValue label="Source event">
-            <span className="font-mono text-body-12">{asset.sourceEventRef}</span>
+          <KeyValue label="What happened">
+            {asset.sourceEventType} <span className="font-mono text-body-12">{asset.sourceEventRef}</span>
           </KeyValue>
-          <KeyValue label="Assignee">
-            {asset.assigneeUserId ? userName(asset.assigneeUserId) : 'Unassigned'}
+          <KeyValue label="Who is making it">
+            {asset.assigneeUserId ? userName(asset.assigneeUserId) : 'Nobody yet'}
           </KeyValue>
         </KeyValueList>
 
@@ -543,19 +512,18 @@ function ReviewAssetModal({
             icon={ShieldAlert}
             title={
               asset.consentStatus === 'declined'
-                ? 'The subject declined. This asset can never be published.'
+                ? 'They declined. This story can never be published.'
                 : 'Consent is still pending'
             }
           >
-            Approval is blocked until the person it is about agrees. Ask them directly — a proof asset is
-            about someone, and using it without consent is not a process problem, it is a trust one.
+            Approval is blocked until the person it is about agrees. Ask them directly.
           </Alert>
         )}
 
         {asset.status === 'approved' && (
           <Alert tone="success" title="Already approved">
-            This asset is cleared for {asset.channel ?? 'its chosen channel'}. Publishing happens outside
-            the prototype; the link comes back onto the row.
+            This story is cleared for {asset.channel ?? 'its chosen channel'}. Once it is posted, the link comes
+            back onto the row.
           </Alert>
         )}
 
@@ -593,15 +561,14 @@ function ReviewAssetModal({
                 />
               </Field>
             )}
-            <Field label="Assignee" optional hint="Who is making it. Required before it can move into production.">
+            <Field label="Who is making it" optional hint="Required before it can move to Being made.">
               <Select
                 value={effectiveAssignee}
-                placeholder="Unassigned"
+                placeholder="Nobody yet"
                 options={users.map((u) => ({ value: u.id as string, label: userName(u.id) }))}
                 onChange={(e) => setAssigneeUserId(e.target.value)}
               />
             </Field>
-            <p className="text-body-12 text-text-secondary">{REVIEW_COMPLIANCE_NOTE}</p>
           </>
         )}
       </div>

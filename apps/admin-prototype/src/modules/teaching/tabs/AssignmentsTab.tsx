@@ -1,18 +1,3 @@
-/**
- * Assignments — the legacy `AssignmentTab`'s cohort-scoped view: one card,
- * four columns (assignment, submissions, due date, actions), one CTA in the
- * header. Overdue dates are red there and red here.
- *
- * Two things the legacy list could not say. **Scope**: in Cirvee OS an
- * assignment can be pinned to this cohort or published course-wide, and most
- * seeded ones are course-wide — a tutor needs to know which is which before
- * editing anything. **Marked**: the submission count is split into what has
- * arrived and what is still waiting, because "12 submissions" tells a tutor
- * nothing about their evening.
- *
- * There is no delete. The legacy tab had one; nothing in Cirvee OS is hard
- * deleted, and removing an assignment would orphan every submission against it.
- */
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { ClipboardList, Plus } from 'lucide-react'

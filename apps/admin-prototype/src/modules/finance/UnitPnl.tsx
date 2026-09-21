@@ -1,9 +1,8 @@
 import { useMemo, useState } from 'react'
-import { Download, Info } from 'lucide-react'
+import { Download } from 'lucide-react'
 
 import { formatDelta, formatNaira, formatNumber, formatPercent } from '@/lib/format'
 import {
-  Alert,
   Button,
   Card,
   CardBody,
@@ -34,10 +33,6 @@ import type { DateRange } from '@/mocks'
 
 import { CompositionLegend, StackedCompositionBar, type CompositionSegment } from './charts'
 import { FINANCE_TABS, Page, ScreenError, StatGrid, unitKey, useModuleNav, useScreenState } from './shared'
-
-/* -------------------------------------------------------------------------- */
-/* Periods                                                                    */
-/* -------------------------------------------------------------------------- */
 
 function shift(iso: string, days: number): string {
   const d = new Date(`${iso}T00:00:00Z`)
@@ -101,10 +96,6 @@ function buildPeriods(): PeriodDef[] {
   ]
 }
 
-/* -------------------------------------------------------------------------- */
-/* Rows                                                                       */
-/* -------------------------------------------------------------------------- */
-
 interface PnlRow {
   unitId: string
   name: string
@@ -153,8 +144,6 @@ function buildRows(range: DateRange): PnlRow[] {
       name: unit.name,
       invoiced: unit.invoiced,
       collected: unit.collected,
-      // `unitPnl` folds marketing into direct cost. Pull it out so the two
-      // columns the spec names do not double-count against gross margin.
       directCost: unit.directCost - mkt,
       marketing: mkt,
       payroll: unit.payroll,
@@ -200,8 +189,6 @@ function DeltaCell({ value }: { value: number | null }) {
   return <span className={`text-body-13 font-semibold tabular-nums ${tone}`}>{formatDelta(value)}</span>
 }
 
-/* -------------------------------------------------------------------------- */
-
 export default function UnitPnl() {
   const state = useScreenState()
   const navigate = useModuleNav()
@@ -223,8 +210,6 @@ export default function UnitPnl() {
       previousRows: buildRows(period.previous),
       discounts: discountByUnit(period.range),
     }),
-    // Every collection this table reads is a dependency, so a payment matched
-    // on the reconciliation screen moves these numbers immediately.
     [period, invoices, payments, expenses, payrollItems, employees],
   )
 
@@ -549,10 +534,6 @@ export default function UnitPnl() {
             description="Recorded as a visible cost of winning the student, not quietly deducted from revenue."
           />
           <CardBody className="space-y-4">
-            <Alert tone="info" icon={Info} title="Why this is not in the margin table">
-              The invoiced column above is already net of discount. This panel keeps the amount given away visible, so a unit cannot
-              look efficient simply because it discounted heavily.
-            </Alert>
             {unitRows.map((row) => {
               const entry = discounts.get(row.unitId)
               const key = unitKey(row.unitId)

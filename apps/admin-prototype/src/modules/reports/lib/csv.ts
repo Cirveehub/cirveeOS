@@ -1,12 +1,3 @@
-/**
- * CSV export.
- *
- * "The single most-asked-for thing in an ops tool" (screen-spec §1.6), and
- * with no backend it is a blob built in the tab. Money is exported in naira
- * with two decimals rather than kobo, because the file is opened in a
- * spreadsheet by a person, not re-imported by a system.
- */
-
 export type CsvValue = string | number | null | undefined
 
 function escape(value: CsvValue): string {

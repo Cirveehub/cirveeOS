@@ -16,11 +16,6 @@ import Procurement from './Procurement'
 import Knowledge from './Knowledge'
 import { TemplateList, TemplateEditor } from './Templates'
 
-/**
- * Base is `/work`, not `/approvals` — the module covers tasks, documents,
- * assets and procurement as well as the approval engine, and its screens
- * were built against that path.
- */
 export default defineModule({
   id: 'approvals',
   label: 'Work & approvals',

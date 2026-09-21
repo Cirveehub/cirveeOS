@@ -1,21 +1,3 @@
-/**
- * The approval engine.
- *
- * One code path serves expense, refund, discount, leave, hire, salary change,
- * procurement, contract signature and commission dispute. Nothing here branches
- * on type except the downstream execution at the end, and even that is a table
- * rather than a fork in the decision logic.
- *
- * Three rules this file exists to enforce:
- *
- *  - The route comes from `resolveApprovalRoute`, which reads the configured
- *    bands. No threshold is typed here.
- *  - `canDecide` gates every decision. An approver's own request is refused at
- *    the call, not merely hidden in the UI.
- *  - Corrections are new records. A refund inserts a credit note and a reversal
- *    commission; it never edits the invoice lines or the original commission.
- */
-
 import {
   approvalRequestsCollection,
   auditEventsCollection,
@@ -68,10 +50,6 @@ import { NOW_ISO, personName, userName, userRoleName } from './shared'
 import { commissionReversalPreview } from './impact'
 
 const IP = '102.89.34.17'
-
-/* -------------------------------------------------------------------------- */
-/* Audit and notification                                                     */
-/* -------------------------------------------------------------------------- */
 
 export function writeAudit(args: {
   actorUserId: UserId
@@ -138,10 +116,6 @@ function appendThread(request: ApprovalRequest, body: string, actorUserId: UserI
     thread: [...current.thread, { at: new Date().toISOString(), actorUserId, body, kind }],
   }))
 }
-
-/* -------------------------------------------------------------------------- */
-/* Raising                                                                    */
-/* -------------------------------------------------------------------------- */
 
 export interface RaiseInput {
   type: ApprovalType
@@ -242,17 +216,11 @@ export function raiseRequest(input: RaiseInput): ApprovalRequest {
   return request
 }
 
-/* -------------------------------------------------------------------------- */
-/* Deciding                                                                   */
-/* -------------------------------------------------------------------------- */
-
 export type DecisionOutcome = 'approve' | 'reject' | 'return'
 
 export interface DecisionResult {
   ok: boolean
-  /** Why it was refused. Shown, never swallowed. */
   reason: string | null
-  /** Plain-English summary of what the approval executed downstream. */
   executed: string[]
   status: ApprovalRequest['status'] | null
   stepsCompleted: number
@@ -277,7 +245,6 @@ export function decide(
   const request = approvalRequestsCollection.find(requestId)
   if (!request) return REFUSED('That request no longer exists.')
 
-  // The gate. Self-approval is refused here, not hidden in the view.
   const gate = canDecide(request, actorUserId)
   if (!gate.allowed) return REFUSED(gate.reason ?? 'You cannot decide this request.')
 
@@ -371,7 +338,6 @@ export function decide(
     }
   }
 
-  // Approve.
   const isFinalStep = index >= steps.length - 1
   if (!isFinalStep) {
     const next = steps[index + 1]
@@ -454,10 +420,6 @@ export function decide(
   return { ok: true, reason: null, executed, status: 'approved', stepsCompleted: steps.length, stepsTotal: steps.length }
 }
 
-/* -------------------------------------------------------------------------- */
-/* Downstream execution — corrections are new records                         */
-/* -------------------------------------------------------------------------- */
-
 function executeDownstream(request: ApprovalRequest, actorUserId: UserId): string[] {
   switch (request.type) {
     case 'refund':
@@ -473,14 +435,6 @@ function executeDownstream(request: ApprovalRequest, actorUserId: UserId): strin
   }
 }
 
-/**
- * The one place a leave decision actually reaches `LeaveRequest` — called on
- * approval from `executeDownstream` and directly from the reject branch
- * above, since `executeDownstream` only ever runs on the final approve.
- * `balanceAfter` was already computed when the request was raised
- * (`RequestLeaveModal.submit`); approval is what finally applies it, rather
- * than deducting a balance nobody has decided to grant yet.
- */
 function applyLeaveDecision(
   request: ApprovalRequest,
   status: Extract<LeaveRequest['status'], 'approved' | 'rejected'>,
@@ -537,7 +491,6 @@ function executeRefund(request: ApprovalRequest, actorUserId: UserId): string[] 
 
   if (!invoice) return done
 
-  // 1 — the refund itself. Reuse the seeded record when the request came from one.
   const existing = refundsCollection.all().find((r) => r.approvalRequestId === request.id)
   const affected = commissionReversalPreview(invoice.id as string, amount)
 
@@ -584,7 +537,6 @@ function executeRefund(request: ApprovalRequest, actorUserId: UserId): string[] 
     after: 'Approved',
   })
 
-  // 2 — the credit note. The invoice lines are never edited.
   const creditNote: CreditNote = {
     id: asCreditNoteId(`cn-${Math.random().toString(36).slice(2, 10)}`),
     ref: nextId('CN', 30),
@@ -617,7 +569,6 @@ function executeRefund(request: ApprovalRequest, actorUserId: UserId): string[] 
     after: 'Refunded',
   })
 
-  // 3 — commission reversals. New rows. The originals are untouched.
   for (const reversal of affected) {
     const original = commissionsCollection.find(reversal.commissionId)
     if (!original) continue
@@ -719,10 +670,6 @@ function executeCommissionApproval(request: ApprovalRequest, actorUserId: UserId
   return rows.length ? [`${rows.length} commission${rows.length === 1 ? '' : 's'} moved from Earned to Approved`] : []
 }
 
-/* -------------------------------------------------------------------------- */
-/* Requester-side actions                                                     */
-/* -------------------------------------------------------------------------- */
-
 export function addComment(requestId: string, actorUserId: UserId, body: string): boolean {
   const request = approvalRequestsCollection.find(requestId)
   if (!request || body.trim().length === 0) return false
@@ -740,7 +687,6 @@ export function addComment(requestId: string, actorUserId: UserId, body: string)
   return true
 }
 
-/** Sends a returned request back into the route at step 1, SLA clock resuming. */
 export function resubmit(requestId: string, actorUserId: UserId, note: string): DecisionResult {
   const request = approvalRequestsCollection.find(requestId)
   if (!request) return REFUSED('That request no longer exists.')
@@ -824,14 +770,6 @@ export function withdraw(requestId: string, actorUserId: UserId, reason: string)
   return { ok: true, reason: null, executed: [], status: 'withdrawn', stepsCompleted: 0, stepsTotal: request.steps.length }
 }
 
-/* -------------------------------------------------------------------------- */
-/* Keeping a pending request from becoming orphaned                           */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Reassigns the pending step to another approver. The route is unchanged — the
- * step keeps the threshold that put it there — only the holder moves.
- */
 export function reassign(requestId: string, actorUserId: UserId, toUserId: UserId, reason: string): DecisionResult {
   const request = approvalRequestsCollection.find(requestId)
   if (!request) return REFUSED('That request no longer exists.')
@@ -871,11 +809,6 @@ export function reassign(requestId: string, actorUserId: UserId, toUserId: UserI
   return { ok: true, reason: null, executed: [], status: 'pending', stepsCompleted: 0, stepsTotal: request.steps.length }
 }
 
-/**
- * The escalation policy, run by hand. In the real system a scheduler fires
- * this when `escalatesAt` passes; here the button proves that a pending
- * request is never left without a live approver.
- */
 export function escalate(requestId: string, actorUserId: UserId): DecisionResult {
   const request = approvalRequestsCollection.find(requestId)
   if (!request) return REFUSED('That request no longer exists.')
@@ -891,14 +824,6 @@ export function escalate(requestId: string, actorUserId: UserId): DecisionResult
   return reassign(requestId, actorUserId, request.escalatesToUserId, 'Escalated by policy — the step passed its escalation window.')
 }
 
-/* -------------------------------------------------------------------------- */
-/* Route resolution, for the wizard's live panel                              */
-/* -------------------------------------------------------------------------- */
-
-/**
- * The route in force for a type on a date, read from the collection rather
- * than from the seed snapshot.
- */
 export function routeInForce(type: ApprovalType, onDate: string = TODAY): ApprovalRoute | undefined {
   return approvalRoutesCollection
     .where((r) => r.type === type && r.effectiveFrom <= onDate && (r.effectiveTo === null || r.effectiveTo > onDate))
@@ -911,22 +836,11 @@ export function bandFor(route: ApprovalRoute | undefined, amount: Kobo | null): 
   return route.bands.find((b) => value >= b.fromAmount && (b.toAmount === null || value < b.toAmount)) ?? route.bands[0]
 }
 
-/** The one holder of a role. The prototype's org chart has exactly one each. */
 export function holderOfRole(roleId: string): UserId | null {
   const user = usersCollection.all().find((u) => u.roleIds.includes(roleId as never))
   return (user?.id as UserId) ?? null
 }
 
-/**
- * Resolve a set of configured bands to a concrete approver chain.
- *
- * `resolveApprovalRoute` is the published engine and stays the authority — it
- * is what `previewRoute` returns for an unedited route, and what the route
- * test harness quotes. This function exists for one reason: the route editor
- * has to be *editable*, and a screen that saves a new band without the route
- * moving would be a lie. So a route edited in this session resolves through
- * its own stored bands, and everything else defers to the store selector.
- */
 export function stepsFromBands(route: ApprovalRoute, amount: Kobo | null): ApprovalStep[] {
   const band = bandFor(route, amount)
   if (!band) return []
@@ -948,11 +862,6 @@ export function stepsFromBands(route: ApprovalRoute, amount: Kobo | null): Appro
     .filter((s): s is ApprovalStep => s !== null)
 }
 
-/**
- * What the route panel renders. Published routes resolve through the store's
- * own selector; a route republished in this session resolves through the bands
- * that were saved, so the configuration screen genuinely configures.
- */
 export function previewRoute(type: ApprovalType, amount: Kobo | null): ApprovalStep[] {
   const published = resolveApprovalRoute(type, (amount ?? 0) as Kobo)
   const configured = routeInForce(type)
@@ -961,7 +870,6 @@ export function previewRoute(type: ApprovalType, amount: Kobo | null): ApprovalS
   return fromConfig.length > 0 ? fromConfig : published
 }
 
-/** Route ids republished in this session. Keeps the store selector authoritative. */
 const editedRoutes = new Set<string>()
 
 export function markRouteEdited(routeId: string) {
@@ -972,7 +880,6 @@ export function isRouteEdited(routeId: string): boolean {
   return editedRoutes.has(routeId)
 }
 
-/** A one-line summary a reviewer can read out loud — the route test harness. */
 export function describeRoute(steps: ApprovalStep[]): string {
   if (steps.length === 0) return 'No route matches. Nothing would be approved.'
   return steps.map((s) => `${userName(s.approverUserId)} (${s.approverRole})`).join(' → ')

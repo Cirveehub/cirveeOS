@@ -1,15 +1,3 @@
-/**
- * My workspace — `/my-workspace`.
- *
- * The landing page for the half of every staff member that is simply an
- * employee. Deliberately short: four numbers and a list of things actually
- * waiting on this person. Everything else is one click away on its own page,
- * which is the point of the pages existing.
- *
- * "What needs you" is the only section that earns its space unconditionally —
- * if it is empty it says so, which is a useful thing to know at 9am.
- */
-
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import {

@@ -1,9 +1,3 @@
-/**
- * The graduate list — one row per outcome record, which means one row per
- * certificate issued. Nobody drops out of this list for not answering: the
- * consent and response columns say plainly who has been reached and who may
- * be quoted publicly.
- */
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { GraduationCap } from 'lucide-react'
@@ -52,11 +46,6 @@ import {
 
 const PAGE_SIZE = 25
 
-/**
- * Fourteen possible columns, seven shown. The default set answers "who is
- * this, where did they end up, and is anyone chasing them" — the certificate
- * reference, the exact dates and the channel history are opt-in.
- */
 const COLUMN_CATALOGUE: ColumnCatalogueEntry[] = [
   { key: 'name', label: 'Graduate', defaultVisible: true, locked: true },
   { key: 'course', label: 'Course', defaultVisible: true },
@@ -87,8 +76,6 @@ export default function Graduates() {
   const certificateRef = useCertificateRef()
 
   const [search, setSearch] = useState('')
-  /* Seeded from the query string, so ?outcome=not_yet_placed on a stat card
-     arrives here already filtered. */
   const initial = useQueryState()
   const [filters, setFilters] = useState<FilterValues>(() => ({
     outcome: initial.get('outcome'),

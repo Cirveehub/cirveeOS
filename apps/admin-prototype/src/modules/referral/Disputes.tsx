@@ -1,11 +1,3 @@
-/**
- * §3.8 — Commission disputes.
- *
- * Upholding a dispute does not edit the disputed commission. It creates an
- * adjustment record that carries the difference, and the original keeps its
- * amount and its history.
- */
-
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Gavel, MessageSquareWarning, ShieldQuestion } from 'lucide-react'
@@ -46,7 +38,7 @@ import type { Column, FilterValues, TimelineItem } from '@/ui'
 import { formatDate, formatDateTime, formatNaira, formatNumber, humanize } from '@/lib/format'
 
 import { BASIS_LABEL, STATE_LABEL, courseTitle, findRule, personName, userName } from './lib'
-import { LoadFailed, ModulePage, RoleBadge, RuleChip, Screen, StateBadge, useScreenState } from './parts'
+import { LoadFailed, ModulePage, RoleBadge, RuleChip, Screen, SimpleStateBadge, useScreenState } from './parts'
 
 const CATEGORIES: CommissionDispute['category'][] = [
   'wrong_beneficiary',
@@ -174,7 +166,6 @@ export default function Disputes() {
   return (
     <Screen>
       <ModulePage
-        tab="disputes"
         title="Disputes"
         description="Contested commission. Upholding one produces an adjustment record — the disputed commission is never rewritten."
         meta={
@@ -373,8 +364,6 @@ function DisputeDrawer({
       updatedBy: CURRENT_USER_ID,
     })
 
-    /* The commission leaves Disputed and returns to the state it was in, which
-       the state history still records. It is never edited in place. */
     const previous = commission.stateHistory.filter((h) => h.to !== 'disputed').at(-1)?.to ?? 'earned'
     commissionsCollection.update(commission.id, {
       state: previous,
@@ -429,7 +418,7 @@ function DisputeDrawer({
       <div className="flex flex-col gap-6">
         <div className="flex flex-wrap items-center gap-2">
           <StatusBadge status={dispute.status} size="md" />
-          {commission && <StateBadge state={commission.state} size="md" />}
+          {commission && <SimpleStateBadge commission={commission} size="md" />}
           {commission && <RoleBadge role={commission.roleOnDeal} size="md" />}
           <RuleChip rule={rule} onOpen={() => commission && onOpenCommission(commission.id)} />
         </div>

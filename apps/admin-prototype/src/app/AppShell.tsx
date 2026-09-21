@@ -17,18 +17,6 @@ import { signOut, useCan, useSession } from '@/auth'
 import { NAV_GROUPS, moduleInSidebar, modulePath } from './module-registry'
 import CommandPalette from './CommandPalette'
 
-/**
- * The application chrome: sidebar, topbar, and the content well.
- *
- * Navigation is derived entirely from the module registry — this file has no
- * knowledge of any individual module, which is what lets modules be built and
- * removed independently. It filters that list through `moduleInSidebar`, which
- * asks two questions: is this module offered to this persona at all, and does
- * their role hold what it asks for. This is what stops a student's sidebar
- * looking like a super admin's with some items missing — the whole point is
- * that it never had them.
- */
-
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
@@ -38,13 +26,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const session = useSession()
   const can = useCan()
 
-  // Re-filters whenever the signed-in role changes; `can` itself is a fresh
-  // closure every render, so the role id is the dependency that matters.
-  //
-  // The command palette filters the same way and the route guard enforces the
-  // same rule underneath, so what the sidebar offers, what search finds and
-  // what a typed URL reaches are one decision made in one place rather than
-  // three that drift.
   const visibleModules = useMemo(
     () => modules.filter((m) => moduleInSidebar(m, session?.persona.id, can)),
     [session?.role?.id, session?.persona.id],

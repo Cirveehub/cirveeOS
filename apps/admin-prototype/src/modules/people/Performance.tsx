@@ -1,13 +1,3 @@
-/**
- * Performance reviews — `/people/performance` (screen-spec §9).
- *
- * Modeled on `Scorecard`, the recruitment pipeline's own "someone rates
- * someone else against named criteria" shape — the same competency/score/note
- * triple, the same draft-vs-submitted-vs-final distinction. A review starts
- * as a private draft the reviewer can still edit, becomes visible to HR on
- * submit, and is closed out once the employee has acknowledged it.
- */
-
 import { useMemo, useState } from 'react'
 import { ClipboardCheck, Star } from 'lucide-react'
 

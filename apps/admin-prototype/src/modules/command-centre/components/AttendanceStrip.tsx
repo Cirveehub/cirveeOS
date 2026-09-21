@@ -1,12 +1,3 @@
-/**
- * A month of clock-ins as one strip.
- *
- * Colour alone never carries the state: every cell has an accessible name that
- * reads the date and the state, and the strip is followed by a legend in
- * words. The tinted cells use the `*-fill` / `*-ink` / `*-line` triple, which
- * is the set that inverts correctly in the dark theme.
- */
-
 import type { AttendanceEvent, AttendanceState } from '@/mocks'
 import { humanize } from '@/lib/format'
 import { cn } from '@/lib/cn'

@@ -1,12 +1,5 @@
-/**
- * Compensation.
- *
- * A pay change **appends a version and end-dates the previous one**. Nothing is
- * ever overwritten, which is why a payslip from two years ago can still be
- * explained by the figures that were in force on the day it was issued.
- */
 import { useMemo, useState } from 'react'
-import { History, Lock, Users } from 'lucide-react'
+import { Lock, Users } from 'lucide-react'
 
 import { formatDate, formatNaira, formatNumber } from '@/lib/format'
 import {
@@ -47,7 +40,6 @@ import {
   userName,
 } from './shared'
 
-/** The version in force today. Never the newest row — the newest may be future-dated. */
 function currentVersion(employee: Employee): CompensationVersion | null {
   const inForce = employee.compensationVersions.filter(
     (v) => v.effectiveFrom <= TODAY && (v.effectiveTo === null || v.effectiveTo >= TODAY),
@@ -59,7 +51,6 @@ function currentVersion(employee: Employee): CompensationVersion | null {
   )
 }
 
-/** A version dated ahead of today is an agreed change that has not taken effect. */
 function pendingVersion(employee: Employee): CompensationVersion | null {
   return (
     employee.compensationVersions
@@ -475,11 +466,6 @@ export default function Compensation() {
       >
         {open && (
           <div className="space-y-6">
-            <Alert tone="info" icon={History} title="Every row below is immutable">
-              A pay change appends a new version and end-dates the previous one. Nothing is overwritten, so a payslip from two
-              years ago can still be explained by the figures in force on the day it was issued.
-            </Alert>
-
             <KeyValueList columns={2}>
               <KeyValue label="Employee ID">
                 <span className="font-mono text-body-13">{open.employeeId}</span>

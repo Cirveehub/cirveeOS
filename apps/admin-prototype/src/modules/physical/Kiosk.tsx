@@ -1,16 +1,3 @@
-/**
- * §14 — the walk-in kiosk.
- *
- * The spec puts this at `/public/kiosk`, outside the shell. Only `src/app/App.tsx`
- * can mount a route outside a module base and this module does not own that
- * file, so the kiosk lives at `/physical/kiosk` and renders its own full-bleed,
- * chrome-free surface with large touch targets instead.
- *
- * The enquiry tile is the one that matters: it writes a real `Lead` with source
- * `walk_in_kiosk` straight into the CRM pipeline, reusing an existing `Person`
- * when the phone or email already matches somebody on file. The lead appears in
- * `/crm/leads` immediately, owned by whoever is carrying the lightest pipeline.
- */
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
@@ -157,10 +144,6 @@ export default function PhysicalKiosk() {
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* New enquiry — writes a real lead                                           */
-/* -------------------------------------------------------------------------- */
-
 function EnquiryForm({ onDone }: { onDone: () => void }) {
   const courses = useCollection(coursesCollection)
   const branches = useCollection(branchesCollection)
@@ -179,8 +162,6 @@ function EnquiryForm({ onDone }: { onDone: () => void }) {
 
   const effectiveBranchId = branchId || ((branches[0]?.id as string) ?? '')
 
-  /* The cheap version of the wizard's duplicate check: a phone or email that
-     already exists reuses that person rather than creating a second record. */
   const match = useMemo(() => findPersonByContact(phone, email), [phone, email, people])
 
   const firstError = touched && !firstName.trim() ? 'We need a name to call you back.' : undefined
@@ -368,10 +349,6 @@ function EnquiryForm({ onDone }: { onDone: () => void }) {
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Student check-in                                                           */
-/* -------------------------------------------------------------------------- */
-
 function CheckIn() {
   const [cardRef, setCardRef] = useState('')
   const [result, setResult] = useState<KioskTapResult | null>(null)
@@ -436,10 +413,6 @@ function CheckIn() {
     </Card>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* Visitor sign-in                                                            */
-/* -------------------------------------------------------------------------- */
 
 function VisitorSignIn({ onDone }: { onDone: () => void }) {
   const people = useCollection(peopleCollection)
@@ -540,15 +513,6 @@ function VisitorSignIn({ onDone }: { onDone: () => void }) {
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Leave a review                                                             */
-/* -------------------------------------------------------------------------- */
-
-/**
- * The tile exists because the spec calls for it, and it deliberately offers
- * nothing in return. Offering a reward, discount or incentive for a Google
- * review breaches Google's policy and risks the listing.
- */
 function LeaveAReview() {
   return (
     <Card>

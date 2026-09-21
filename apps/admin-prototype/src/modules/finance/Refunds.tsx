@@ -4,7 +4,6 @@ import { Undo2 } from 'lucide-react'
 
 import { formatDate, formatNaira } from '@/lib/format'
 import {
-  Alert,
   Button,
   Card,
   CardBody,
@@ -106,12 +105,6 @@ export default function Refunds() {
       />
 
       <ScreenError state={state} />
-
-      <Alert tone="info" title="Corrections are new records" className="mb-6">
-        Refunding a student leaves the original invoice and payment exactly as they were. The reversal of any commission earned on
-        that money is created as a separate commission row, so the referrer's history still adds up. A refund is raised from the
-        invoice it belongs to — open a row here to go straight to it.
-      </Alert>
 
       <Card>
         <CardBody padding="none">

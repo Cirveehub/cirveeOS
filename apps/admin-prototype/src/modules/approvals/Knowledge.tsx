@@ -1,28 +1,9 @@
-/**
- * §5.11 — the knowledge base.
- *
- * SOPs, HR policies, sales scripts and finance processes, in a two-pane shape:
- * the category tree on the left, the article list — or one article — on the
- * right. The route was never registered before this pass, so the screen and its
- * path are both new.
- *
- * The feature worth showing is the read receipt. An article that requires
- * acknowledgement names everyone who has read it and everyone who has not, and
- * acknowledging writes through the collection and emits an audit row — which is
- * the difference between "the policy was published" and "the policy was read".
- *
- * Audience is recorded per article and surfaced on every row. Enforcement is
- * deliberately not applied here: Super Admin sees everything by definition, and
- * the list says so rather than pretending to filter.
- */
-
 import { useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { ArrowLeft, BookOpen, CalendarClock, CheckCircle2, ShieldCheck, Users } from 'lucide-react'
+import { ArrowLeft, BookOpen, CalendarClock, CheckCircle2, ShieldCheck } from 'lucide-react'
 
 import {
-  Alert,
   Badge,
   Button,
   Card,
@@ -46,7 +27,6 @@ import { formatDate, formatDateTime, formatNumber } from '@/lib/format'
 import { writeAudit } from './engine'
 import { currentActingUser, userName, userRoleName, useScreenState } from './shared'
 
-/** Everyone sees an article addressed to all staff, whatever their role. */
 const UNIVERSAL_AUDIENCE = 'All staff'
 
 function readCount(article: KnowledgeArticle): number {
@@ -121,8 +101,6 @@ export default function Knowledge() {
         if (state === 'policies') return a.requiresAcknowledgement
         if (state === 'overdue') return reviewIsOverdue(a)
         if (state === 'unread') {
-          /* Not on the distribution counts as not acknowledged — the acting user
-             can still read and acknowledge, which adds them to the receipt. */
           return (
             a.requiresAcknowledgement &&
             !a.readReceipts.some((r) => r.userId === actor && r.readAt !== null)
@@ -347,15 +325,6 @@ export default function Knowledge() {
           ) : (
             <Card>
               <CardBody padding="none">
-                <div className="p-4">
-                  <Alert tone="info" title="Audience is recorded, not enforced here" icon={Users}>
-                    Every article names the audience it was written for, and the list marks the ones
-                    addressed to {actorRole || 'your role'}. Super Admin sees all of them by
-                    definition — the audience filter is what the real system applies per role, and it
-                    is shown here rather than silently hiding rows.
-                  </Alert>
-                </div>
-
                 <div className="px-4 pb-2">
                   <FilterBar
                     search={q}
@@ -442,10 +411,6 @@ export default function Knowledge() {
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Category rail                                                              */
-/* -------------------------------------------------------------------------- */
-
 function CategoryButton({
   label,
   count,
@@ -471,10 +436,6 @@ function CategoryButton({
     </button>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* One article                                                                */
-/* -------------------------------------------------------------------------- */
 
 function ArticleView({
   article,

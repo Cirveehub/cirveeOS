@@ -1,11 +1,3 @@
-/**
- * §14 — the physical layer dashboard.
- *
- * It used to open on ten stat cards and three chart panels. It now opens on
- * the four numbers the front desk acts on, with cards, traffic and access each
- * behind a tab. Each band computes only its own slice, and the tab lives in
- * the query string so a view is a link.
- */
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import {
@@ -49,10 +41,6 @@ import {
 } from '@/mocks'
 
 import { BarList, DashboardSkeleton, ErrorPanel, ModuleHeader, Screen, useModuleData, type BarRow } from './parts'
-
-/* -------------------------------------------------------------------------- */
-/* Bands                                                                      */
-/* -------------------------------------------------------------------------- */
 
 function headlineBand(cards: AccessCard[], readers: Reader[], taps: TapEvent[], visitors: Visitor[]) {
   const tapsToday = taps.filter((t) => t.at.slice(0, 10) === TODAY)
@@ -148,8 +136,6 @@ function accessBand(taps: TapEvent[]) {
   }
 }
 
-/* -------------------------------------------------------------------------- */
-
 export default function PhysicalDashboard() {
   const cards = useCollection(cardsCollection)
   const readers = useCollection(readersCollection)
@@ -200,13 +186,6 @@ export default function PhysicalDashboard() {
         />
       ) : (
         <div className="space-y-6">
-          <Alert tone="info" title="Access follows status, automatically">
-            Nobody remembers to revoke a card. An unpaid balance, a withdrawal or an exit changes the
-            person&apos;s status, and the access rule reads that status — so the card stops working without a
-            separate revocation step. Manual override is always available at the desk, and every override
-            is recorded with a reason and an actor.
-          </Alert>
-
           {buffering.length > 0 && (
             <Alert tone="warning" icon={WifiOff} title="Readers are buffering">
               {buffering.map((r) => `${r.readerId} holds ${formatNumber(r.bufferedEventCount)} events`).join('; ')}.

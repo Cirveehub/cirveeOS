@@ -1,20 +1,3 @@
-/**
- * Every write a tutor performs.
- *
- * Four of them, matching the four things the legacy `staff-portal` let a tutor
- * actually change: create an assignment, grade a submission, upload a material,
- * and take a register. The first three are written here against Cirvee OS's
- * real model; the fourth is **not re-implemented** — it is the audited write
- * Academy operations already owns, re-exported below, because the PRD's
- * attendance rule (an override carries a reason and emits an audit event with
- * the previous state beside the new one) must have exactly one implementation.
- *
- * FLAG — that re-export is the one cross-module import in this folder. The
- * right home for `recordAttendance` is `src/mocks/` or a shared writes module,
- * neither of which this module owns, so the import is funnelled through this
- * one file rather than scattered through the screens.
- */
-
 import {
   CURRENT_USER_ID,
   TODAY,
@@ -66,11 +49,6 @@ export {
   type AttendanceResult,
 } from '@/modules/academy/writes'
 
-/* -------------------------------------------------------------------------- */
-/* The clock and the audit trail                                              */
-/* -------------------------------------------------------------------------- */
-
-/** The seed's fixed date with the wall clock's time, so relative dates never rot. */
 export function nowIso(): string {
   const d = new Date()
   const pad = (n: number) => String(n).padStart(2, '0')
@@ -98,11 +76,9 @@ export interface AuditInput {
   before?: string | null
   after?: string | null
   source?: AuditSource
-  /** The acting tutor. Falls back to the seed's fixed user. */
   actorUserId?: UserId
 }
 
-/** Append-only. There is no update or delete path for an audit event. */
 export function emitAudit(input: AuditInput): AuditEvent {
   auditSequence += 1
   const actorUserId = input.actorUserId ?? CURRENT_USER_ID
@@ -127,16 +103,11 @@ export function emitAudit(input: AuditInput): AuditEvent {
   })
 }
 
-/* -------------------------------------------------------------------------- */
-/* The attendance policy                                                      */
-/* -------------------------------------------------------------------------- */
-
 export interface AttendancePolicy {
   version: number
   graceMinutes: number
   lateAfterMinutes: number
   absentAfterMinutes: number
-  /** Seeded false and stays false. Attendance is a teaching signal, not a bill. */
   financialConsequenceEnabled: boolean
   consequences: AttendanceConsequence[]
   disputeWindowDays: number
@@ -159,12 +130,6 @@ function readNumber(config: Record<string, unknown>, key: string, fallback: numb
   return typeof value === 'number' ? value : fallback
 }
 
-/**
- * The attendance policy version actually in force, read from
- * `policyVersionsCollection` rather than hard-coded. The grace period and the
- * late threshold shown on a register come from here, and so does the standing
- * statement that no consequence is financial (PRD §7's non-negotiable).
- */
 export function activeAttendancePolicy(): AttendancePolicy {
   const version = policyVersionsCollection
     .where((p) => p.kind === 'attendance' && p.status === 'active')
@@ -188,15 +153,9 @@ export function activeAttendancePolicy(): AttendancePolicy {
   }
 }
 
-/* -------------------------------------------------------------------------- */
-/* Assignments                                                                */
-/* -------------------------------------------------------------------------- */
-
 export interface NewAssignmentInput {
   courseId: CourseId
-  /** Null means course-wide; a tutor creating from the cohort hub sets it. */
   cohortId: CohortId | null
-  /** Required by the model — an assignment hangs off a lesson in the outline. */
   lessonId: LessonId
   title: string
   brief: string
@@ -206,20 +165,10 @@ export interface NewAssignmentInput {
   maxFileSizeMb: number
   latePolicy: Assignment['latePolicy']
   latePenaltyPercent: number | null
-  /** Optional brief attachment, named only — the prototype stores no files. */
   attachmentFileName?: string | null
   actorUserId?: UserId
 }
 
-/**
- * One assignment record.
- *
- * `rubric` is written empty on purpose. The legacy portal graded holistically
- * against a single "total marks" number and a feedback box, and reproducing a
- * rubric builder a tutor never had would be inventing work. The field stays on
- * the type, so a seeded assignment that *does* carry rubric rows still grades
- * per criterion — the grading modal branches on whether the rows exist.
- */
 export function createAssignment(input: NewAssignmentInput): Assignment {
   const actorUserId = input.actorUserId ?? CURRENT_USER_ID
   const at = nowIso()
@@ -242,8 +191,6 @@ export function createAssignment(input: NewAssignmentInput): Assignment {
     brief: input.brief.trim(),
     acceptedFormats: input.acceptedFormats.map((f) => f.trim().toLowerCase()).filter(Boolean),
     maxFileSizeMb: input.maxFileSizeMb,
-    // An explicit date was given, so the relative offset the course template
-    // would otherwise use does not apply to this one.
     dueOffsetDays: null,
     dueDate: input.dueDate,
     maxScore: input.maxScore,
@@ -256,9 +203,6 @@ export function createAssignment(input: NewAssignmentInput): Assignment {
     ...auditable(actorUserId, at),
   })
 
-  /* A lesson with no assignment on it now has one. A lesson that already
-     points at the course-wide assignment keeps that pointer — this cohort's
-     copy is an addition, not a replacement. */
   if (lesson.assignmentId === null) {
     lessonsCollection.update(lesson.id, {
       assignmentId: assignment.id,
@@ -284,18 +228,8 @@ export function createAssignment(input: NewAssignmentInput): Assignment {
   return assignment
 }
 
-/* -------------------------------------------------------------------------- */
-/* Grading                                                                    */
-/* -------------------------------------------------------------------------- */
-
-/** Below this share of the maximum, the work has not passed. */
 export const DEFAULT_PASS_PERCENT = 60
 
-/**
- * The pass mark a course actually publishes, falling back to the house line.
- * A course whose certificate requires a project at 70% grades its assignments
- * against 70, not against a constant buried in a component.
- */
 export function passPercentFor(courseId: string | null | undefined): number {
   const rules = courseId ? coursesCollection.find(courseId)?.certificateRules : undefined
   return rules?.projectMinimumGrade ?? rules?.finalAssessmentPassMark ?? DEFAULT_PASS_PERCENT
@@ -303,14 +237,10 @@ export function passPercentFor(courseId: string | null | undefined): number {
 
 export interface GradeInput {
   submissionId: SubmissionId
-  /** 0 … the assignment's `maxScore`. */
   totalScore: number
   feedback: string
-  /** Only when the assignment carries rubric rows. */
   rubricScores?: Array<{ criterion: string; score: number; comment: string }>
-  /** Undefined leaves whatever voice note the submission already carries untouched. */
   voiceNote?: Submission['voiceNote']
-  /** The tutor doing the marking. */
   graderPersonId: PersonId | null
   actorUserId?: UserId
 }
@@ -369,7 +299,6 @@ export interface ReturnForRevisionInput {
   actorUserId?: UserId
 }
 
-/** Handing work back is a state change with a stated reason, never a deletion. */
 export function returnForRevision(input: ReturnForRevisionInput): Submission {
   const actorUserId = input.actorUserId ?? CURRENT_USER_ID
   const reason = input.reason.trim()
@@ -399,10 +328,6 @@ export function returnForRevision(input: ReturnForRevisionInput): Submission {
   return updated ?? submission
 }
 
-/* -------------------------------------------------------------------------- */
-/* Materials                                                                  */
-/* -------------------------------------------------------------------------- */
-
 const EXTENSION: Record<ContentFormat, string> = {
   video: 'mp4',
   audio: 'm4a',
@@ -413,17 +338,12 @@ const EXTENSION: Record<ContentFormat, string> = {
 
 export interface UploadMaterialInput {
   courseId: CourseId
-  /** An existing lesson, or null to create one in `moduleId`. */
   lessonId: LessonId | null
-  /** Required when `lessonId` is null. */
   moduleId: CourseModuleId | null
-  /** Required when `lessonId` is null. */
   newLessonTitle?: string
   format: ContentFormat
-  /** A file name, or a URL the tutor pasted. One of the two. */
   fileName: string | null
   sourceUrl: string | null
-  /** Drives the seeded size and duration, exactly as the lesson editor does. */
   durationMinutes: number
   transcriptBody?: string
   actorUserId?: UserId
@@ -432,19 +352,9 @@ export interface UploadMaterialInput {
 export interface UploadMaterialResult {
   lesson: Lesson
   asset: ContentAsset
-  /** True when the lesson was created by this upload. */
   lessonCreated: boolean
 }
 
-/**
- * The legacy portal's "material" was a flat row with a title, a type and a
- * file. Cirvee OS's content model is Course → Module → Lesson → one
- * `ContentAsset` per `ContentFormat`, and the *absence* of a format is the
- * whole point of the coverage matrix — so an upload here lands on a real
- * lesson in a real module, in one of the five real formats, and the lesson's
- * `formats` map gains that key. Uploading twice into the same format replaces
- * the pointer and archives the superseded asset rather than deleting it.
- */
 export function uploadMaterial(input: UploadMaterialInput): UploadMaterialResult {
   const actorUserId = input.actorUserId ?? CURRENT_USER_ID
   const at = nowIso()
@@ -532,8 +442,6 @@ export function uploadMaterial(input: UploadMaterialInput): UploadMaterialResult
     asset.transcriptOrigin = 'human_reviewed'
   }
 
-  /* Nothing is hard-deleted: a format that already had an asset keeps its row,
-     archived with a reason, and the lesson points at the new one. */
   const superseded = lesson.formats[input.format]
   if (superseded) {
     contentAssetsCollection.update(superseded, {
@@ -570,10 +478,6 @@ export function uploadMaterial(input: UploadMaterialInput): UploadMaterialResult
   return { lesson: patchedLesson, asset, lessonCreated }
 }
 
-/* -------------------------------------------------------------------------- */
-/* Profile                                                                    */
-/* -------------------------------------------------------------------------- */
-
 export interface ProfileInput {
   personId: PersonId
   preferredName: string
@@ -583,7 +487,6 @@ export interface ProfileInput {
   actorUserId?: UserId
 }
 
-/** The legacy Settings page is a profile form and nothing else. So is this. */
 export function updateTutorProfile(input: ProfileInput): void {
   const actorUserId = input.actorUserId ?? CURRENT_USER_ID
   const at = nowIso()
@@ -611,10 +514,6 @@ export function updateTutorProfile(input: ProfileInput): void {
   })
 }
 
-/* -------------------------------------------------------------------------- */
-/* Cohort discussion                                                          */
-/* -------------------------------------------------------------------------- */
-
 export function postToDiscussion(
   cohortId: CohortId,
   authorPersonId: PersonId,
@@ -636,18 +535,12 @@ export function postToDiscussion(
   })
 }
 
-/** A tutor may only ever remove their own post — enforced by the caller passing their own id. */
 export function deleteDiscussionPost(postId: string): void {
   cohortDiscussionPostsCollection.remove(postId)
 }
 
-/** A tutor pins only their own posts — the screen never offers this on anyone else's. */
 export function pinDiscussionPost(postId: string, pinned: boolean, actorUserId: UserId = CURRENT_USER_ID): void {
   cohortDiscussionPostsCollection.update(postId, { pinned, updatedAt: nowIso(), updatedBy: actorUserId })
 }
-
-/* -------------------------------------------------------------------------- */
-/* Small shared shapes                                                        */
-/* -------------------------------------------------------------------------- */
 
 export type { Assignment, AssignmentId, RubricRow }

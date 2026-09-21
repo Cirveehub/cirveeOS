@@ -4,13 +4,6 @@ import { LayoutDashboard } from 'lucide-react'
 import { useSession, type HomeShape } from '@/auth'
 import { EmptyState } from '@/ui'
 
-/**
- * Home has three layouts and one shape decides which a person lands on —
- * see `index.tsx`. The other two stay reachable by path so a Super Admin can
- * compare them without re-signing-in, but only a `configurator` gets that
- * privilege: an Executive Home full of revenue figures is not something a
- * Tutor should be able to reach by editing the URL, even out of curiosity.
- */
 export function ShapeGate({
   allow,
   children,

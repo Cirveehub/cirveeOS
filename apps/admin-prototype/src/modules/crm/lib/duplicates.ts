@@ -1,12 +1,3 @@
-/**
- * The duplicate check.
- *
- * The PRD is explicit: this runs **before any Person is created**, on email,
- * phone and WhatsApp. It is the reason the identity layer holds one row per
- * human being, and Flow 1 step 3 depends on it firing on Chiamaka Okonkwo's
- * email before the wizard writes anything.
- */
-
 import {
   admissionsCollection,
   activitiesCollection,
@@ -17,7 +8,6 @@ import {
 } from '@/mocks'
 import type { DuplicateMatchField, Person, PersonId } from '@/mocks/types'
 
-/** Digits only, last nine significant — `+234 803…` and `0803…` are one number. */
 export function normalisePhone(value: string | null | undefined): string {
   if (!value) return ''
   const digits = value.replace(/\D/g, '')
@@ -48,15 +38,9 @@ export interface DuplicateProbe {
   whatsapp?: string | null
   firstName?: string | null
   lastName?: string | null
-  /** Never match a person against themselves when editing. */
   excludePersonId?: PersonId | null
 }
 
-/**
- * Returns likely matches, strongest first. Only a contact-field hit can start
- * a match — a shared surname alone is not a duplicate in a country where
- * surnames repeat constantly.
- */
 export function findDuplicates(probe: DuplicateProbe): DuplicateMatch[] {
   const email = normaliseEmail(probe.email)
   const phone = normalisePhone(probe.phone)
@@ -94,10 +78,6 @@ export function findDuplicates(probe: DuplicateProbe): DuplicateMatch[] {
   return matches.sort((a, b) => b.score - a.score)
 }
 
-/* -------------------------------------------------------------------------- */
-/* What a merge would move                                                    */
-/* -------------------------------------------------------------------------- */
-
 export interface AttachedRecords {
   leads: number
   admissions: number
@@ -130,7 +110,6 @@ export function attachedRecords(personId: PersonId): AttachedRecords {
   }
 }
 
-/** "2 leads, 1 admission, 1 invoice and 3 activities" — the merge confirm line. */
 export function describeAttached(records: AttachedRecords): string {
   const parts: string[] = []
   const add = (n: number, one: string, many: string) => {

@@ -1,10 +1,3 @@
-/**
- * The follow-up queue — one row per checkpoint, not per graduate.
- *
- * Each outcome record carries three checkpoints, scheduled automatically at 3,
- * 6 and 12 months when the certificate is issued. This screen flattens them so
- * the work is a queue rather than a hunt through records.
- */
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CalendarClock, Send } from 'lucide-react'
@@ -420,15 +413,6 @@ export default function FollowUps() {
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Record a follow-up attempt                                                 */
-/* -------------------------------------------------------------------------- */
-
-/**
- * The attempt is recorded whether or not the graduate answers. "No response"
- * is a real outcome and stays in the denominator — a checkpoint is never
- * quietly dropped because nobody picked up.
- */
 function ContactModal({
   row,
   personName,

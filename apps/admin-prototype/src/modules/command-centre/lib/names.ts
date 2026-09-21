@@ -1,11 +1,3 @@
-/**
- * Name lookups.
- *
- * The store's selectors return ids; the screen shows people. These read
- * through the collections so a merged or renamed Person shows its new name
- * everywhere at once.
- */
-
 import { peopleCollection, usersCollection, employeesCollection } from '@/mocks'
 import type { EmployeeId, PersonId, UserId } from '@/mocks'
 
@@ -27,7 +19,6 @@ export function employeeName(id: EmployeeId | string | null | undefined): string
   return employee ? personName(employee.personId) : String(id)
 }
 
-/** The employee record behind the signed-in user, if there is one. */
 export function employeeForUser(userId: UserId | string): ReturnType<typeof employeesCollection.find> {
   const user = usersCollection.find(userId)
   if (!user) return undefined

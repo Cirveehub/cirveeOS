@@ -22,7 +22,6 @@ export default defineModule({
     { path: '', element: <Dashboard /> },
 
     { path: 'workflows', element: <Workflows /> },
-    // `new` precedes `:id` so it is matched as a literal, not as an id.
     { path: 'workflows/new', element: <Builder /> },
     { path: 'workflows/:id/builder', element: <Builder /> },
     { path: 'workflows/:id', element: <Builder /> },

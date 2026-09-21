@@ -1,17 +1,3 @@
-/**
- * What a segment can actually be built from.
- *
- * The PRD's hard rule for this module is that **there is no separate marketing
- * contact list** — a segment is a saved query over `Person` records. So every
- * field below resolves to a set of `PersonId`s by reading the same collections
- * the rest of the app reads: relationships, leads, enrolments, invoices. There
- * is no membership table anywhere, and the member count a segment shows is
- * computed here rather than typed in.
- *
- * Only fields the seed can genuinely answer appear. A field nobody can query
- * is worse than a missing one, because it makes the count a lie.
- */
-
 import {
   branchesCollection,
   coursesCollection,
@@ -34,15 +20,12 @@ export type OperatorKey = 'is' | 'is_not' | 'gte' | 'gt'
 export interface SegmentField {
   key: string
   label: string
-  /** Which side of the "attribute or behaviour" split this sits on. */
   group: 'Person attribute' | 'Lead behaviour' | 'Enrolment' | 'Payment'
   hint: string
   input: 'select' | 'number'
   operators: OperatorKey[]
   options: () => FieldOption[]
-  /** The people matching this one rule, resolved live over the collections. */
   resolve: (operator: OperatorKey, value: string) => Set<string>
-  /** Plain English, for `criteriaSummary`. */
   describe: (operator: OperatorKey, value: string) => string
 }
 
@@ -69,7 +52,6 @@ function setOf<T>(rows: T[], pick: (row: T) => string): Set<string> {
   return new Set(rows.map(pick))
 }
 
-/** `is_not` over a person-scoped field means "everyone except the matches". */
 function invert(matches: Set<string>): Set<string> {
   const all = new Set(peopleCollection.all().map((p) => p.id as string))
   for (const id of matches) all.delete(id)
@@ -288,7 +270,6 @@ export interface DraftRule {
   value: string
 }
 
-/** The people a draft segment would resolve to, right now. */
 export function resolveMembers(operator: 'and' | 'or', rules: DraftRule[]): Set<string> {
   const usable = rules.filter((rule) => rule.value !== '')
   if (usable.length === 0) return new Set<string>()

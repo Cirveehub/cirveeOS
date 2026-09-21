@@ -1,16 +1,3 @@
-/**
- * §6.2 — the workflow list.
- *
- * One row per automation, showing its **current** version. Earlier versions are
- * not deleted and not hidden — they live in the version history drawer, because
- * every historical run points at one of them and a run you cannot explain is
- * worse than no run at all.
- *
- * Pause and resume are one click from the row, immediate, and audited. That is
- * the PRD's requirement that an authorised user can stop any automation without
- * asking an engineer.
- */
-
 import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Archive, Copy, History, MoreHorizontal, Pause, Play, Plus, SquarePen, Workflow } from 'lucide-react'
@@ -54,11 +41,6 @@ import { createAutomation, setAutomationStatus } from './writes'
 
 const ALL_MODULES = [...new Set(Object.values(ACTIONS).map((a) => a.module))].sort()
 
-/**
- * Fourteen columns is too many to open on. The seven below answer "what is this
- * automation, is it running, and does it need me"; the rest are one click away
- * and the choice lives in `?cols=`, so a wider view is still a link.
- */
 const COLUMN_CATALOGUE: ColumnCatalogueEntry[] = [
   { key: 'name', label: 'Name', defaultVisible: true, locked: true },
   { key: 'status', label: 'Status', defaultVisible: true },
@@ -105,7 +87,6 @@ export default function Workflows() {
     setParams(next, { replace: true })
   }
 
-  /** One row per automation key — its highest version. */
   const current = useMemo(() => {
     const byKey = new Map<string, Automation>()
     for (const a of automations) {

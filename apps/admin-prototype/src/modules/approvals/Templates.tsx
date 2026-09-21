@@ -37,10 +37,6 @@ import { formatDate, humanize } from '@/lib/format'
 import { useActingUser, useScreenState, userName, WorkGroupTabs } from './shared'
 import { writeAudit } from './engine'
 
-/* -------------------------------------------------------------------------- */
-/* Merge fields                                                               */
-/* -------------------------------------------------------------------------- */
-
 interface MergeField {
   path: string
   label: string
@@ -71,7 +67,6 @@ const MERGE_FIELDS: MergeField[] = [
   { path: 'branch.name', label: 'Branch name', group: 'Branch' },
 ]
 
-/** Values available for the live preview, per sample record. */
 function sampleValues(personLabel: string, personFirst: string, personLast: string): Record<string, string> {
   return {
     'person.firstName': personFirst,
@@ -109,10 +104,6 @@ function renderPreview(body: string, values: Record<string, string>): { html: st
   })
   return { html, unresolved }
 }
-
-/* -------------------------------------------------------------------------- */
-/* List                                                                       */
-/* -------------------------------------------------------------------------- */
 
 export function TemplateList() {
   const [params, setParams] = useSearchParams()
@@ -208,10 +199,6 @@ export function TemplateList() {
     </div>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* Editor                                                                     */
-/* -------------------------------------------------------------------------- */
 
 export function TemplateEditor() {
   const { id = '' } = useParams()
@@ -470,7 +457,6 @@ export function TemplateEditor() {
               )}
               <div
                 className="space-y-2 text-body-14 text-text [&_h1]:text-heading-20 [&_h2]:text-heading-18 [&_p]:text-body-14"
-                // The body is template content authored in this screen, not user input from elsewhere.
                 dangerouslySetInnerHTML={{ __html: preview.html }}
               />
             </div>

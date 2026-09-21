@@ -1,11 +1,3 @@
-/**
- * Enrolments by branch by month — grouped bars (screen-spec §1.1).
- *
- * The enrolment carries the date, the admission behind it carries the branch,
- * so the series is the join of the two. Enrol someone in CRM and the current
- * month's group grows.
- */
-
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
 import { TODAY, admissionsCollection, enrollmentsCollection } from '@/mocks'

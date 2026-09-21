@@ -38,10 +38,6 @@ import { ImpactPreview, RouteVisualiser } from './components'
 import { buildImpact, type ImpactDraft } from './impact'
 import { bandFor, describeRoute, holderOfRole, previewRoute, raiseRequest, routeInForce } from './engine'
 
-/* -------------------------------------------------------------------------- */
-/* Field specification — one form engine, nine shapes                         */
-/* -------------------------------------------------------------------------- */
-
 type FieldKind = 'text' | 'money' | 'select' | 'date' | 'number' | 'textarea'
 
 interface FieldSpec {
@@ -51,11 +47,8 @@ interface FieldSpec {
   required?: boolean
   hint?: string
   placeholder?: string
-  /** Supplies options for `select`. */
   optionsKey?: 'invoices' | 'admissions' | 'employees' | 'units' | 'branches' | 'procurement' | 'openings' | 'commissions' | 'leaveTypes' | 'expenseCategories'
-  /** The field that carries the request amount. */
   isAmount?: boolean
-  /** The field that carries the related record. */
   isRelated?: boolean
 }
 
@@ -136,10 +129,6 @@ const EXPENSE_CATEGORIES = [
 
 type FormValues = Record<string, string | number | null>
 
-/* -------------------------------------------------------------------------- */
-/* Threshold sentence, read off the configured route                          */
-/* -------------------------------------------------------------------------- */
-
 export function thresholdSentence(route: ApprovalRoute | undefined): string {
   if (!route || route.bands.length === 0) return 'No route configured yet.'
   if (route.bands.length === 1) {
@@ -151,8 +140,6 @@ export function thresholdSentence(route: ApprovalRoute | undefined): string {
   const last = topSteps[topSteps.length - 1]
   return `Routes to ${last?.approverRole ?? 'a second approver'} above ${formatNaira(top.fromAmount)}.`
 }
-
-/* -------------------------------------------------------------------------- */
 
 export default function RaiseRequest() {
   const [params, setParams] = useSearchParams()
@@ -182,13 +169,10 @@ export default function RaiseRequest() {
   const amount = amountField ? ((values[amountField.name] as number | null) ?? null) : null
   const steps: ApprovalStep[] = useMemo(
     () => (type ? previewRoute(type, (amount ?? null) as Kobo | null) : []),
-    // `routes` is a dependency because republishing a route must move this panel.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [type, amount, routes],
   )
 
-  // The demo moment: as the amount crosses a band the new step is highlighted
-  // for a couple of seconds so the re-route is visible rather than silent.
   useEffect(() => {
     const before = previousStepCount.current
     previousStepCount.current = steps.length
@@ -345,8 +329,6 @@ export default function RaiseRequest() {
     }
   }
 
-  /* ---- Step 1 — type picker --------------------------------------------- */
-
   if (!type) {
     return (
       <div className="px-8 py-6">
@@ -397,8 +379,6 @@ export default function RaiseRequest() {
       </div>
     )
   }
-
-  /* ---- Step 2 — the form, with the route computing live ------------------ */
 
   const meta = APPROVAL_TYPE_META[type]
 

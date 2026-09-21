@@ -1,12 +1,3 @@
-/**
- * A single rule version, read-only.
- *
- * Flow 2 step 14 ends here: open a commission created months ago, click its
- * rule chip, and land on the exact version it was computed under — with its
- * effective range, its definition frozen, and the commissions that belong to it
- * still carrying their original amounts.
- */
-
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, History, Lock, Plus, SquarePen } from 'lucide-react'
 
@@ -42,7 +33,7 @@ import {
   draftFromRule,
   versionsOf,
 } from './lib'
-import { RuleStatusBadge, Screen, StateBadge, VersionBadge } from './parts'
+import { RuleStatusBadge, Screen, SimpleStateBadge, VersionBadge } from './parts'
 
 const TABS = [
   { id: 'definition', label: 'Definition' },
@@ -129,7 +120,7 @@ export default function RuleVersion() {
     {
       key: 'state',
       header: 'State',
-      cell: (c) => <StateBadge state={c.state} />,
+      cell: (c) => <SimpleStateBadge commission={c} />,
       sortValue: (c) => STATE_LABEL[c.state],
     },
     {

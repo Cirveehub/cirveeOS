@@ -1,19 +1,3 @@
-/**
- * Every write the outcomes module performs.
- *
- * Two PRD rules shape this file and are enforced here rather than in the UI:
- *
- *  1. **Income is self-reported, always.** `incomeChange.selfReported` is
- *     literally typed `true`, and a figure is only ever stored with
- *     `volunteered: true`. There is no code path that records an income
- *     figure the graduate was asked for, and none that marks one verified.
- *     `verifiedByUserId` verifies the *placement* — the employer and the role
- *     — never the money.
- *  2. **Nothing is overwritten silently.** Recording a placement emits an
- *     audit event naming the previous outcome type and the new one, so a
- *     graduate moving from "not yet placed" to "full-time" leaves a trail.
- */
-
 import {
   TODAY,
   CURRENT_USER_ID,
@@ -38,11 +22,6 @@ import {
   type UserId,
 } from '@/mocks/types'
 
-/* -------------------------------------------------------------------------- */
-/* The clock                                                                  */
-/* -------------------------------------------------------------------------- */
-
-/** The seed's fixed date with the wall clock's time of day. */
 export function nowIso(): string {
   const d = new Date()
   const pad2 = (n: number) => String(n).padStart(2, '0')
@@ -65,10 +44,6 @@ function userName(id: string | null | undefined): string {
   if (!user) return 'Unknown user'
   return personName(user.personId) || user.email
 }
-
-/* -------------------------------------------------------------------------- */
-/* Audit                                                                      */
-/* -------------------------------------------------------------------------- */
 
 let auditSequence = 0
 
@@ -105,10 +80,6 @@ export function emitAudit(input: {
   })
 }
 
-/* -------------------------------------------------------------------------- */
-/* Employers                                                                  */
-/* -------------------------------------------------------------------------- */
-
 export interface NewEmployerInput {
   name: string
   industry: string
@@ -124,12 +95,6 @@ export function employerNameTaken(name: string): boolean {
   return employersCollection.all().some((e) => e.name.trim().toLowerCase() === normalised)
 }
 
-/**
- * An employer starts with no hires. `graduatesHired` is a stored count that
- * `recordPlacement` maintains; the Employers table shows it beside the live
- * count from the outcome records so a disagreement is visible rather than
- * papered over.
- */
 export function createEmployer(input: NewEmployerInput): Employer {
   const at = nowIso()
   const employer: Employer = {
@@ -173,10 +138,6 @@ export function createEmployer(input: NewEmployerInput): Employer {
   return employer
 }
 
-/* -------------------------------------------------------------------------- */
-/* Placements                                                                 */
-/* -------------------------------------------------------------------------- */
-
 export interface PlacementInput {
   recordId: string
   employerId: EmployerId | null
@@ -185,17 +146,12 @@ export interface PlacementInput {
   placementDate: string
   location: string
   relevanceToCourse: 'direct' | 'adjacent' | 'unrelated' | null
-  /**
-   * Present only when the graduate offered it unprompted. Recorded as
-   * self-reported and never verified; omit it entirely otherwise.
-   */
   volunteeredIncome: { before: Kobo | null; after: Kobo | null } | null
   consentForPublicUse: boolean
   notes: string
   markVerified: boolean
 }
 
-/** Outcome types that name an employer. Study and self-employment do not. */
 export const EMPLOYER_BACKED_TYPES: OutcomeType[] = ['full_time', 'contract', 'internship', 'freelance']
 
 export function recordPlacement(record: OutcomeRecord, input: PlacementInput): OutcomeRecord | undefined {
@@ -281,16 +237,6 @@ export function recordPlacement(record: OutcomeRecord, input: PlacementInput): O
   return updated
 }
 
-/* -------------------------------------------------------------------------- */
-/* Checkpoints                                                                */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Records a follow-up attempt against one checkpoint. Attempts only ever
- * increase — a graduate who never answers keeps their attempt count and stays
- * in the denominator, which is what makes the placement rate honest rather
- * than flattering.
- */
 export function recordCheckpointAttempt(
   record: OutcomeRecord,
   month: OutcomeCheckpoint['month'],
@@ -328,11 +274,6 @@ export function recordCheckpointAttempt(
   })
 }
 
-/**
- * The employer's hire count and first/last hire dates are recomputed from the
- * outcome records rather than incremented, so moving a graduate from one
- * employer to another leaves both rows correct.
- */
 function rollUpEmployer(employerId: EmployerId): void {
   const employer = employersCollection.find(employerId)
   if (!employer) return

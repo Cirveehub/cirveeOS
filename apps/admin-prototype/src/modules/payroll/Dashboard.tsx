@@ -1,25 +1,9 @@
-/**
- * Payroll dashboard — `/payroll` (screen-spec §10).
- *
- * Payroll deliberately has **no creation surface**: a period is assembled from
- * upstream inputs — the compensation version in force, approved commission,
- * attendance and approved adjustments — and nothing on this screen invents a
- * payroll line by hand. That is correct and was left alone.
- *
- * What did change is density. The density checklist's threshold is "more than
- * ~6 stat cards or more than 3 distinct chart blocks"; this page had ten cards
- * and four charts in one flat scroll. It now opens on the four numbers that
- * describe the open run, with cost and adjustment detail one tab away.
- * Nothing was deleted, and every figure is still a selector call.
- */
-
 import { useMemo, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BarChart3, CalendarClock, Coins, LayoutGrid, Lock, Receipt, ShieldCheck, TrendingDown, Users, Wallet } from 'lucide-react'
 
 import { formatDate, formatNaira, formatNumber } from '@/lib/format'
 import {
-  Alert,
   Badge,
   Button,
   Card,
@@ -94,7 +78,6 @@ export default function Dashboard() {
   const payslips = useCollection(payslipsCollection)
   const employees = useCollection(employeesCollection)
 
-  /* Every figure below is computed. Nothing on this screen is a constant. */
   const totals = useMemo(() => select.payrollTotals(), [items, periods, adjustments]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const openPeriod = periods.find((p) => p.status === 'open') ?? null
@@ -119,7 +102,6 @@ export default function Dashboard() {
     (a) => a.status === 'proposed' || a.status === 'disputed' || a.status === 'hr_reviewed',
   ).length
 
-  /** The number the whole payroll argument turns on. Derived, never typed. */
   const attendanceDerived = totals?.attendanceDerivedAdjustments ?? 0
   const voidedAttendance = periodAdjustments.filter((a) => a.type === 'attendance' && a.status === 'voided').length
 
@@ -153,7 +135,6 @@ export default function Dashboard() {
       const current = map.get(adjustment.type) ?? { count: 0, total: 0 }
       map.set(adjustment.type, { count: current.count + 1, total: current.total + Math.abs(adjustment.amount) })
     }
-    /* Attendance is listed even at zero — its absence is the point. */
     if (!map.has('attendance')) map.set('attendance', { count: 0, total: 0 })
     return [...map.entries()].sort((a, b) => b[1].total - a[1].total)
   }, [periodAdjustments])
@@ -254,18 +235,6 @@ export default function Dashboard() {
             onClick={() => navigate('adjustments')}
           />
         </StatBand>
-
-        <Alert
-          tone="info"
-          icon={Lock}
-          title={`${formatNumber(attendanceDerived)} attendance-derived adjustments, and that is correct`}
-        >
-          An attendance breach notifies the employee and their manager and can open a performance record. It does not touch
-          pay. The engine calculates a figure so the consequence is visible; the policy's financial switch is off, so nothing
-          is ever applied.{' '}
-          {voidedAttendance > 0 &&
-            `${formatNumber(voidedAttendance)} attendance adjustment was proposed this period and voided automatically when the underlying record was corrected.`}
-        </Alert>
 
         <Card>
           <SectionHeader

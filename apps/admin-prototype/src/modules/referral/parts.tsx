@@ -1,50 +1,29 @@
-/**
- * Thin compositions over `@/ui` used across the referral screens.
- *
- * Nothing here is a new primitive — every one of these renders a library
- * component with the module's vocabulary applied, so a commission state or a
- * role on the deal looks identical on the dashboard, the ledger, a payout line
- * and the simulator.
- */
-
 import type { ReactNode } from 'react'
 import { useEffect, useState } from 'react'
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { AlertTriangle } from 'lucide-react'
 
 import { demo } from '@/mocks'
-import type { CommissionRoleOnDeal, CommissionRule, CommissionState } from '@/mocks/types'
-import { Alert, Badge, Button, PageHeader, ProgressBar, Tooltip } from '@/ui'
-import type { Breadcrumb, TabItem } from '@/ui'
-import { formatNaira } from '@/lib/format'
+import type { Commission, CommissionRoleOnDeal, CommissionRule, ReferrerType } from '@/mocks/types'
+import { Alert, Badge, Button, PageHeader, Tabs, Tooltip } from '@/ui'
+import type { Breadcrumb } from '@/ui'
 
 import {
+  BENEFICIARY_LABEL,
   ROLE_LABEL,
   ROLE_TONE,
   RULE_STATUS_LABEL,
   RULE_STATUS_TONE,
-  STATE_LABEL,
-  STATE_TONE,
+  SIDE_FLAG_LABEL,
+  SIMPLE_STATE_LABEL,
+  SIMPLE_STATE_TONE,
   effectiveRange,
+  needsApproval,
+  presentState,
   ruleCode,
 } from './lib'
 
-/* -------------------------------------------------------------------------- */
-/* Module navigation                                                          */
-/* -------------------------------------------------------------------------- */
-
-export const MODULE_TABS: Array<{ id: string; label: string; to: string }> = [
-  { id: 'dashboard', label: 'Dashboard', to: '/referral' },
-  { id: 'referrers', label: 'Referrers', to: '/referral/referrers' },
-  { id: 'rules', label: 'Commission rules', to: '/referral/rules' },
-  { id: 'commissions', label: 'Ledger', to: '/referral/commissions' },
-  { id: 'payouts', label: 'Payouts', to: '/referral/payouts' },
-  { id: 'disputes', label: 'Disputes', to: '/referral/disputes' },
-  { id: 'attribution', label: 'Attribution', to: '/referral/attribution' },
-]
-
 export interface ModulePageProps {
-  tab: string
   title: ReactNode
   description?: ReactNode
   actions?: ReactNode
@@ -52,49 +31,38 @@ export interface ModulePageProps {
   breadcrumbs?: Breadcrumb[]
 }
 
-/** The page header every top-level referral screen wears, with in-module tabs. */
-export function ModulePage({ tab, title, description, actions, meta, breadcrumbs }: ModulePageProps) {
-  const navigate = useNavigate()
-  const location = useLocation()
-  const tabs: TabItem[] = MODULE_TABS.map((t) => ({ id: t.id, label: t.label }))
-
-  return (
-    <PageHeader
-      title={title}
-      description={description}
-      actions={actions}
-      meta={meta}
-      breadcrumbs={breadcrumbs}
-      tabs={tabs}
-      activeTab={tab}
-      onTabChange={(id) => {
-        const target = MODULE_TABS.find((t) => t.id === id)
-        if (target && target.to !== location.pathname) navigate(target.to)
-      }}
-    />
-  )
+export function ModulePage({ title, description, actions, meta, breadcrumbs }: ModulePageProps) {
+  return <PageHeader title={title} description={description} actions={actions} meta={meta} breadcrumbs={breadcrumbs} />
 }
 
-/** The content column every referral screen sits in. */
 export function Screen({ children }: { children: ReactNode }) {
   return <div className="mx-auto w-full max-w-[1400px] px-8 py-7">{children}</div>
 }
 
-/* -------------------------------------------------------------------------- */
-/* Loading and error, as states rather than accidents                         */
-/* -------------------------------------------------------------------------- */
+export const PAYOUT_VIEWS = [
+  { id: 'owed', label: 'Owed now', to: '/referral/payouts' },
+  { id: 'history', label: 'History', to: '/referral/payouts/history' },
+]
+
+export function PayoutsTabs({ active }: { active: 'owed' | 'history' }) {
+  const navigate = useNavigate()
+  return (
+    <Tabs
+      tabs={PAYOUT_VIEWS.map((v) => ({ id: v.id, label: v.label }))}
+      value={active}
+      onChange={(id) => {
+        const target = PAYOUT_VIEWS.find((v) => v.id === id)
+        if (target) navigate(target.to)
+      }}
+      size="sm"
+      aria-label="Payout views"
+      className="mb-6"
+    />
+  )
+}
 
 const booted = new Set<string>()
 
-/**
- * The four standard states, wired to the demo controls.
- *
- * - **Loading**: 400ms on the first visit to a screen in this tab, so the
- *   skeleton is actually visible in a demo rather than a flash.
- * - **Error**: `demo.forceError('referral')`, or `?demo=error` on any referral
- *   URL so the state is reachable and linkable without leaving the module.
- * - **Empty**: `demo.forceEmpty('referral')`, or `?demo=empty`.
- */
 export function useScreenState(scope: string): {
   loading: boolean
   errored: boolean
@@ -145,15 +113,10 @@ export function LoadFailed({ what, onRetry }: { what: string; onRetry: () => voi
         </Button>
       }
     >
-      The request failed before any rows came back. Nothing has been changed. Retry, and if it keeps failing the
-      commission engine is the thing to check first — no rule evaluates while this is down.
+      Nothing has been changed. Retry, and if it keeps failing tell IT.
     </Alert>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* Vocabulary badges                                                          */
-/* -------------------------------------------------------------------------- */
 
 export function RoleBadge({ role, size = 'sm' }: { role: CommissionRoleOnDeal; size?: 'sm' | 'md' }) {
   return (
@@ -163,11 +126,46 @@ export function RoleBadge({ role, size = 'sm' }: { role: CommissionRoleOnDeal; s
   )
 }
 
-export function StateBadge({ state, size = 'sm' }: { state: CommissionState; size?: 'sm' | 'md' }) {
+export function ReferrerTypeBadge({ type, size = 'sm' }: { type: ReferrerType | 'staff'; size?: 'sm' | 'md' }) {
   return (
-    <Badge tone={STATE_TONE[state]} variant="subtle" size={size} dot>
-      {STATE_LABEL[state]}
+    <Badge tone="neutral" variant="subtle" size={size}>
+      {BENEFICIARY_LABEL[type]}
     </Badge>
+  )
+}
+
+export function SimpleStateBadge({
+  commission,
+  size = 'sm',
+  subtitle = false,
+}: {
+  commission: Commission
+  size?: 'sm' | 'md'
+  subtitle?: boolean
+}) {
+  const { simple, flag } = presentState(commission)
+  const waitingNote = simple === 'waiting' && subtitle ? commission.eligibilityNote : null
+  return (
+    <div className="flex min-w-0 flex-col gap-1">
+      <span className="flex flex-wrap items-center gap-1.5">
+        {simple && (
+          <Badge tone={SIMPLE_STATE_TONE[simple]} variant="subtle" size={size} dot>
+            {SIMPLE_STATE_LABEL[simple]}
+          </Badge>
+        )}
+        {simple === 'earned' && needsApproval(commission) && (
+          <Badge tone="neutral" variant="outline" size="sm">
+            needs approval
+          </Badge>
+        )}
+        {flag && (
+          <Badge tone="neutral" variant="subtle" size={size}>
+            {SIDE_FLAG_LABEL[flag]}
+          </Badge>
+        )}
+      </span>
+      {waitingNote && <span className="text-body-12 text-text-secondary">{waitingNote}</span>}
+    </div>
   )
 }
 
@@ -187,16 +185,11 @@ export function VersionBadge({ version, size = 'sm' }: { version: number; size?:
   )
 }
 
-/**
- * The rule chip that appears on every commission row. It names the version, and
- * it links to that version read-only — the §3.6 requirement that a historical
- * commission can always be traced to the rule it was computed under.
- */
 export function RuleChip({ rule, onOpen }: { rule: CommissionRule | undefined; onOpen?: () => void }) {
   if (!rule) {
     return (
       <Badge tone="danger" variant="subtle" size="sm" icon={<AlertTriangle size={12} />}>
-        Rule version missing
+        Rate version missing
       </Badge>
     )
   }
@@ -219,46 +212,10 @@ export function RuleChip({ rule, onOpen }: { rule: CommissionRule | undefined; o
           onOpen()
         }}
         className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1 focus-visible:ring-offset-surface"
-        aria-label={`Open ${label}, effective ${effectiveRange(rule)}`}
+        aria-label={`Open ${label}, in force ${effectiveRange(rule)}`}
       >
         {chip}
       </button>
     </Tooltip>
   )
-}
-
-/* -------------------------------------------------------------------------- */
-/* Small charts, built from ProgressBar rather than a charting dependency     */
-/* -------------------------------------------------------------------------- */
-
-export interface BarRow {
-  key: string
-  label: ReactNode
-  caption?: ReactNode
-  value: number
-  valueLabel: string
-  tone?: 'accent' | 'success' | 'warning' | 'danger' | 'neutral'
-}
-
-export function BarChart({ rows, max, ariaLabel }: { rows: BarRow[]; max?: number; ariaLabel: string }) {
-  const ceiling = max ?? Math.max(1, ...rows.map((r) => r.value))
-  return (
-    <ul className="flex flex-col gap-3.5" aria-label={ariaLabel}>
-      {rows.map((row) => (
-        <li key={row.key}>
-          <div className="mb-1.5 flex items-baseline justify-between gap-3">
-            <span className="min-w-0 truncate text-body-13 text-text">{row.label}</span>
-            <span className="shrink-0 text-body-13 font-semibold tabular-nums text-text">{row.valueLabel}</span>
-          </div>
-          <ProgressBar value={row.value} max={ceiling} tone={row.tone ?? 'accent'} size="sm" />
-          {row.caption && <p className="mt-1 text-body-12 text-text-secondary">{row.caption}</p>}
-        </li>
-      ))}
-    </ul>
-  )
-}
-
-/** Money as plain text where a `MoneyCell` would be too heavy (inside a sentence). */
-export function money(kobo: number): string {
-  return formatNaira(kobo)
 }

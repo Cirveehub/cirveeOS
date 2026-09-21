@@ -1,14 +1,3 @@
-/**
- * The material viewer — one page whose body branches by format inside one
- * header/back/download shell, exactly as both legacy portals do rather than a
- * route per file type.
- *
- * The shell is `MaterialViewer` and `FormatSwitcher` from `_learning-shared`,
- * shared with the student module so a tutor previewing a lesson sees precisely
- * what a student sees. The tutor-only addition is the row of dashed slots for
- * the formats this lesson does not carry yet, which opens the same upload
- * dialog the coverage table uses.
- */
 import { useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Plus } from 'lucide-react'
@@ -65,7 +54,6 @@ export default function MaterialScreen() {
   const active = requested && present.includes(requested) ? requested : present[0]
   const asset = active && lesson ? assets.find((a) => a.id === lesson.formats[active]) : undefined
 
-  /* Back to the cohort this tutor is teaching on this course, if they have one. */
   const backCohortId = useMemo(() => {
     if (!lesson) return undefined
     const mine = cohortIdsOf(scope)

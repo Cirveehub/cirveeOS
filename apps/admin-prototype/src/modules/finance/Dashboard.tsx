@@ -1,16 +1,3 @@
-/**
- * §20 — Finance dashboard.
- *
- * It used to open on ten stat cards and four chart blocks in one scroll, which
- * is the template the density audit found repeated across fifteen modules. It
- * now opens on an Overview carrying the four numbers a finance lead actually
- * leads with, plus the things that need a decision today; the rest live behind
- * a tab each. Nothing was deleted.
- *
- * The metric computation is split one function per theme rather than one
- * function computing all ten cards whether or not they are on screen.
- */
-
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import {
@@ -94,10 +81,6 @@ function monthWindows(count: number) {
 }
 
 type PnlRow = ReturnType<typeof unitPnl>[number]
-
-/* -------------------------------------------------------------------------- */
-/* One computation per theme — each derives only its own slice                */
-/* -------------------------------------------------------------------------- */
 
 function collectionBand() {
   const collected = collectedRevenue(MTD)

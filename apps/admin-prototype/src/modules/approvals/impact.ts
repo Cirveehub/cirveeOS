@@ -1,16 +1,3 @@
-/**
- * The impact preview.
- *
- * The PRD's rule is that an approver never decides blind: before the buttons
- * are live, the screen names every downstream record a yes would touch. That
- * is computed here from live collections rather than written into a component,
- * so approving a commission elsewhere moves these lines too.
- *
- * A refund is the case the spec calls out by name, and it must produce four
- * lines: the payer's balance, the commission reversal, the revenue period, and
- * the explicit statement that sales attribution does not move.
- */
-
 import {
   admissionsCollection,
   commissionRulesCollection,
@@ -26,7 +13,6 @@ import type { ApprovalImpactLine, ApprovalRequest, ApprovalType, Kobo } from '@/
 import { formatNaira } from '@/lib/format'
 import { personName, unitName, userName } from './shared'
 
-/** What the wizard holds while the approver-facing preview is being computed. */
 export interface ImpactDraft {
   type: ApprovalType
   amount: Kobo | null
@@ -34,7 +20,6 @@ export interface ImpactDraft {
   relatedEntityId: string
   relatedEntityRef: string
   unitId: string | null
-  /** Type-specific extras the wizard collects. */
   budgetLine?: string
   vendor?: string
   category?: string
@@ -54,10 +39,6 @@ function monthName(iso: string): string {
   return new Date(`${iso.slice(0, 10)}T00:00:00Z`).toLocaleDateString('en-NG', { month: 'long', timeZone: 'UTC' })
 }
 
-/* -------------------------------------------------------------------------- */
-/* Refund — the one the spec names                                            */
-/* -------------------------------------------------------------------------- */
-
 export interface CommissionReversalPreview {
   commissionId: string
   commissionRef: string
@@ -70,11 +51,6 @@ export interface CommissionReversalPreview {
   settlement: string
 }
 
-/**
- * What a refund does to every commission earned on the same invoice.
- * Proportional to the share of the invoice being refunded, per the rule's own
- * reversal policy — never a rate typed into this file.
- */
 export function commissionReversalPreview(invoiceId: string, refundAmount: Kobo): CommissionReversalPreview[] {
   const invoice = invoicesCollection.find(invoiceId)
   if (!invoice || invoice.total <= 0) return []
@@ -189,10 +165,6 @@ function refundImpact(draft: ImpactDraft): ApprovalImpactLine[] {
   return lines
 }
 
-/* -------------------------------------------------------------------------- */
-/* Discount                                                                   */
-/* -------------------------------------------------------------------------- */
-
 function discountImpact(draft: ImpactDraft): ApprovalImpactLine[] {
   const admission = admissionsCollection.find(draft.relatedEntityId)
   const amount = (draft.amount ?? 0) as Kobo
@@ -243,10 +215,6 @@ function discountImpact(draft: ImpactDraft): ApprovalImpactLine[] {
   ]
 }
 
-/* -------------------------------------------------------------------------- */
-/* Salary change                                                              */
-/* -------------------------------------------------------------------------- */
-
 function salaryChangeImpact(draft: ImpactDraft): ApprovalImpactLine[] {
   const employee = employeesCollection.find(draft.employeeId ?? draft.relatedEntityId)
   const proposedAnnual = (draft.amount ?? 0) as Kobo
@@ -295,10 +263,6 @@ function salaryChangeImpact(draft: ImpactDraft): ApprovalImpactLine[] {
     ),
   ]
 }
-
-/* -------------------------------------------------------------------------- */
-/* Procurement, expense and the rest                                          */
-/* -------------------------------------------------------------------------- */
 
 function procurementImpact(draft: ImpactDraft): ApprovalImpactLine[] {
   const request = procurementRequestsCollection.find(draft.relatedEntityId)
@@ -458,10 +422,6 @@ function disputeImpact(draft: ImpactDraft): ApprovalImpactLine[] {
   ]
 }
 
-/* -------------------------------------------------------------------------- */
-/* Entry points                                                               */
-/* -------------------------------------------------------------------------- */
-
 export function buildImpact(draft: ImpactDraft): ApprovalImpactLine[] {
   switch (draft.type) {
     case 'refund':
@@ -487,11 +447,6 @@ export function buildImpact(draft: ImpactDraft): ApprovalImpactLine[] {
   }
 }
 
-/**
- * The preview for a request that already exists. Recomputed live where the
- * request points at a record we can read, so the panel moves when the
- * underlying money moves; otherwise the stored preview stands.
- */
 export function impactForRequest(request: ApprovalRequest): {
   lines: ApprovalImpactLine[]
   live: boolean
@@ -526,7 +481,6 @@ export function impactForRequest(request: ApprovalRequest): {
   return { lines: request.impact, live: false }
 }
 
-/** The one-line plain-English summary of what approving does, for confirms. */
 export function consequenceSentence(request: ApprovalRequest): string {
   const meta = `${request.ref} · ${request.title}`
   switch (request.type) {
@@ -545,7 +499,6 @@ export function consequenceSentence(request: ApprovalRequest): string {
   }
 }
 
-/** Who raised it, in one string — used by the decision confirm. */
 export function requesterLabel(request: ApprovalRequest): string {
   return `${userName(request.requesterUserId)} · ${new Date(request.raisedAt).toLocaleDateString('en-NG')}`
 }

@@ -1,9 +1,3 @@
-/**
- * The loading state, shaped like the screen it stands in for: four bands of
- * stat cards, then the brief and the rail, then the charts. Never a centred
- * spinner on a blank page.
- */
-
 import { Card, Skeleton, SkeletonCard, SkeletonText } from '@/ui'
 
 function Band() {

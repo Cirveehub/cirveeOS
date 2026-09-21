@@ -4,10 +4,6 @@ import { cn } from '@/lib/cn'
 
 import { PRESET_OPTIONS, type ReportScopeState } from '../lib/scope'
 
-/**
- * Date range and unit filter, held in the query string by `useReportScope`
- * so a filtered report is a link somebody can paste into a meeting invite.
- */
 export function ScopeBar({
   scope,
   units,

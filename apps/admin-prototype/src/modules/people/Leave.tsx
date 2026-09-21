@@ -1,11 +1,3 @@
-/**
- * Leave — `/people/leave` (screen-spec §9).
- *
- * Requests with the balance before and after each one, plus the team calendar
- * strip that answers the only question a manager actually asks: is anybody
- * left to cover that week.
- */
-
 import { useMemo, useState } from 'react'
 import { CalendarOff } from 'lucide-react'
 

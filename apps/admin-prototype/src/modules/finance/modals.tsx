@@ -1,13 +1,3 @@
-/**
- * Finance's creation and correction flows, as single modals.
- *
- * Every one of them writes through `writes.ts`, which is the module's only
- * write path and the file the verification script bundles. The two corrections
- * — credit note and refund — follow `referral/Ledger.tsx`'s never-mutate
- * pattern: they insert new records that point back at the original, and the
- * modal says so on screen before the operator commits.
- */
-
 import { useMemo, useState } from 'react'
 import { Ban, FileMinus, Landmark, Receipt, Undo2 } from 'lucide-react'
 
@@ -50,10 +40,6 @@ import {
 
 const MIN_REASON = 8
 
-/* -------------------------------------------------------------------------- */
-/* Shared pickers                                                             */
-/* -------------------------------------------------------------------------- */
-
 function useUnitOptions() {
   const units = useCollection(unitsCollection)
   return useMemo(() => units.map((u) => ({ value: u.id as string, label: u.name })), [units])
@@ -63,10 +49,6 @@ function useBranchOptions() {
   const branches = useCollection(branchesCollection)
   return useMemo(() => branches.map((b) => ({ value: b.id as string, label: b.name })), [branches])
 }
-
-/* -------------------------------------------------------------------------- */
-/* Credit note                                                                */
-/* -------------------------------------------------------------------------- */
 
 export function CreditNoteModal({
   invoice,
@@ -180,10 +162,6 @@ export function CreditNoteModal({
     </Modal>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* Refund                                                                     */
-/* -------------------------------------------------------------------------- */
 
 export function RefundModal({
   invoice,
@@ -384,7 +362,6 @@ export function RefundModal({
   )
 }
 
-/** Mirrors `writes.refundImpactLines`, formatted for the screen. */
 function refundPreviewLines(
   invoice: Invoice,
   refundAmount: number,
@@ -402,10 +379,6 @@ function refundPreviewLines(
   lines.push('Leave sales attribution unchanged — referrer, lead owner and closer are not altered by a refund.')
   return lines
 }
-
-/* -------------------------------------------------------------------------- */
-/* Void                                                                       */
-/* -------------------------------------------------------------------------- */
 
 export function VoidInvoiceModal({
   invoice,
@@ -482,10 +455,6 @@ export function VoidInvoiceModal({
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Manual payment                                                             */
-/* -------------------------------------------------------------------------- */
-
 const METHODS: Array<{ value: Payment['method']; label: string }> = [
   { value: 'bank_transfer', label: 'Bank transfer' },
   { value: 'cash', label: 'Cash' },
@@ -502,7 +471,6 @@ export function ManualPaymentModal({
   onDone,
 }: {
   open: boolean
-  /** Prefills and locks the allocation when opened from an invoice. */
   invoice?: Invoice | null
   onClose: () => void
   onDone: (message: string) => void
@@ -677,10 +645,6 @@ export function ManualPaymentModal({
     </Modal>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* Expense                                                                    */
-/* -------------------------------------------------------------------------- */
 
 const CATEGORY_FALLBACK = [
   'Rent',

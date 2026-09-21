@@ -1,11 +1,3 @@
-/**
- * Certificate eligibility editor — `/learn/courses/:courseId/certificate`.
- *
- * Small screen, large point: every threshold that gates a certificate is data
- * on the course, and the evaluator proves it by re-running the rules against a
- * real enrolled student on every keystroke.
- */
-
 import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, ShieldCheck } from 'lucide-react'
@@ -276,10 +268,6 @@ export default function CertificateRules() {
               </CardBody>
             </Card>
 
-            <Alert tone="info" title="Why this screen exists">
-              Every number above is stored on the course record, not in code. Two courses can require different
-              attendance and the same engine evaluates both.
-            </Alert>
           </div>
 
           <Card className="h-fit">

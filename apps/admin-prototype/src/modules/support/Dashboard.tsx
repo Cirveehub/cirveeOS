@@ -1,11 +1,3 @@
-/**
- * §13 — the customer experience dashboard.
- *
- * It used to open on eight stat cards and five panels in one scroll. It now
- * opens on the four numbers somebody acts on before lunch, plus the tickets
- * behind them; workload and timing each get a tab, and the tab lives in the
- * query string so a view is a link.
- */
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import {
@@ -66,10 +58,6 @@ function formatHours(hours: number | null): string {
   }
   return `${(hours / 24).toFixed(1)} days`
 }
-
-/* -------------------------------------------------------------------------- */
-/* Bands — one function per theme, each computing only its own slice           */
-/* -------------------------------------------------------------------------- */
 
 function headlineFigures(rows: Ticket[]) {
   const sevenDaysAgo = addDays(TODAY, -7)
@@ -151,8 +139,6 @@ function timingBand(rows: Ticket[]) {
     slaByPriority,
   }
 }
-
-/* -------------------------------------------------------------------------- */
 
 export default function SupportDashboard() {
   const tickets = useCollection(ticketsCollection)
@@ -375,12 +361,11 @@ export default function SupportDashboard() {
                   <CardBody>
                     <p className="text-body-14 text-text-secondary">
                       CSAT is not captured in this prototype. There is no satisfaction field on a ticket, so
-                      rather than show a number nothing computes, this card says so. The reputation module
-                      carries the ratings that do exist, from review requests fired at high-satisfaction
-                      moments.
+                      rather than show a number nothing computes, this card says so. Marketing carries the
+                      ratings that do exist, from review requests fired at high-satisfaction moments.
                     </p>
                     <Button variant="link" size="sm" asChild className="mt-2 px-0">
-                      <Link to="/reputation">Open Reputation</Link>
+                      <Link to="/engage/reviews">Open Marketing</Link>
                     </Button>
                   </CardBody>
                 </Card>

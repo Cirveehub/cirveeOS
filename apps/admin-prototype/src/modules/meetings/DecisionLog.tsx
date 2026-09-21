@@ -1,11 +1,3 @@
-/**
- * The decision log.
- *
- * The module's stated purpose is that you can find out what was decided, by
- * whom, when and why — so search here runs across the full decision body, the
- * rationale and the alternatives, not just the title, and the matched text is
- * marked in the result. Everything else on the screen is in service of that.
- */
 import { useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
@@ -44,7 +36,6 @@ import {
 } from './parts'
 import { NewDecisionModal } from './modals'
 
-/** Marks every occurrence of the search term so the hit is visible in the body. */
 function highlight(text: string, term: string): ReactNode {
   if (term.trim() === '') return text
   const safe = term.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -102,7 +93,6 @@ export default function DecisionLog() {
         if (filters.status && decision.status !== filters.status) return false
         if (filters.area && !decision.affectedAreas.includes(filters.area)) return false
         if (!term) return true
-        // Full-text: the decision body and rationale are the point, not the title.
         return (
           decision.ref.toLowerCase().includes(term) ||
           decision.title.toLowerCase().includes(term) ||

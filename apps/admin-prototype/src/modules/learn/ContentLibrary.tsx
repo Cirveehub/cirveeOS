@@ -1,12 +1,3 @@
-/**
- * Content library — `/learn/library`.
- *
- * Two jobs. One: an inventory of every content asset, filterable by the things
- * a content operation actually asks ("what is over 40 MB", "what has no
- * transcript", "what is not downloadable"). Two: **full-text search across
- * transcripts** — the payoff for insisting every lesson has one.
- */
-
 import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Download, FileSearch, LayoutGrid, Rows3, Upload } from 'lucide-react'
@@ -99,8 +90,6 @@ export default function ContentLibrary() {
 
   const transcriptHits = useMemo(
     () => (transcriptQuery.trim() ? searchTranscripts(transcriptQuery) : []),
-    // `assets` is in the dependency list so a transcript saved in the lesson
-    // editor turns up here without a reload.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [transcriptQuery, assets],
   )
@@ -588,7 +577,6 @@ function UploadAssetModal({ open, onClose }: { open: boolean; onClose: () => voi
   )
 }
 
-/** Bold the matched term inside a snippet without dangerouslySetInnerHTML. */
 function highlight(snippet: string, query: string) {
   const q = query.trim()
   if (!q) return snippet

@@ -1,32 +1,17 @@
-/**
- * The four audited lead dialogs.
- *
- * `LossReasonModal` is the one the founder will test: a lead cannot leave the
- * pipeline without a reason, and the form genuinely blocks rather than
- * defaulting to "Other".
- */
-
 import { useEffect, useState } from 'react'
-import { Alert, Button, Checkbox, Field, Modal, Select, Textarea } from '@/ui'
-import type { LeadStage, LossReason, PersonId, UserId } from '@/mocks/types'
-import { ALL_LOSS_REASONS, LOSS_REASON_LABELS, STAGE_LABELS, useDirectory } from '../lib/lookups'
+import { Button, Checkbox, Field, Modal, Select, Textarea } from '@/ui'
+import type { LossReason, PersonId, UserId } from '@/mocks/types'
+import { ALL_LOSS_REASONS, LOSS_REASON_LABELS, useDirectory } from '../lib/lookups'
 import { PersonPickerRow, UserPicker } from './Pickers'
-
-/* -------------------------------------------------------------------------- */
-/* Loss reason — mandatory on exit                                            */
-/* -------------------------------------------------------------------------- */
 
 export interface LossReasonModalProps {
   open: boolean
   onClose: () => void
-  /** The exit stage being moved into. */
-  stage: LeadStage | null
-  /** How many leads the reason will be applied to. */
   count?: number
   onConfirm: (reason: LossReason, note: string) => void
 }
 
-export function LossReasonModal({ open, onClose, stage, count = 1, onConfirm }: LossReasonModalProps) {
+export function LossReasonModal({ open, onClose, count = 1, onConfirm }: LossReasonModalProps) {
   const [reason, setReason] = useState<LossReason | ''>('')
   const [note, setNote] = useState('')
   const [touched, setTouched] = useState(false)
@@ -52,29 +37,20 @@ export function LossReasonModal({ open, onClose, stage, count = 1, onConfirm }: 
       open={open}
       onClose={onClose}
       size="md"
-      title="Why is this lead leaving the pipeline?"
-      description={
-        stage
-          ? `Moving ${count === 1 ? 'this lead' : `${count} leads`} to ${STAGE_LABELS[stage]}. A loss reason is required and is written to the audit log.`
-          : undefined
-      }
+      title={count === 1 ? 'Why are they not going ahead?' : `Why are these ${count} not going ahead?`}
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>
           <Button onClick={submit} disabled={invalid}>
-            Record and move stage
+            Mark as lost
           </Button>
         </>
       }
     >
       <div className="flex flex-col gap-4">
-        <Field
-          label="Loss reason"
-          required
-          error={touched && invalid ? 'Choose a loss reason. The stage cannot change without one.' : undefined}
-        >
+        <Field label="Reason" required error={touched && invalid ? 'Choose a reason.' : undefined}>
           <Select
             value={reason}
             invalid={touched && invalid}
@@ -84,11 +60,7 @@ export function LossReasonModal({ open, onClose, stage, count = 1, onConfirm }: 
           />
         </Field>
 
-        <Field
-          label="What happened"
-          optional
-          hint="Free text. Goes on the lead's activity feed, not the audit log."
-        >
+        <Field label="What happened" optional>
           <Textarea
             rows={3}
             value={note}
@@ -102,10 +74,6 @@ export function LossReasonModal({ open, onClose, stage, count = 1, onConfirm }: 
     </Modal>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* Reassign owner — attribution is preserved                                  */
-/* -------------------------------------------------------------------------- */
 
 export interface ReassignOwnerModalProps {
   open: boolean
@@ -144,8 +112,12 @@ export function ReassignOwnerModal({
       open={open}
       onClose={onClose}
       size="md"
-      title={count === 1 ? 'Reassign lead owner' : `Reassign ${count} leads`}
-      description="Ownership history is preserved. The previous owner stays visible on the audit tab."
+      title={count === 1 ? 'Change who handles this' : `Change who handles these ${count}`}
+      description={
+        currentOwnerUserId && count === 1
+          ? `Currently handled by ${userNameOf(currentOwnerUserId)}.`
+          : undefined
+      }
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>
@@ -160,58 +132,38 @@ export function ReassignOwnerModal({
             }}
             disabled={invalid}
           >
-            Reassign
+            Hand over
           </Button>
         </>
       }
     >
       <div className="flex flex-col gap-4">
-        <Alert tone="info" title="This does not touch attribution">
-          The referrer and the closer are separate fields and are left exactly as they are.
-          Reassigning the owner changes who works the lead, not who earns on it.
-        </Alert>
-
-        {currentOwnerUserId && (
-          <p className="text-body-13 text-text-secondary">
-            Current owner: <span className="font-semibold text-text">{userNameOf(currentOwnerUserId)}</span>
-          </p>
-        )}
-
         <Field
-          label="New owner"
+          label="Hand to"
           required
           error={touched && !owner ? 'Choose the person taking this over.' : undefined}
         >
-          <UserPicker value={owner} onChange={setOwner} invalid={touched && !owner} aria-label="New owner" />
+          <UserPicker value={owner} onChange={setOwner} invalid={touched && !owner} aria-label="Hand to" />
         </Field>
 
-        <Field
-          label="Reason"
-          required
-          hint="Written to the audit log as the reason for the ownership change."
-          error={touched && !reason.trim() ? 'A reason is required for an audited change.' : undefined}
-        >
+        <Field label="Why" required error={touched && !reason.trim() ? 'Say why it is moving.' : undefined}>
           <Textarea
             rows={2}
             value={reason}
             onChange={(event) => setReason(event.target.value)}
-            placeholder="Chidinma is on leave until 4 October. Moving her Ibadan pipeline to Blessing."
+            placeholder="Chidinma is on leave until 4 October."
           />
         </Field>
 
         <Checkbox
           checked={notify}
           onChange={(event) => setNotify(event.target.checked)}
-          label="Notify the new owner"
+          label="Let them know"
         />
       </div>
     </Modal>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* Change referrer                                                            */
-/* -------------------------------------------------------------------------- */
 
 export interface ChangeReferrerModalProps {
   open: boolean
@@ -240,7 +192,8 @@ export function ChangeReferrerModal({ open, onClose, current, onConfirm }: Chang
       open={open}
       onClose={onClose}
       size="md"
-      title="Change referrer"
+      title="Who referred them?"
+      description="The person named here is the one paid the referral commission."
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>
@@ -255,26 +208,17 @@ export function ChangeReferrerModal({ open, onClose, current, onConfirm }: Chang
             }}
             disabled={invalid}
           >
-            Change referrer
+            Save
           </Button>
         </>
       }
     >
       <div className="flex flex-col gap-4">
-        <Alert tone="warning" title="This changes who commission attributes to">
-          Commission is evaluated against the referrer field independently of the owner and the
-          closer. This change is audited.
-        </Alert>
-
-        <Field label="Referrer" optional hint="Leave empty when nobody brought this lead.">
-          <PersonPickerRow value={value} onChange={setValue} label="Referrer" relationship="referrer" />
+        <Field label="Referred by" optional hint="Leave empty when nobody referred them.">
+          <PersonPickerRow value={value} onChange={setValue} label="Referred by" relationship="referrer" />
         </Field>
 
-        <Field
-          label="Reason"
-          required
-          error={touched && invalid ? 'A reason is required for an audited change.' : undefined}
-        >
+        <Field label="Why the change" required error={touched && invalid ? 'Say why.' : undefined}>
           <Textarea
             rows={2}
             value={reason}
@@ -286,10 +230,6 @@ export function ChangeReferrerModal({ open, onClose, current, onConfirm }: Chang
     </Modal>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* Set closer                                                                 */
-/* -------------------------------------------------------------------------- */
 
 export interface SetCloserModalProps {
   open: boolean
@@ -310,8 +250,8 @@ export function SetCloserModal({ open, onClose, current, onConfirm }: SetCloserM
       open={open}
       onClose={onClose}
       size="sm"
-      title="Set closer"
-      description="Who actually closed this deal. Frequently not the lead owner."
+      title="Who closed it?"
+      description="Often not the person who handled the enquiry."
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>
@@ -323,18 +263,18 @@ export function SetCloserModal({ open, onClose, current, onConfirm }: SetCloserM
               onClose()
             }}
           >
-            Save closer
+            Save
           </Button>
         </>
       }
     >
-      <Field label="Closer" optional hint="Clear this field when the deal has not closed yet.">
+      <Field label="Closed by" optional>
         <UserPicker
           value={value}
           onChange={setValue}
           allowEmpty
-          emptyLabel="Not set"
-          aria-label="Closer"
+          emptyLabel="Not yet"
+          aria-label="Closed by"
         />
       </Field>
     </Modal>

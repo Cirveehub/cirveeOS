@@ -1,13 +1,3 @@
-/**
- * Shared report furniture: the chart frame, the palette, the tooltip and the
- * headline strip.
- *
- * Colours resolve to design-system CSS variables, never literals, so the
- * charts follow the theme. This is the second copy of a chart frame in the
- * app — the Command Centre has the other one — which is the argument for
- * lifting it into `src/ui/`.
- */
-
 import type { ReactNode } from 'react'
 
 import { Card, CardHeader } from '@/ui'
@@ -23,7 +13,6 @@ export const UNIT_COLOUR: Record<BusinessUnit, string> = {
   tcf: 'var(--color-ui-500)',
 }
 
-/** A neutral ordered series for charts that are not unit-coloured. */
 export const SERIES_COLOUR = [
   'var(--color-accent)',
   'var(--color-info-600)',
@@ -128,7 +117,6 @@ export function ChartTooltip({
   )
 }
 
-/** The figure strip that opens every report detail. */
 export function HeadlineStrip({
   items,
 }: {

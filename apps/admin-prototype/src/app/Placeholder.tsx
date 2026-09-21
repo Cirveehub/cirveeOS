@@ -1,9 +1,5 @@
 import { Construction } from 'lucide-react'
 
-/**
- * Temporary module index, replaced as each module is built.
- * Present so the shell and navigation are fully walkable from day one.
- */
 export default function Placeholder({
   module,
   summary,

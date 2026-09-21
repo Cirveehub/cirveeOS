@@ -1,17 +1,8 @@
-/**
- * The audit log, in full.
- *
- * Immutable and append-only. This is **not** the activity feed: no notes, no
- * calls, no edit affordance, nothing that a person authored. Every row is
- * actor, timestamp, entity, field, before and after — the shape you need to
- * settle an argument about what happened eight months ago.
- */
 import { useMemo, useState } from 'react'
-import { Lock, ScrollText } from 'lucide-react'
+import { ScrollText } from 'lucide-react'
 
 import { formatDateTime, formatNumber, humanize } from '@/lib/format'
 import {
-  Alert,
   Badge,
   Button,
   Card,
@@ -219,11 +210,6 @@ export default function AuditLog() {
   return (
     <Screen>
       {header}
-
-      <Alert tone="info" icon={Lock} className="mb-4" title="Append-only, and separate from the activity feed">
-        Notes, calls and messages live on each record's Activity tab and can be edited by the person who wrote them. Nothing
-        on this screen can be edited by anyone, including a Super Admin.
-      </Alert>
 
       <Card>
         <CardBody padding="none">

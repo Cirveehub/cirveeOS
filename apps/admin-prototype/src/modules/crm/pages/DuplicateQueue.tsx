@@ -1,21 +1,3 @@
-/**
- * Duplicate review queue — §2.11.
- *
- * This route used to alias `LeadList`, so the merge engine in
- * `lib/writes.ts` — `mergePeople()` — had no caller at all. It now has one.
- *
- * Split pane: candidate pairs on the left with match score and matched fields,
- * a field-by-field comparison on the right. The three answers match the ones
- * `NewLead.tsx`'s own duplicate panel offers, because a reviewer should not
- * have to learn two vocabularies for the same decision: **merge** (choosing the
- * surviving value per conflicting field), **not a duplicate** (recorded so the
- * pair never resurfaces) or **skip**.
- *
- * Nothing is deleted by a merge. The losing record is marked
- * `mergedIntoPersonId` and archived; every lead, admission, activity and
- * relationship is repointed so both timelines survive on the survivor.
- */
-
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CircleCheck, Merge, SkipForward, Users } from 'lucide-react'
@@ -98,7 +80,6 @@ export default function DuplicateQueue() {
   const personA = candidate ? people.find((p) => p.id === candidate.personAId) : undefined
   const personB = candidate ? people.find((p) => p.id === candidate.personBId) : undefined
 
-  /* Which record survives, and which value wins for each conflicting field. */
   const [survivor, setSurvivor] = useState<'a' | 'b'>('a')
   const [choices, setChoices] = useState<Record<string, 'a' | 'b'>>({})
   const [mergeOpen, setMergeOpen] = useState(false)
@@ -500,10 +481,6 @@ export default function DuplicateQueue() {
     </CrmPage>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* Survivor card                                                              */
-/* -------------------------------------------------------------------------- */
 
 function SurvivorCard({
   person,

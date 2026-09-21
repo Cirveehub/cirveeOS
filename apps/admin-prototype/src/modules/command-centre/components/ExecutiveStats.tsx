@@ -1,16 +1,3 @@
-/**
- * The PRD's four executive questions, one component per question, plus a
- * headline set for the Overview tab.
- *
- * This used to be one component rendering all four `StatBand`s in a single
- * flat scroll — ~16 cards, six more chart panels below them, and nothing to
- * defer any of it. `ExecutiveHome.tsx` now puts one question per tab; this
- * file is split to match, so each tab computes only the metrics it shows
- * rather than the whole page computing everything up front. Every value is
- * still a selector call — nothing here is a constant, with the one
- * documented exception (cash position) that already said so on its face.
- */
-
 import {
   AlertOctagon,
   Banknote,
@@ -63,7 +50,6 @@ import { deltaPercent, deltaPoints, previousWindow, shiftDays, sliceWindows } fr
 import { StatBand } from './StatBand'
 import { TriValueCard } from './TriValueCard'
 
-/** The response-time target the seed holds on every lead. */
 const RESPONSE_TARGET_MINUTES = 120
 
 function formatMinutes(minutes: number | null): string {
@@ -73,16 +59,6 @@ function formatMinutes(minutes: number | null): string {
   return hours ? `${hours}h ${String(rest).padStart(2, '0')}m` : `${rest}m`
 }
 
-/**
- * The pipeline window.
- *
- * Money follows the date range the user picks. The pipeline does not: the
- * seed's lead volumes, the conversion rate and the funnel are all measured
- * over the trailing ninety days — which is also what `executiveSummary()`
- * does — so a "this month" range would report a conversion rate against a
- * denominator that had not had time to convert. The cards say so on their
- * face rather than leaving it implied.
- */
 const PIPELINE_WINDOW: DateRange = LAST_90D
 const PIPELINE_LABEL = 'Trailing 90 days'
 
@@ -90,10 +66,6 @@ export interface QuestionBandProps {
   range: DateRange
   unitId: UnitId | undefined
 }
-
-/* -------------------------------------------------------------------------- */
-/* Are we making money?                                                       */
-/* -------------------------------------------------------------------------- */
 
 export function MoneyBand({ range, unitId }: QuestionBandProps) {
   const navigate = useNavigate()
@@ -165,10 +137,6 @@ export function MoneyBand({ range, unitId }: QuestionBandProps) {
     </StatBand>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* Are we growing?                                                            */
-/* -------------------------------------------------------------------------- */
 
 export function GrowthBand({ range: _range }: QuestionBandProps) {
   const navigate = useNavigate()
@@ -252,10 +220,6 @@ export function GrowthBand({ range: _range }: QuestionBandProps) {
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Are students succeeding?                                                   */
-/* -------------------------------------------------------------------------- */
-
 export function StudentsBand({ range }: QuestionBandProps) {
   const navigate = useNavigate()
   const summary = executiveSummary(range)
@@ -313,10 +277,6 @@ export function StudentsBand({ range }: QuestionBandProps) {
     </StatBand>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* Is the organisation functioning?                                          */
-/* -------------------------------------------------------------------------- */
 
 export function OrganisationBand({ range }: QuestionBandProps) {
   const navigate = useNavigate()
@@ -382,16 +342,6 @@ export function OrganisationBand({ range }: QuestionBandProps) {
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Overview — one headline card per question, for the tab everyone lands on  */
-/* -------------------------------------------------------------------------- */
-
-/**
- * The card a founder reads in the first three seconds: one number per
- * question, the same figures each full band leads with, just not all sixteen
- * cards behind them. Clicking through opens that question's own tab, not a
- * module — the point is to stay on Home until you've decided you need more.
- */
 export function OverviewHeadlines({ range, unitId }: QuestionBandProps) {
   const collected = collectedRevenue(range, unitId)
   const invoiced = invoicedRevenue(range, unitId)

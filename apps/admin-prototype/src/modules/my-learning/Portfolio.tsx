@@ -1,19 +1,3 @@
-/**
- * Portfolio — `/my-learning/portfolio`.
- *
- * Genuinely auto-generated: there is no editor here, nothing to arrange or
- * write. One entry per course, taken as the course's own capstone: the last
- * gradable assignment in course order, once it is graded and passed. This is
- * deliberately not "every `lesson.type === 'project'`" — the seed's own
- * comment on Data Analysis's capstone lesson says why that would find
- * nothing: "The capstone lesson is the presentation of the final project
- * assignment, not a seventh assignment of its own." Product Design's project
- * lesson does carry its own assignment, so both shapes are covered by the
- * same rule: whichever assignment sits last in the course outline is the
- * portfolio piece. Failed or ungraded work is excluded on purpose — a
- * portfolio showcases finished work, and the full submission history already
- * lives on the Assignments tab and `AssignmentDetail`.
- */
 import { FileText, Sparkles } from 'lucide-react'
 
 import { formatDate, formatNumber } from '@/lib/format'
@@ -38,8 +22,6 @@ export default function Portfolio() {
   const entries = enrolments.flatMap((enrolment) => {
     const course = coursesCollection.find(enrolment.courseId)
 
-    // Lesson `sequence` resets per module, so ordering within a course needs
-    // the module's own sequence as the primary key.
     const candidates = lessons
       .filter(
         (l) =>

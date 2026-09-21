@@ -1,12 +1,3 @@
-/**
- * Who is signed in, and what that entitles them to see.
- *
- * ```tsx
- * const session = useSession()
- * const can = useCan()
- * if (can('finance.invoice.view')) { … }
- * ```
- */
 export {
   PERSONAS,
   PERSONAS_BY_DEPARTMENT,

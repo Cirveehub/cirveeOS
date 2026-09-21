@@ -457,39 +457,44 @@ export const clientOrgs: ClientOrg[] = CLIENT_ORGS.map(([id, name, industry, siz
   ...audit(at(daysAgo(int(r, 300, 1000)), 10, 0), U.chukwuemeka),
 }))
 
-const DEAL_TITLES = [
-  'Data & Analytics upskilling — 40 seats',
-  'Product Design bootcamp for the design team',
-  'Cybersecurity awareness — all staff',
-  'Excel & reporting for branch managers',
-  'Graduate trainee technical academy',
-  'Frontend engineering conversion programme',
-  'Digital marketing for the retail team',
-  'Cloud migration readiness',
+/** [org, title, stage, value ₦, probability %, owner, days in stage, close offset days, next action, source, created days ago] */
+const DEALS: ReadonlyArray<
+  readonly [string, string, CorporateDeal['stage'], number, number, (typeof U)[keyof typeof U], number, number, string | null, string, number]
+> = [
+  [ORGS.sterling, 'Data & Analytics upskilling — 40 seats', 'delivery', 19_800_000, 100, U.blessing, 28, -35, null, 'Existing client', 160],
+  [ORGS.mtn, 'Graduate trainee technical academy — 60 seats', 'completed', 18_000_000, 100, U.chukwuemeka, 12, -120, null, 'Outbound', 300],
+  [ORGS.interswitch, 'Product design bootcamp for the design team — 15 seats', 'won', 7_500_000, 100, U.blessing, 6, 14, 'Confirm the cohort start date with the L&D lead', 'Referral — alumnus', 90],
+  [ORGS.flutterwave, 'Frontend engineering conversion programme — 20 seats', 'negotiation', 9_600_000, 70, U.blessing, 18, 21, 'Chase the signed contract', 'Inbound — website', 75],
+  [ORGS.ibedc, 'Excel & reporting for branch managers — 30 seats', 'renewal', 6_000_000, 70, U.chukwuemeka, 9, 40, 'Send renewal terms for the second cohort', 'Existing client', 30],
+  [ORGS.oando, 'Cybersecurity awareness for all staff — 50 seats', 'proposal', 12_000_000, 50, U.blessing, 62, 10, 'Follow up on the proposal sent in July', 'Lagos Tech Week', 110],
+  [ORGS.dangote, 'Digital marketing for the retail team — 12 seats', 'proposal', 3_600_000, 50, U.blessing, 11, 30, 'Walk the HR lead through the proposal', 'Outbound', 40],
+  [ORGS.sycamore, 'Cloud migration readiness — 10 seats', 'qualified', 2_400_000, 35, U.blessing, 51, 45, 'Book the scoping call', 'Partner introduction', 70],
+  [ORGS.sterling, 'Python for credit risk analysts — 25 seats', 'discovery', 11_250_000, 20, U.blessing, 14, 60, 'Send discovery notes and a draft outline', 'Existing client', 20],
+  [ORGS.mtn, 'Customer support AI tooling workshop — 35 seats', 'prospect', 8_750_000, 15, U.chukwuemeka, 5, 75, 'Qualify the budget with the head of customer operations', 'Referral — existing client', 5],
 ]
 
-export const corporateDeals: CorporateDeal[] = DEAL_TITLES.map((title, i) => {
-  const stage: CorporateDeal['stage'] = (['won', 'delivery', 'proposal', 'negotiation', 'qualified', 'discovery', 'prospect', 'renewal'] as const)[i]
-  const value = ngn([19_800_000, 12_400_000, 6_800_000, 3_200_000, 24_000_000, 9_600_000, 4_800_000, 2_400_000][i])
-  const probability = [100, 90, 55, 70, 35, 20, 10, 60][i]
-  return {
-    id: asDealId(`dl-${pad(i + 1, 4)}`),
-    ref: `DEAL-2026-${pad(i + 1, 4)}`,
-    organisationId: clientOrgs[i].id,
-    title,
-    stage,
-    value,
-    probability,
-    weightedValue: Math.round((value * probability) / 100) as Kobo,
-    ownerUserId: U.chukwuemeka,
-    unitId: UNIT.corporate,
-    source: pick(r, ['Inbound — website', 'Referral — alumnus', 'Outbound', 'Lagos Tech Week', 'Existing client']),
-    expectedCloseDate: addDays(TODAY, (i - 1) * 21),
-    stageEnteredAt: at(daysAgo(int(r, 4, 70)), 11, 0),
-    nextAction: stage === 'won' || stage === 'delivery' ? null : pick(r, ['Send the revised proposal', 'Book the scoping call', 'Chase the signed contract', 'Confirm seat numbers']),
-    ...audit(at(daysAgo(int(r, 40, 300)), 10, 0), U.chukwuemeka),
-  }
-})
+export const corporateDeals: CorporateDeal[] = DEALS.map(
+  ([org, title, stage, naira, probability, owner, daysInStage, closeOffset, nextAction, source, createdDaysAgo], i) => {
+    const value = ngn(naira)
+    return {
+      id: asDealId(`dl-${pad(i + 1, 4)}`),
+      ref: `DEAL-2026-${pad(i + 1, 4)}`,
+      organisationId: asClientOrgId(org),
+      title,
+      stage,
+      value,
+      probability,
+      weightedValue: Math.round((value * probability) / 100) as Kobo,
+      ownerUserId: owner,
+      unitId: UNIT.corporate,
+      source,
+      expectedCloseDate: addDays(TODAY, closeOffset),
+      stageEnteredAt: at(daysAgo(daysInStage), 11, 0),
+      nextAction,
+      ...audit(at(daysAgo(createdDaysAgo), 10, 0), owner),
+    }
+  },
+)
 
 /* -------------------------------------------------------------------------- */
 /* Meetings and decisions                                                     */

@@ -1,19 +1,3 @@
-/**
- * Learn dashboard — `/learn`.
- *
- * The PRD's warning about multi-format is that it is a content operation, not
- * a software feature: every lesson needs a video, an audio cut, a deck and a
- * transcript. The **content coverage matrix** is the tool that makes the size
- * of that job visible, which is why it states the backlog in assets rather
- * than percentages.
- *
- * This used to be ten stat cards in a flat grid, the matrix, and three more
- * panels, all in one scroll. Now it opens on one headline per theme plus the
- * five worst coverage gaps — the thing worth seeing whatever you came for —
- * and each theme keeps its full band and its charts behind a named tab. The
- * tab lives in the query string, so a view is a link.
- */
-
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AlertTriangle, Award, BookOpen, Clock, GraduationCap, Layers, Plus, Users } from 'lucide-react'
@@ -88,8 +72,6 @@ export default function LearnDashboard() {
   const query = useQueryState()
   const tab = query.get('tab') ?? 'overview'
 
-  // Subscribing to the collections is what keeps every number below live: fill
-  // a format gap in the lesson editor and this screen moves.
   const lessons = useCollection(lessonsCollection)
   const courses = useCollection(coursesCollection)
   useCollection(submissionsCollection)
@@ -102,8 +84,6 @@ export default function LearnDashboard() {
 
   const [matrixQuery, setMatrixQuery] = useState('')
   const [hideComplete, setHideComplete] = useState(false)
-
-  /* ---- Content: the module's signature number --------------------------- */
 
   const content = useMemo(() => {
     const matrix = contentCoverageMatrix()
@@ -124,8 +104,6 @@ export default function LearnDashboard() {
       worst: [...matrix].sort((a, b) => gapOf(b) - gapOf(a)).slice(0, 5),
     }
   }, [courses, lessons])
-
-  /* ---- Learners --------------------------------------------------------- */
 
   const learners = useMemo(() => {
     const rows = progressCollection.all()
@@ -160,8 +138,6 @@ export default function LearnDashboard() {
     }
   }, [enrollments])
 
-  /* ---- Grading ---------------------------------------------------------- */
-
   const grading = useMemo(() => {
     const backlog = gradingBacklog()
     const byTutor = new Map<string, { name: string; count: number; oldest: number }>()
@@ -187,8 +163,6 @@ export default function LearnDashboard() {
       })(),
     }
   }, [enrollments, tutorAssignments, quizzes])
-
-  /* ---- Certificates: the queue's live state, not the seeded rows -------- */
 
   const certificateBand = useMemo(() => {
     const issuedMtd = certificates.filter(
@@ -740,7 +714,6 @@ function gapOf(row: CoverageRow): number {
   return row.formats.reduce((acc, f) => acc + (f.total - f.have), 0)
 }
 
-/** One theme's takeaway in a sentence, so the Overview says what it means. */
 function Answer({ label, text }: { label: string; text: string }) {
   return (
     <div className="rounded-xl border border-border bg-surface p-4">

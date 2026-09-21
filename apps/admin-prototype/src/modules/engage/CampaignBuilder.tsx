@@ -1,21 +1,6 @@
-/**
- * §11 — Campaign builder, `/engage/campaigns/:id/builder` (and `/new`).
- *
- * A wizard rather than a form, because the sequencing is real: the segment
- * picked in step 2 sets the audience size every later step reasons about, the
- * channel picked in step 3 filters the templates and decides whether WhatsApp
- * approval blocks the send, the audience and channel together drive the
- * frequency-cap warning in step 4, and the budget in step 5 is only meaningful
- * as cost per person reached.
- *
- * Copied from `crm/pages/NewLead.tsx`: numbered step rail, per-step validation
- * that gates Continue, one `save()` that does every write and audits it, and a
- * review step that states what the save will do before it happens.
- */
-
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { AlertTriangle, ArrowLeft, Check, Send, Users } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, Check, ChevronDown, Send } from 'lucide-react'
 
 import { formatDateTime, formatNaira, formatNumber } from '@/lib/format'
 import {
@@ -51,27 +36,15 @@ import {
   type Channel,
 } from '@/mocks'
 
-import { Screen, useUserName } from './parts'
-import { createCampaign, updateCampaign } from './writes'
+import { CHANNEL_LABEL, Screen, useUserName } from './parts'
+import { createCampaign, derivedUtm, updateCampaign } from './writes'
 
-const CHANNELS: Array<{ value: Channel; label: string }> = [
-  { value: 'whatsapp', label: 'WhatsApp' },
-  { value: 'email', label: 'Email' },
-  { value: 'sms', label: 'SMS' },
-  { value: 'in_app', label: 'In-app' },
-]
+const CHANNELS: Array<{ value: Channel; label: string }> = (['whatsapp', 'email', 'sms', 'in_app'] as Channel[]).map(
+  (value) => ({ value, label: CHANNEL_LABEL[value] }),
+)
 
-const CHANNEL_LABEL: Record<string, string> = {
-  whatsapp: 'WhatsApp',
-  email: 'Email',
-  sms: 'SMS',
-  in_app: 'In-app',
-}
-
-/** Quiet hours are a courtesy constraint, not a legal one — but a real one. */
 const QUIET_FROM = 21
 const QUIET_TO = 8
-/** The most messages one person should receive in a rolling week. */
 const FREQUENCY_CAP = 3
 
 const STEPS = ['Basics', 'Audience', 'Channel and template', 'Schedule', 'Budget and review'] as const
@@ -104,6 +77,12 @@ export default function CampaignBuilder() {
   const [sendDate, setSendDate] = useState(existing?.scheduledAt?.slice(0, 10) ?? TODAY)
   const [sendTime, setSendTime] = useState(existing?.scheduledAt?.slice(11, 16) ?? '09:00')
   const [budget, setBudget] = useState<number | null>(existing?.budget ?? null)
+  const [advancedOpen, setAdvancedOpen] = useState(false)
+  const [utm, setUtm] = useState({
+    source: existing?.utm.source ?? '',
+    medium: existing?.utm.medium ?? '',
+    campaign: existing?.utm.campaign ?? '',
+  })
   const [saved, setSaved] = useState<string | null>(null)
 
   const segment = segments.find((s) => (s.id as string) === segmentId) ?? null
@@ -113,8 +92,8 @@ export default function CampaignBuilder() {
     (units.find((u) => (u.id as string) === value)?.code.toLowerCase() ?? 'academy') as BusinessUnit
 
   const audienceSize = segment?.memberCount ?? 0
+  const utmDefaults = derivedUtm(name, channel)
 
-  /* How many of this audience are already at the frequency cap this week. */
   const overCap = useMemo(() => {
     if (!segment) return 0
     const from = new Date(Date.parse(`${TODAY}T00:00:00Z`) - 7 * 86_400_000).toISOString().slice(0, 10)
@@ -131,7 +110,6 @@ export default function CampaignBuilder() {
   const sendHour = Number(sendTime.slice(0, 2))
   const inQuietHours = timing === 'at' && (sendHour >= QUIET_FROM || sendHour < QUIET_TO)
 
-  /* ---- per-step validation ---- */
   const nameError =
     name.trim().length < 4
       ? 'Name the campaign in at least four characters. It is what the attribution report will show.'
@@ -142,16 +120,16 @@ export default function CampaignBuilder() {
     objective.trim().length < 8 ? 'Say what this campaign is for. It is the first column of every report about it.' : undefined
   const unitError = unitId ? undefined : 'Pick the unit this campaign belongs to. Attributed revenue lands on it.'
   const segmentError = !segmentId
-    ? 'Pick a segment. A campaign has no audience of its own — it borrows one from Person records.'
+    ? 'Pick an audience. A campaign has no list of its own — it goes to the people who match the audience rules.'
     : audienceSize === 0
-      ? 'This segment currently resolves to nobody. Sending to it would do nothing at all.'
+      ? 'This audience currently resolves to nobody. Sending to it would do nothing at all.'
       : undefined
   const templateError = !templateId
     ? 'Pick a template for this channel.'
     : template?.channel !== channel
       ? 'That template belongs to another channel.'
       : template?.whatsappApprovalStatus === 'rejected'
-        ? 'This template was rejected by WhatsApp and cannot be sent. Pick another or revise it under Templates.'
+        ? 'This template was rejected by WhatsApp and cannot be sent. Pick another or revise it under Campaigns, Templates.'
         : undefined
   const scheduleError =
     timing === 'at' && `${sendDate}T${sendTime}` < `${TODAY}T00:00`
@@ -185,6 +163,7 @@ export default function CampaignBuilder() {
       budget,
       scheduledAt,
       status: (timing === 'at' ? 'scheduled' : 'draft') as 'scheduled' | 'draft',
+      utm,
     }
     if (editing && existing) {
       updateCampaign(existing.id as string, input)
@@ -192,7 +171,7 @@ export default function CampaignBuilder() {
     } else {
       const campaign = createCampaign(input)
       setSaved(
-        `${campaign.name} created as a ${campaign.status} campaign over ${formatNumber(campaign.audienceSize)} people. ${segment?.name ?? 'The segment'} now lists it among the campaigns using it.`,
+        `${campaign.name} created as a ${campaign.status} campaign over ${formatNumber(campaign.audienceSize)} people. ${segment?.name ?? 'The audience'} now lists it among the campaigns using it.`,
       )
     }
   }
@@ -204,7 +183,7 @@ export default function CampaignBuilder() {
       <Screen>
         <PageHeader
           breadcrumbs={[
-            { label: 'Engage', to: '/engage' },
+            { label: 'Marketing', to: '/engage' },
             { label: 'Campaigns', to: '/engage/campaigns' },
             { label: name },
           ]}
@@ -212,11 +191,6 @@ export default function CampaignBuilder() {
         />
         <Alert tone="success" title={name} className="mb-6">
           {saved}
-        </Alert>
-        <Alert tone="info" title="Nothing has been sent" className="mb-6">
-          This prototype writes the campaign and its audience link. Actually dispatching messages is the automation
-          engine's job — a journey and a campaign are the same engine, which is why Engage does not carry a second
-          builder.
         </Alert>
         <div className="flex flex-wrap gap-2">
           <Button asChild>
@@ -247,7 +221,7 @@ export default function CampaignBuilder() {
       <Screen>
         <PageHeader
           breadcrumbs={[
-            { label: 'Engage', to: '/engage' },
+            { label: 'Marketing', to: '/engage' },
             { label: 'Campaigns', to: '/engage/campaigns' },
             { label: id },
           ]}
@@ -272,12 +246,12 @@ export default function CampaignBuilder() {
     <Screen>
       <PageHeader
         breadcrumbs={[
-          { label: 'Engage', to: '/engage' },
+          { label: 'Marketing', to: '/engage' },
           { label: 'Campaigns', to: '/engage/campaigns' },
           { label: editing ? existing.name : 'New campaign' },
         ]}
         title={editing ? `Edit ${existing.name}` : 'New campaign'}
-        description="Audience, then channel and template, then schedule, then budget. Each step depends on the one before it, which is why this is a wizard and not a form."
+        description="Who it goes to, then channel and template, then when, then budget."
         meta={editing ? <StatusBadge status={existing.status} /> : undefined}
         actions={
           <Button variant="ghost" leftIcon={<ArrowLeft size={16} />} onClick={() => navigate('/engage/campaigns')}>
@@ -349,22 +323,57 @@ export default function CampaignBuilder() {
                     disabled={locked}
                   />
                 </Field>
+
+                <div className="rounded-xl border border-border">
+                  <button
+                    type="button"
+                    onClick={() => setAdvancedOpen(!advancedOpen)}
+                    aria-expanded={advancedOpen}
+                    className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-body-13 font-semibold text-text-secondary hover:text-text"
+                  >
+                    <ChevronDown
+                      size={16}
+                      aria-hidden="true"
+                      className={advancedOpen ? 'rotate-180 transition-transform' : 'transition-transform'}
+                    />
+                    Advanced
+                    <span className="ml-auto font-mono text-body-12 font-normal text-text-muted">
+                      {utm.source || utmDefaults.source} / {utm.medium || utmDefaults.medium} /{' '}
+                      {utm.campaign || utmDefaults.campaign || '...'}
+                    </span>
+                  </button>
+                  {advancedOpen && (
+                    <div className="border-t border-border px-4 py-4">
+                      <p className="mb-3 text-body-13 text-text-secondary">
+                        Tracking code (UTM) on every link in this campaign. It is filled in from the name and channel;
+                        change it only if the link has to match something outside this system.
+                      </p>
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        {(['source', 'medium', 'campaign'] as const).map((key) => (
+                          <Field key={key} label={`utm_${key}`} optional>
+                            <Input
+                              value={utm[key]}
+                              placeholder={utmDefaults[key] || (key === 'campaign' ? 'from the name' : '')}
+                              onChange={(event) => setUtm({ ...utm, [key]: event.target.value })}
+                              disabled={locked}
+                              className="font-mono"
+                            />
+                          </Field>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </>
             )}
 
             {/* ----------------------------- 2. Audience ---------------------------- */}
             {step === 2 && (
               <>
-                <Alert tone="info" icon={Users} title="Segments are built from Person records">
-                  A campaign has no contact list of its own. It borrows an audience from a segment, and that segment is a
-                  saved query over the same Person records the CRM uses — so an unsubscribe recorded anywhere applies
-                  here without anyone copying a list.
-                </Alert>
-
-                <Field label="Segment" required error={touched[2] ? segmentError : undefined}>
+                <Field label="Audience" required error={touched[2] ? segmentError : undefined}>
                   <Select
                     value={segmentId}
-                    placeholder="Pick a segment"
+                    placeholder="Pick an audience"
                     options={segments.map((s) => ({
                       value: s.id as string,
                       label: `${s.name} — ${formatNumber(s.memberCount)} people`,
@@ -378,11 +387,11 @@ export default function CampaignBuilder() {
                   <EmptyState
                     size="sm"
                     bordered
-                    title="No segments exist yet"
-                    message="Nothing can be sent until one does. A segment takes a minute to build and resolves live over Person records."
+                    title="No audiences exist yet"
+                    message="Nothing can be sent until one does. An audience takes a minute to build."
                     action={
                       <Button asChild size="sm">
-                        <Link to="/engage/segments">Build a segment</Link>
+                        <Link to="/engage/audiences">Build an audience</Link>
                       </Button>
                     }
                   />
@@ -391,7 +400,7 @@ export default function CampaignBuilder() {
                 {segment && (
                   <div className="rounded-xl border border-border p-4">
                     <div className="flex flex-wrap items-baseline justify-between gap-2">
-                      <span className="text-label-11 text-text-muted">Audience, resolved now</span>
+                      <span className="text-label-11 text-text-muted">People in it right now</span>
                       <span className="text-heading-24 tabular-nums text-text">{formatNumber(audienceSize)}</span>
                     </div>
                     <p className="mt-1 text-body-13 text-text-secondary">{segment.criteriaSummary}</p>
@@ -445,7 +454,7 @@ export default function CampaignBuilder() {
                     message="A campaign cannot send without one. Templates carry the merge fields and, on WhatsApp, the approval status that decides whether a send is even possible."
                     action={
                       <Button asChild size="sm">
-                        <Link to="/engage/templates">Open templates</Link>
+                        <Link to="/engage/campaigns/templates">Open templates</Link>
                       </Button>
                     }
                   />
@@ -586,7 +595,7 @@ export default function CampaignBuilder() {
                       <KeyValue label="Unit" divided>
                         {unitId ? <UnitTag unit={unitCode(unitId)} size="sm" /> : '—'}
                       </KeyValue>
-                      <KeyValue label="Segment" divided hint="Resolved over Person records, not a stored list.">
+                      <KeyValue label="Audience" divided hint="Resolved at send time, not a stored list.">
                         {segment ? `${segment.name} · ${formatNumber(audienceSize)} people` : '—'}
                       </KeyValue>
                       <KeyValue label="Channel" divided>
@@ -601,6 +610,12 @@ export default function CampaignBuilder() {
                       <KeyValue label="Budget" divided>
                         {budget === null || budget === 0 ? 'No budget' : formatNaira(budget)}
                       </KeyValue>
+                      <KeyValue label="Tracking code" divided>
+                        <code className="font-mono text-body-12">
+                          {utm.source || utmDefaults.source} / {utm.medium || utmDefaults.medium} /{' '}
+                          {utm.campaign || utmDefaults.campaign}
+                        </code>
+                      </KeyValue>
                     </KeyValueList>
 
                     <ul className="mt-4 space-y-1.5 text-body-13 text-text-secondary">
@@ -608,8 +623,8 @@ export default function CampaignBuilder() {
                         A campaign record is created with status {timing === 'at' ? 'Scheduled' : 'Draft'} and every
                         performance figure at zero.
                       </li>
-                      <li>{segment?.name ?? 'The segment'} gains this campaign in its "used by" list.</li>
-                      <li>A UTM set is derived from the name and channel, so attribution works without anyone typing one.</li>
+                      <li>{segment?.name ?? 'The audience'} gains this campaign in its "used by" list.</li>
+                      <li>Links carry the tracking code above, so enrolments can be traced back to this campaign.</li>
                       <li>Nothing is sent. Dispatch belongs to the automation engine, which journeys and campaigns share.</li>
                     </ul>
                   </CardBody>
@@ -634,7 +649,7 @@ export default function CampaignBuilder() {
                 {segment ? (
                   <span className="tabular-nums">{formatNumber(audienceSize)}</span>
                 ) : (
-                  <span className="text-text-secondary">No segment yet</span>
+                  <span className="text-text-secondary">No audience yet</span>
                 )}
               </KeyValue>
               <KeyValue label="Channel" divided>

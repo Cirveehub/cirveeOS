@@ -41,21 +41,11 @@ import { FINANCE_TABS, Page, ScreenError, personName, unitKey, useModuleNav, use
 
 const NOW = `${TODAY}T11:20:00+01:00`
 
-/* -------------------------------------------------------------------------- */
-/* Writes                                                                     */
-/* -------------------------------------------------------------------------- */
-
 interface Allocation {
   invoiceId: string
   amount: number
 }
 
-/**
- * The one write on this screen. A confirmed match creates a payment, applies
- * its allocations to the invoices, and links the bank transaction to it.
- * Nothing is edited in place and nothing is deleted: the bank row keeps its
- * narration and gains a payment reference.
- */
 function settle(transaction: BankTransaction, allocations: Allocation[]) {
   const credit = transaction.credit ?? 0
   const applied = allocations.filter((a) => a.amount > 0)
@@ -121,8 +111,6 @@ function settle(transaction: BankTransaction, allocations: Allocation[]) {
   return payment
 }
 
-/* -------------------------------------------------------------------------- */
-
 export default function Reconciliation() {
   const state = useScreenState()
   const navigate = useModuleNav()
@@ -155,7 +143,6 @@ export default function Reconciliation() {
       .map((candidate) => ({ candidate, invoice: invoicesCollection.find(candidate.invoiceId) }))
       .filter((row): row is { candidate: BankMatchCandidate; invoice: Invoice } => Boolean(row.invoice))
       .sort((a, b) => b.candidate.score - a.candidate.score)
-    // `invoices` is a dependency so a settled invoice drops out of the list.
   }, [selected, rejected, invoices])
 
   const splitTotal = Object.values(splitAmounts).reduce<number>((acc, value) => acc + (value ?? 0), 0)
@@ -255,10 +242,6 @@ export default function Reconciliation() {
       />
 
       <ScreenError state={state} />
-
-      <Alert tone="warning" icon={ShieldAlert} title="Unmatched items stay visible until a human resolves them" className="mb-6">
-        Nothing is ever auto-assigned on a guess. A confidence score is a prompt for a decision, not a decision.
-      </Alert>
 
       {notice && (
         <Alert tone="success" title="Match recorded" className="mb-6" onDismiss={() => setNotice(null)}>

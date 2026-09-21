@@ -1,18 +1,3 @@
-/**
- * Settings — `/my-learning/settings`.
- *
- * Profile only, which is the legacy portal's scope for a learner minus the
- * two tabs that have nothing behind them here: notification preferences and
- * password change are both real product surface but neither has a record in
- * Cirvee OS to write to, and a form whose Save button does nothing is worse
- * than no form. This is deliberately the thinnest screen in the module.
- *
- * Contact details are the one thing a learner can correct without anybody's
- * approval, so this writes straight to their `Person` record — with an audit
- * row per field changed, because the PRD treats a person's identity fields as
- * auditable even when the person changing them is the person themselves.
- */
-
 import { useEffect, useState } from 'react'
 
 import { Button, Field, Input, PageHeader, Select } from '@/ui'

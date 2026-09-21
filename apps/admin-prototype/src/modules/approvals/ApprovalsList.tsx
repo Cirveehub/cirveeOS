@@ -651,6 +651,5 @@ export default function ApprovalsList() {
   )
 }
 
-/** Amount bands are exported so the route configuration screen can reuse them. */
 export { AMOUNT_BANDS }
 export type { ApprovalType, Kobo }

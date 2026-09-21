@@ -1,41 +1,18 @@
-/**
- * Referral & commission — shared vocabulary, rule drafting and simulation.
- *
- * Three rules govern this file:
- *
- *  1. **The calculation engine is not reimplemented here.** `computeCommission`
- *     comes from the store and is the single place commission money is worked
- *     out. `simulateRule()` below only wraps it with the applicability and
- *     eligibility *narration* the builder's simulator needs, because
- *     `evaluateCommissionRules()` can only see rules that already exist in the
- *     collection — and the whole point of the builder is a rule that does not
- *     exist yet. Every naira the simulator prints came out of
- *     `computeCommission`.
- *  2. **No rate, threshold or grace period is typed into a component.** Rules
- *     are data; this file only reads and drafts them.
- *  3. **Nothing is hard-deleted.** A new version end-dates its predecessor.
- */
-
 import {
   TODAY,
   addDays,
-  admissionsCollection,
   branchesCollection,
   commissionRulesCollection,
   commissionsCollection,
-  computeCommission,
   coursesCollection,
-  invoicesCollection,
   payrollPeriodsCollection,
   peopleCollection,
-  referrerProfilesCollection,
   rolesCollection,
   unitsCollection,
   usersCollection,
 } from '@/mocks'
 import { campaignId as asCampaignId, courseId as asCourseId, ruleId as asRuleId } from '@/mocks/types'
 import type {
-  Admission,
   BranchId,
   Commission,
   CommissionBasis,
@@ -43,6 +20,7 @@ import type {
   CommissionRoleOnDeal,
   CommissionState,
   Kobo,
+  Person,
   PersonId,
   ReferrerType,
   RoleId,
@@ -54,30 +32,19 @@ import type { BusinessUnit } from '@/app/module-registry'
 import { BUSINESS_UNITS } from '@/ui'
 import { formatDate, formatNaira } from '@/lib/format'
 
-/* -------------------------------------------------------------------------- */
-/* Vocabulary                                                                 */
-/* -------------------------------------------------------------------------- */
-
 export const ROLE_ON_DEAL: CommissionRoleOnDeal[] = ['referrer', 'lead_owner', 'closer']
 
 export const ROLE_LABEL: Record<CommissionRoleOnDeal, string> = {
-  referrer: 'Referrer',
-  lead_owner: 'Lead owner',
-  closer: 'Closer',
+  referrer: 'Referred by',
+  lead_owner: 'Handled by',
+  closer: 'Closed by',
 }
 
-/**
- * The three roles carry a distinct tone each, per §3.6 — the independence is
- * meant to be visible at a glance in a dense ledger.
- */
 export const ROLE_TONE: Record<CommissionRoleOnDeal, BadgeTone> = {
   referrer: 'accent',
   lead_owner: 'info',
   closer: 'success',
 }
-
-export const ROLE_HELP =
-  'These are independent. A rule that pays the closer does not pay the referrer. Create a second rule for that.'
 
 export const COMMISSION_STATES: CommissionState[] = [
   'tracked',
@@ -91,46 +58,109 @@ export const COMMISSION_STATES: CommissionState[] = [
   'cancelled',
 ]
 
-/** The main line of the funnel; the rest are the side branch. */
-export const FUNNEL_STATES: CommissionState[] = ['tracked', 'pending', 'earned', 'approved', 'payable', 'paid']
-export const SIDE_STATES: CommissionState[] = ['disputed', 'reversed', 'cancelled']
-
 export const STATE_LABEL: Record<CommissionState, string> = {
   tracked: 'Tracked',
-  pending: 'Pending',
+  pending: 'Waiting for payment',
   earned: 'Earned',
   approved: 'Approved',
-  payable: 'Payable',
+  payable: 'Ready to pay',
   paid: 'Paid',
-  disputed: 'Disputed',
+  disputed: 'Queried',
   reversed: 'Reversed',
   cancelled: 'Cancelled',
 }
 
-export const STATE_TONE: Record<CommissionState, BadgeTone> = {
-  tracked: 'neutral',
-  pending: 'warning',
+export type SimpleState = 'waiting' | 'earned' | 'paid'
+export type SideFlag = 'queried' | 'reversed' | 'cancelled'
+
+export const SIMPLE_STATES: SimpleState[] = ['waiting', 'earned', 'paid']
+export const SIDE_FLAGS: SideFlag[] = ['queried', 'reversed', 'cancelled']
+
+export const SIMPLE_STATE_LABEL: Record<SimpleState, string> = {
+  waiting: 'Waiting for payment',
+  earned: 'Earned',
+  paid: 'Paid',
+}
+
+export const SIMPLE_STATE_TONE: Record<SimpleState, BadgeTone> = {
+  waiting: 'warning',
   earned: 'info',
-  approved: 'success',
-  payable: 'success',
-  paid: 'accent',
-  disputed: 'warning',
-  reversed: 'danger',
-  cancelled: 'danger',
+  paid: 'success',
+}
+
+export const SIDE_FLAG_LABEL: Record<SideFlag, string> = {
+  queried: 'Queried',
+  reversed: 'Reversed',
+  cancelled: 'Cancelled',
+}
+
+export const UNDERLYING: Record<SimpleState | SideFlag, CommissionState[]> = {
+  waiting: ['tracked', 'pending'],
+  earned: ['earned', 'approved', 'payable'],
+  paid: ['paid'],
+  queried: ['disputed'],
+  reversed: ['reversed'],
+  cancelled: ['cancelled'],
+}
+
+export const OWED_STATES: CommissionState[] = ['earned', 'approved', 'payable']
+
+export function isSimpleState(value: string): value is SimpleState {
+  return (SIMPLE_STATES as string[]).includes(value)
+}
+
+export function isSideFlag(value: string): value is SideFlag {
+  return (SIDE_FLAGS as string[]).includes(value)
+}
+
+export function isCommissionState(value: string): value is CommissionState {
+  return (COMMISSION_STATES as string[]).includes(value)
+}
+
+export function stateMatches(c: Commission, filter: string): boolean {
+  if (isSimpleState(filter) || isSideFlag(filter)) return UNDERLYING[filter].includes(c.state)
+  if (isCommissionState(filter)) return c.state === filter
+  return true
+}
+
+export function priorState(c: Commission): CommissionState {
+  return c.stateHistory.filter((h) => h.to !== 'disputed').at(-1)?.to ?? 'earned'
+}
+
+export function presentState(c: Commission): { simple: SimpleState | null; flag: SideFlag | null } {
+  if (c.state === 'disputed') {
+    const prior = priorState(c)
+    return { simple: simpleOf(prior), flag: 'queried' }
+  }
+  if (c.state === 'reversed') return { simple: null, flag: 'reversed' }
+  if (c.state === 'cancelled') return { simple: null, flag: 'cancelled' }
+  return { simple: simpleOf(c.state), flag: null }
+}
+
+function simpleOf(state: CommissionState): SimpleState | null {
+  if (UNDERLYING.waiting.includes(state)) return 'waiting'
+  if (UNDERLYING.earned.includes(state)) return 'earned'
+  if (state === 'paid') return 'paid'
+  return null
+}
+
+export function needsApproval(c: Commission): boolean {
+  if (c.state !== 'earned') return false
+  return findRule(c.ruleId)?.approvalRequired ?? false
 }
 
 export const BASIS_OPTIONS: CommissionBasis[] = ['gross_fee', 'net_after_discount', 'amount_collected']
 
 export const BASIS_LABEL: Record<CommissionBasis, string> = {
-  gross_fee: 'Gross fee',
-  net_after_discount: 'Net after discount',
-  amount_collected: 'Amount actually collected',
+  gross_fee: 'The fee',
+  net_after_discount: 'The fee after discount',
+  amount_collected: 'Money actually received',
 }
 
-export const BASIS_HELP: Record<CommissionBasis, string> = {
-  gross_fee: 'The fee before any discount. Pays on what was quoted, not on what came in.',
-  net_after_discount: 'The fee after discount. Pays on what is owed, whether or not it has been received.',
-  amount_collected: 'Only money actually received. Nothing is earned on an unpaid invoice.',
+export const BASIS_HINT: Record<CommissionBasis, string> = {
+  gross_fee: 'What was quoted, before any discount.',
+  net_after_discount: 'What the student owes after discount, whether or not it has come in yet.',
+  amount_collected: 'Only what has landed in the bank.',
 }
 
 export const BENEFICIARY_TYPES: Array<ReferrerType | 'staff'> = [
@@ -146,68 +176,77 @@ export const BENEFICIARY_TYPES: Array<ReferrerType | 'staff'> = [
   'corporate_partner',
 ]
 
+export const REFERRER_TYPES: ReferrerType[] = [
+  'alumnus',
+  'student',
+  'parent',
+  'employee',
+  'tutor',
+  'influencer',
+  'partner',
+  'external_agent',
+  'corporate_partner',
+]
+
 export const BENEFICIARY_LABEL: Record<ReferrerType | 'staff', string> = {
   staff: 'Staff',
   student: 'Student',
-  alumnus: 'Alumnus',
+  alumnus: 'Alumna / Alumnus',
   parent: 'Parent',
-  employee: 'Employee',
+  employee: 'Staff member',
   tutor: 'Tutor',
   influencer: 'Influencer',
   partner: 'Partner',
-  external_agent: 'External agent',
+  external_agent: 'Agent',
   corporate_partner: 'Corporate partner',
 }
 
-export type CalculationKind = CommissionRule['calculation']['kind']
-
-export const CALCULATION_KINDS: CalculationKind[] = [
-  'percentage',
-  'fixed',
-  'tiered',
-  'course_specific',
-  'campaign_specific',
-]
-
-export const CALCULATION_LABEL: Record<CalculationKind, string> = {
-  percentage: 'Percentage',
-  fixed: 'Fixed',
-  tiered: 'Tiered',
-  course_specific: 'Course-specific',
-  campaign_specific: 'Campaign-specific',
+export const BENEFICIARY_PLURAL: Record<ReferrerType | 'staff', string> = {
+  staff: 'Staff',
+  student: 'Students',
+  alumnus: 'Alumni',
+  parent: 'Parents',
+  employee: 'Staff',
+  tutor: 'Tutors',
+  influencer: 'Influencers',
+  partner: 'Partners',
+  external_agent: 'Agents',
+  corporate_partner: 'Corporate partners',
 }
+
+export type CalculationKind = CommissionRule['calculation']['kind']
 
 export type PayoutSchedule = CommissionRule['payoutSchedule']
 
 export const PAYOUT_SCHEDULES: PayoutSchedule[] = ['per_payroll', 'weekly', 'monthly', 'on_approval']
 
 export const SCHEDULE_LABEL: Record<PayoutSchedule, string> = {
-  per_payroll: 'Per payroll run',
+  per_payroll: 'With each payroll run',
   weekly: 'Weekly',
   monthly: 'Monthly',
-  on_approval: 'On approval',
+  on_approval: 'As soon as it is approved',
 }
 
 export type OnRefund = CommissionRule['reversal']['onRefund']
 export type IfAlreadyPaid = CommissionRule['reversal']['ifAlreadyPaid']
 
 export const ON_REFUND_LABEL: Record<OnRefund, string> = {
-  full: 'Full reversal on refund or chargeback',
-  proportional: 'Proportional to the amount refunded',
-  none: 'No reversal',
+  full: 'Take the whole commission back',
+  proportional: 'Take back the same share that was refunded',
+  none: 'Leave the commission alone',
 }
 
 export const IF_PAID_LABEL: Record<IfAlreadyPaid, string> = {
-  create_receivable: 'Create a receivable against the beneficiary',
-  deduct_next_payout: 'Deduct from the next payout',
-  write_off_with_approval: 'Write off with approval',
+  create_receivable: 'Record it as money they owe us',
+  deduct_next_payout: 'Deduct it from their next payout',
+  write_off_with_approval: 'Write it off, with sign-off',
 }
 
 export const RULE_STATUS_LABEL: Record<CommissionRule['status'], string> = {
   draft: 'Draft',
-  scheduled: 'Scheduled',
-  active: 'Active',
-  superseded: 'Superseded',
+  scheduled: 'Starts later',
+  active: 'In force',
+  superseded: 'Replaced',
 }
 
 export const RULE_STATUS_TONE: Record<CommissionRule['status'], BadgeTone> = {
@@ -216,10 +255,6 @@ export const RULE_STATUS_TONE: Record<CommissionRule['status'], BadgeTone> = {
   active: 'success',
   superseded: 'neutral',
 }
-
-/* -------------------------------------------------------------------------- */
-/* Lookups                                                                    */
-/* -------------------------------------------------------------------------- */
 
 export function personName(id: PersonId | null | undefined): string {
   if (!id) return 'Unassigned'
@@ -263,14 +298,21 @@ export function branchName(id: BranchId | null | undefined): string {
   return branchesCollection.find(id)?.name ?? id
 }
 
-/** `unit-academy` → `academy`, the key `UnitTag` wants. */
 export function unitKey(id: UnitId | null | undefined): BusinessUnit | null {
   if (!id) return null
   const stem = id.replace(/^unit-/, '') as BusinessUnit
   return BUSINESS_UNITS.includes(stem) ? stem : null
 }
 
-/** `cr-004-v3` → `CR-004`. The reference staff say out loud. */
+export function whatsappHref(person: Person | undefined | null): string | null {
+  const raw = person?.whatsapp ?? person?.phone
+  if (!raw) return null
+  let digits = raw.replace(/\D/g, '')
+  if (digits.startsWith('0') && digits.length === 11) digits = `234${digits.slice(1)}`
+  if (digits.length < 10) return null
+  return `https://wa.me/${digits}`
+}
+
 export function ruleCode(rule: Pick<CommissionRule, 'id'>): string {
   const stem = rule.id.split('-v')[0]
   return stem.toUpperCase()
@@ -284,7 +326,6 @@ export function findRule(id: string | null | undefined): CommissionRule | undefi
   return id ? commissionRulesCollection.find(id) : undefined
 }
 
-/** Every version of one rule key, oldest first. Nothing is ever removed. */
 export function versionsOf(ruleKey: string): CommissionRule[] {
   return commissionRulesCollection
     .where((r) => r.ruleKey === ruleKey)
@@ -301,12 +342,8 @@ export function effectiveRange(rule: Pick<CommissionRule, 'effectiveFrom' | 'eff
   return rule.effectiveTo ? `${from} – ${formatDate(rule.effectiveTo)}` : `${from} – open`
 }
 
-/* -------------------------------------------------------------------------- */
-/* Plain-English rendering                                                    */
-/* -------------------------------------------------------------------------- */
-
 export function tierSummary(tiers: TierDraft[]): string {
-  if (!tiers.length) return 'No bands yet'
+  if (!tiers.length) return 'no rate steps yet'
   return tiers
     .map((t) => {
       const from = formatNaira(t.fromAmount, { compact: true })
@@ -316,72 +353,67 @@ export function tierSummary(tiers: TierDraft[]): string {
     .join(' · ')
 }
 
+function ofWhat(basis: CommissionBasis): string {
+  return BASIS_LABEL[basis].charAt(0).toLowerCase() + BASIS_LABEL[basis].slice(1)
+}
+
 export function calculationSentence(draft: RuleDraft): string {
   switch (draft.calcKind) {
     case 'percentage':
-      return `${draft.percentageRate}% of the ${BASIS_LABEL[draft.basis].toLowerCase()}`
+      return `${draft.percentageRate}% of ${ofWhat(draft.basis)}`
     case 'fixed':
-      return `a flat ${formatNaira(draft.fixedAmount ?? 0)}`
+      return formatNaira(draft.fixedAmount ?? 0)
     case 'tiered':
-      return `a tiered rate on the ${BASIS_LABEL[draft.basis].toLowerCase()} (${tierSummary(draft.tiers)})`
+      return `a stepped rate on ${ofWhat(draft.basis)} (${tierSummary(draft.tiers)})`
     case 'course_specific':
-      return `a per-course rate on the ${BASIS_LABEL[draft.basis].toLowerCase()}, ${draft.courseFallback}% for any other course`
+      return `a per-course rate on ${ofWhat(draft.basis)}, ${draft.courseFallback}% for any other course`
     case 'campaign_specific':
-      return `a per-campaign rate on the ${BASIS_LABEL[draft.basis].toLowerCase()}, ${draft.campaignFallback}% for any other campaign`
+      return `a per-campaign rate on ${ofWhat(draft.basis)}, ${draft.campaignFallback}% for any other campaign`
   }
 }
 
-/** The calculation column of §3.4, rendered from data rather than stored prose. */
 export function ruleCalculationSentence(rule: CommissionRule): string {
   return calculationSentence(draftFromRule(rule))
 }
 
-function eligibilityClause(draft: RuleDraft): string {
-  const holds: string[] = []
-  if (draft.requiresFullPayment) holds.push('the invoice is fully paid')
-  else if (draft.minimumPercentPaid !== null) holds.push(`${draft.minimumPercentPaid}% of the invoice is paid`)
-  if (draft.paymentAgedDays !== null) holds.push(`the payment has settled for ${draft.paymentAgedDays} days`)
-  if (!holds.length) return 'earned as soon as the admission is created'
-  return `held as ${draft.stateBeforeEligible === 'tracked' ? 'Tracked' : 'Pending'} until ${holds.join(' and ')}`
+export function whoGetsPaid(draft: Pick<RuleDraft, 'beneficiaryType' | 'roleOnDeal'>): string {
+  if (draft.roleOnDeal === 'closer') return 'Staff who close a sale'
+  if (draft.roleOnDeal === 'lead_owner') return 'Staff who handle the enquiry'
+  return `${BENEFICIARY_PLURAL[draft.beneficiaryType]} who refer someone`
 }
 
-/**
- * The sentence the right pane regenerates on every keystroke. Section 3.5's
- * "prove commission is configuration, not code" lives or dies on this reading
- * like something a founder would say out loud.
- */
+export function whenPaid(draft: RuleDraft): string {
+  const parts: string[] = []
+  if (draft.requiresFullPayment) parts.push('once the invoice is fully paid')
+  else if (draft.minimumPercentPaid !== null) parts.push(`once ${draft.minimumPercentPaid}% of the invoice is paid`)
+  else parts.push('once the invoice is issued')
+  if (draft.paymentAgedDays !== null) parts.push(`and the money has settled for ${draft.paymentAgedDays} days`)
+  return parts.join(' ')
+}
+
+export function rateSentence(draft: RuleDraft): string {
+  return `${whoGetsPaid(draft)} get ${calculationSentence(draft)}, ${whenPaid(draft)}.`
+}
+
+export function ruleRateSentence(rule: CommissionRule): string {
+  return rateSentence(draftFromRule(rule))
+}
+
 export function ruleSentence(draft: RuleDraft): string {
-  const role = draft.roleOnDeal ? ROLE_LABEL[draft.roleOnDeal].toLowerCase() : 'nobody — pick a role on the deal'
-  const who = `the ${role}`
-  const kind = BENEFICIARY_LABEL[draft.beneficiaryType].toLowerCase()
   const scope = draft.unitIds.length
-    ? `on ${draft.unitIds.map((u) => unitName(u)).join(' and ')} admissions`
-    : 'on admissions in every unit'
-  const branch = draft.branchIds.length
-    ? ` at ${draft.branchIds.map((b) => branchName(b)).join(' and ')}`
-    : ''
+    ? `Applies to ${draft.unitIds.map((u) => unitName(u)).join(' and ')} enrolments`
+    : 'Applies to enrolments in every unit'
+  const branch = draft.branchIds.length ? ` at ${draft.branchIds.map((b) => branchName(b)).join(' and ')}` : ''
   const approval = draft.approvalRequired
-    ? `, approved by ${roleName(draft.approverRoleId)} before it becomes payable`
-    : ', payable without a separate approval'
-  const schedule = `, paid ${SCHEDULE_LABEL[draft.payoutSchedule].toLowerCase()}`
+    ? `Needs sign-off from ${roleName(draft.approverRoleId)} before it is paid.`
+    : 'Paid without a separate sign-off.'
+  const schedule = `Paid ${SCHEDULE_LABEL[draft.payoutSchedule].toLowerCase()}.`
   const dates = draft.effectiveTo
     ? `In force ${formatDate(draft.effectiveFrom)} to ${formatDate(draft.effectiveTo)}.`
-    : `In force from ${formatDate(draft.effectiveFrom)}, until a later version supersedes it.`
-  const reversal = `On a refund: ${ON_REFUND_LABEL[draft.onRefund].toLowerCase()}; if it has already been paid out, ${IF_PAID_LABEL[draft.ifAlreadyPaid].toLowerCase()}.`
-
-  return (
-    `Pay ${who} — who must be ${article(kind)} ${kind} — ${calculationSentence(draft)} ${scope}${branch}, ` +
-    `${eligibilityClause(draft)}${approval}${schedule}. ${dates} ${reversal}`
-  )
+    : `In force from ${formatDate(draft.effectiveFrom)}.`
+  const refund = `On a refund: ${ON_REFUND_LABEL[draft.onRefund].toLowerCase()}; if already paid out, ${IF_PAID_LABEL[draft.ifAlreadyPaid].toLowerCase()}.`
+  return `${rateSentence(draft)} ${scope}${branch}. ${approval} ${schedule} ${dates} ${refund}`
 }
-
-function article(word: string): string {
-  return /^[aeiou]/i.test(word) ? 'an' : 'a'
-}
-
-/* -------------------------------------------------------------------------- */
-/* The draft a builder edits                                                  */
-/* -------------------------------------------------------------------------- */
 
 export interface TierDraft {
   fromAmount: Kobo
@@ -390,7 +422,6 @@ export interface TierDraft {
 }
 
 export interface RuleDraft {
-  /** The version being superseded, or null for a brand-new rule key. */
   supersedesVersionId: string | null
   ruleKey: string
   version: number
@@ -399,7 +430,6 @@ export interface RuleDraft {
   unitIds: UnitId[]
   branchIds: BranchId[]
   beneficiaryType: ReferrerType | 'staff'
-  /** Required, and deliberately null until the user chooses. */
   roleOnDeal: CommissionRoleOnDeal | null
   calcKind: CalculationKind
   percentageRate: number
@@ -436,7 +466,7 @@ export function blankDraft(): RuleDraft {
     unitIds: [],
     branchIds: [],
     beneficiaryType: 'alumnus',
-    roleOnDeal: null,
+    roleOnDeal: 'referrer',
     calcKind: 'percentage',
     percentageRate: 10,
     fixedAmount: k(1_500_000),
@@ -505,28 +535,12 @@ export function draftFromRule(rule: CommissionRule): RuleDraft {
   }
 }
 
-/**
- * Pre-fill the builder as the *next* version of an existing rule. The edit is
- * refused; this is what is offered instead. Nothing about `rule` is mutated.
- */
 export function nextVersionDraft(rule: CommissionRule, effectiveFrom: string): RuleDraft {
   return {
     ...draftFromRule(rule),
     supersedesVersionId: rule.id,
     version: rule.version + 1,
     effectiveFrom,
-    effectiveTo: null,
-  }
-}
-
-export function duplicateDraft(rule: CommissionRule, ruleKey: string): RuleDraft {
-  return {
-    ...draftFromRule(rule),
-    supersedesVersionId: null,
-    ruleKey,
-    version: 1,
-    name: `${rule.name} (copy)`,
-    effectiveFrom: TODAY,
     effectiveTo: null,
   }
 }
@@ -554,11 +568,10 @@ function calculationFrom(draft: RuleDraft): CommissionRule['calculation'] {
   }
 }
 
-/**
- * The candidate rule object. Built in memory only — it is what the simulator
- * and the back-test run against, and it is what `Activate` inserts.
- */
-export function candidateRule(draft: RuleDraft, opts: { id: string; status: CommissionRule['status']; actor: UserId; now: string }): CommissionRule {
+export function candidateRule(
+  draft: RuleDraft,
+  opts: { id: string; status: CommissionRule['status']; actor: UserId; now: string },
+): CommissionRule {
   return {
     id: asRuleId(opts.id),
     ruleKey: draft.ruleKey,
@@ -595,7 +608,6 @@ export function candidateRule(draft: RuleDraft, opts: { id: string; status: Comm
   }
 }
 
-/** `cr-004-v3` → `cr-004-v4`. A new key gets the next free `cr-0NN-v1`. */
 export function nextRuleId(draft: RuleDraft): string {
   if (draft.supersedesVersionId) {
     const stem = draft.supersedesVersionId.split('-v')[0]
@@ -606,38 +618,36 @@ export function nextRuleId(draft: RuleDraft): string {
   return `cr-${String(next).padStart(3, '0')}-v${draft.version}`
 }
 
-/* -------------------------------------------------------------------------- */
-/* Validation                                                                 */
-/* -------------------------------------------------------------------------- */
+export function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
 
 export interface TierProblem {
   index: number
   message: string
 }
 
-/**
- * Bands must start at zero, be ordered, and hand straight over to the next one.
- * A gap or an overlap in a commission band table is a silent underpayment or a
- * double payment, so it blocks.
- */
 export function validateTiers(tiers: TierDraft[]): TierProblem[] {
   const problems: TierProblem[] = []
   if (!tiers.length) {
-    problems.push({ index: -1, message: 'A tiered rule needs at least one band.' })
+    problems.push({ index: -1, message: 'Add at least one rate step.' })
     return problems
   }
   if (tiers[0].fromAmount !== 0) {
-    problems.push({ index: 0, message: 'The first band must start at ₦0, or amounts below it earn nothing.' })
+    problems.push({ index: 0, message: 'The first step must start at ₦0, or amounts below it earn nothing.' })
   }
   tiers.forEach((tier, i) => {
     if (tier.rate < 0 || tier.rate > 100) {
       problems.push({ index: i, message: 'Rate must be between 0% and 100%.' })
     }
     if (tier.toAmount !== null && tier.toAmount <= tier.fromAmount) {
-      problems.push({ index: i, message: 'This band ends before it starts.' })
+      problems.push({ index: i, message: 'This step ends before it starts.' })
     }
     if (tier.toAmount === null && i !== tiers.length - 1) {
-      problems.push({ index: i, message: 'Only the last band can be open-ended.' })
+      problems.push({ index: i, message: 'Only the last step can be open-ended.' })
     }
     if (i > 0) {
       const previous = tiers[i - 1]
@@ -658,25 +668,6 @@ export function validateTiers(tiers: TierDraft[]): TierProblem[] {
   return problems
 }
 
-/** Not blocking — a closed top band is legal, just usually a mistake. */
-export function tierWarning(tiers: TierDraft[]): string | null {
-  if (!tiers.length) return null
-  return tiers[tiers.length - 1].toAmount === null
-    ? null
-    : 'The top band is closed. Any basis amount above it earns nothing.'
-}
-
-export type SectionKey = 'identity' | 'beneficiary' | 'calculation' | 'basis' | 'eligibility' | 'reversal' | 'dating'
-
-export interface DraftProblems {
-  fields: Partial<Record<string, string>>
-  sections: SectionKey[]
-}
-
-/**
- * The last closed payroll period is a hard floor on effective-from: a rule
- * cannot start paying inside a period that has already been signed off.
- */
 export function payrollFloor(): { label: string; firstAllowed: string } | null {
   const closed = payrollPeriodsCollection
     .where((p) => p.status === 'closed')
@@ -689,257 +680,54 @@ export function payrollFloor(): { label: string; firstAllowed: string } | null {
   return { label: last.label, firstAllowed: `${nextYear}-${String(nextMonth).padStart(2, '0')}-01` }
 }
 
-export function validateDraft(draft: RuleDraft): DraftProblems {
+export function validateDraft(draft: RuleDraft): Partial<Record<string, string>> {
   const fields: Partial<Record<string, string>> = {}
-  const sections = new Set<SectionKey>()
 
-  if (!draft.name.trim()) {
-    fields.name = 'Give the rule a name people will recognise on a commission row.'
-    sections.add('identity')
-  }
-  if (!draft.ruleKey.trim()) {
-    fields.ruleKey = 'A rule key is required. It stays the same across every version.'
-    sections.add('identity')
-  }
-  if (!draft.roleOnDeal) {
-    fields.roleOnDeal = 'Choose which of the three fields this rule pays. Nothing is calculated without it.'
-    sections.add('beneficiary')
-  }
+  if (!draft.name.trim()) fields.name = 'Give this rate a short name.'
+  if (!draft.ruleKey.trim()) fields.ruleKey = 'A rate needs a key.'
+  if (!draft.roleOnDeal) fields.roleOnDeal = 'Choose who gets paid.'
   if (draft.calcKind === 'percentage' && (draft.percentageRate <= 0 || draft.percentageRate > 100)) {
     fields.percentageRate = 'Rate must be above 0% and at most 100%.'
-    sections.add('calculation')
   }
   if (draft.calcKind === 'fixed' && (draft.fixedAmount === null || draft.fixedAmount <= 0)) {
-    fields.fixedAmount = 'Enter the amount this rule pays.'
-    sections.add('calculation')
+    fields.fixedAmount = 'Enter the amount.'
   }
   if (draft.calcKind === 'tiered') {
     const problems = validateTiers(draft.tiers)
-    if (problems.length) {
-      fields.tiers = problems[0].message
-      sections.add('calculation')
-    }
+    if (problems.length) fields.tiers = problems[0].message
   }
   if (draft.calcKind === 'course_specific' && !draft.courseRates.length) {
-    fields.courseRates = 'Add at least one course rate, or use a flat percentage instead.'
-    sections.add('calculation')
+    fields.courseRates = 'Add at least one course, or turn per-course rates off.'
   }
   if (draft.calcKind === 'campaign_specific' && !draft.campaignRates.length) {
-    fields.campaignRates = 'Add at least one campaign rate, or use a flat percentage instead.'
-    sections.add('calculation')
+    fields.campaignRates = 'Add at least one campaign, or use a single rate instead.'
   }
   if (!draft.requiresFullPayment && draft.minimumPercentPaid !== null) {
     if (draft.minimumPercentPaid <= 0 || draft.minimumPercentPaid > 100) {
-      fields.minimumPercentPaid = 'Minimum paid must be between 1% and 100%.'
-      sections.add('eligibility')
+      fields.minimumPercentPaid = 'Must be between 1% and 100%.'
     }
   }
   if (draft.paymentAgedDays !== null && draft.paymentAgedDays < 0) {
-    fields.paymentAgedDays = 'Ageing cannot be negative.'
-    sections.add('eligibility')
+    fields.paymentAgedDays = 'Days cannot be negative.'
   }
   if (!draft.effectiveFrom) {
-    fields.effectiveFrom = 'Effective from is required. A rule with no start date never takes effect.'
-    sections.add('dating')
+    fields.effectiveFrom = 'Choose the date this starts.'
   } else {
     const floor = payrollFloor()
     if (floor && draft.effectiveFrom < floor.firstAllowed) {
-      fields.effectiveFrom = `Cannot take effect before the last closed payroll period (${floor.label}). The earliest allowed date is ${formatDate(floor.firstAllowed)}.`
-      sections.add('dating')
+      fields.effectiveFrom = `Payroll for ${floor.label} is already closed. The earliest start is ${formatDate(floor.firstAllowed)}.`
     }
   }
   if (draft.effectiveTo && draft.effectiveFrom && draft.effectiveTo < draft.effectiveFrom) {
-    fields.effectiveTo = 'Effective to cannot be before effective from.'
-    sections.add('dating')
+    fields.effectiveTo = 'The end date is before the start date.'
   }
   if (draft.approvalRequired && !draft.approverRoleId) {
-    fields.approverRoleId = 'Pick the role that approves commissions under this rule.'
-    sections.add('dating')
+    fields.approverRoleId = 'Pick who signs off.'
   }
 
-  return { fields, sections: [...sections] }
+  return fields
 }
 
-/* -------------------------------------------------------------------------- */
-/* Simulation                                                                 */
-/* -------------------------------------------------------------------------- */
-
-export interface BasisComparisonRow {
-  basis: CommissionBasis
-  amount: Kobo
-  commission: Kobo
-  selected: boolean
-}
-
-/**
- * §4's worked example. Renders the same three lines for whatever numbers the
- * simulator is pointed at, so the founder sees the difference between "what we
- * quoted", "what they owe" and "what we have" in naira, live.
- */
-export function basisComparison(
-  draft: RuleDraft,
-  amounts: { grossFee: Kobo; netAfterDiscount: Kobo; amountCollected: Kobo },
-  actor: UserId,
-): BasisComparisonRow[] {
-  return BASIS_OPTIONS.map((basis) => {
-    const probe = candidateRule({ ...draft, basis }, { id: 'sim', status: 'draft', actor, now: TODAY })
-    const workings = computeCommission(probe, amounts)
-    return {
-      basis,
-      amount: workings.basisAmount,
-      commission: workings.amount,
-      selected: basis === draft.basis,
-    }
-  })
-}
-
-export interface SimulationResult {
-  applies: boolean
-  /** Why it does or does not apply, in the founder's language. */
-  reasons: string[]
-  beneficiaryPersonId: PersonId | null
-  beneficiaryName: string
-  basisAmount: Kobo
-  rateApplied: number | null
-  tierLabel: string | null
-  amount: Kobo
-  workings: string
-  state: CommissionState
-  eligibilityOutstanding: string | null
-  paidPercent: number
-}
-
-export interface SimulationAmounts {
-  grossFee: Kobo
-  netAfterDiscount: Kobo
-  amountCollected: Kobo
-  invoiceTotal: Kobo
-}
-
-/**
- * The simulator's verdict for a rule that does not exist yet.
- *
- * The money comes from `computeCommission` — the store's engine, unmodified.
- * What is added here is the narration: which of the three fields this rule
- * targets, whether that field is filled on this admission, and which
- * eligibility condition is still outstanding.
- */
-export function simulateRule(
-  rule: CommissionRule,
-  admission: Admission | null,
-  amounts: SimulationAmounts,
-  beneficiaryPersonId: PersonId | null,
-): SimulationResult {
-  const reasons: string[] = []
-  let applies = true
-
-  if (admission) {
-    if (rule.unitIds.length && !rule.unitIds.includes(admission.unitId)) {
-      applies = false
-      reasons.push(`The rule is limited to ${rule.unitIds.map(unitName).join(', ')}; this admission is ${unitName(admission.unitId)}.`)
-    } else if (rule.unitIds.length) {
-      reasons.push(`Unit matches: ${unitName(admission.unitId)}.`)
-    } else {
-      reasons.push('The rule applies to every unit.')
-    }
-
-    if (rule.branchIds.length && !rule.branchIds.includes(admission.branchId)) {
-      applies = false
-      reasons.push(`The rule is limited to ${rule.branchIds.map(branchName).join(', ')}; this admission is ${branchName(admission.branchId)}.`)
-    }
-  }
-
-  if (!beneficiaryPersonId) {
-    applies = false
-    reasons.push(`This rule pays the ${ROLE_LABEL[rule.roleOnDeal].toLowerCase()}, and this admission has no ${ROLE_LABEL[rule.roleOnDeal].toLowerCase()} recorded.`)
-  } else {
-    reasons.push(`${ROLE_LABEL[rule.roleOnDeal]} on this admission is ${personName(beneficiaryPersonId)}.`)
-    if (rule.roleOnDeal === 'referrer') {
-      const profile = referrerProfilesCollection.all().find((p) => p.personId === beneficiaryPersonId)
-      if (!profile) {
-        applies = false
-        reasons.push(`${personName(beneficiaryPersonId)} has no referrer profile, so no referrer rule can pay them.`)
-      } else if (rule.beneficiaryType !== 'staff' && profile.type !== rule.beneficiaryType) {
-        applies = false
-        reasons.push(
-          `The rule pays ${BENEFICIARY_LABEL[rule.beneficiaryType].toLowerCase()} referrers; ${personName(beneficiaryPersonId)} is registered as ${BENEFICIARY_LABEL[profile.type].toLowerCase()}.`,
-        )
-      } else if (profile.status !== 'active') {
-        applies = false
-        reasons.push(`${personName(beneficiaryPersonId)}'s referrer profile is ${profile.status}.`)
-      } else {
-        reasons.push(`Beneficiary type matches: ${BENEFICIARY_LABEL[profile.type].toLowerCase()}.`)
-      }
-    }
-  }
-
-  const workings = computeCommission(rule, {
-    grossFee: amounts.grossFee,
-    netAfterDiscount: amounts.netAfterDiscount,
-    amountCollected: amounts.amountCollected,
-  })
-
-  const paidPercent = amounts.invoiceTotal > 0 ? Math.round((amounts.amountCollected / amounts.invoiceTotal) * 100) : 0
-  const fullyPaid = amounts.invoiceTotal > 0 && amounts.amountCollected >= amounts.invoiceTotal
-  const meetsMinimum = rule.eligibility.minimumPercentPaid === null || paidPercent >= rule.eligibility.minimumPercentPaid
-  const eligible = rule.eligibility.requiresFullPayment ? fullyPaid : meetsMinimum
-
-  const outstanding = eligible
-    ? rule.eligibility.requiresManualApproval
-      ? 'Manual approval required before it can be approved.'
-      : null
-    : rule.eligibility.requiresFullPayment
-      ? `Full payment. ${paidPercent}% of the invoice is paid, the rule requires 100%.`
-      : `Minimum payment. ${paidPercent}% of the invoice is paid, the rule requires ${rule.eligibility.minimumPercentPaid ?? 0}%.`
-
-  return {
-    applies,
-    reasons,
-    beneficiaryPersonId,
-    beneficiaryName: personName(beneficiaryPersonId),
-    basisAmount: workings.basisAmount,
-    rateApplied: workings.rateApplied,
-    tierLabel: workings.tierLabel,
-    amount: workings.amount,
-    workings: workings.explanation,
-    state: eligible ? 'earned' : rule.eligibility.stateBeforeEligible,
-    eligibilityOutstanding: outstanding,
-    paidPercent,
-  }
-}
-
-/** Which person this rule would pay on a given admission. Three independent fields. */
-export function beneficiaryFor(rule: CommissionRule, admission: Admission | null): PersonId | null {
-  if (!admission) return null
-  if (rule.roleOnDeal === 'referrer') return admission.referrerPersonId
-  if (rule.roleOnDeal === 'lead_owner') return userPersonId(admission.leadOwnerUserId)
-  return userPersonId(admission.closerUserId)
-}
-
-export function amountsForAdmission(admission: Admission): SimulationAmounts {
-  const invoice = admission.invoiceId ? invoicesCollection.find(admission.invoiceId) : undefined
-  return {
-    grossFee: admission.quotedFee,
-    netAfterDiscount: admission.netFee,
-    amountCollected: k(invoice?.paidAmount ?? 0),
-    invoiceTotal: k(invoice?.total ?? admission.netFee),
-  }
-}
-
-/** The admissions the simulator offers. Most recent first, and the ones with a referrer first. */
-export function simulatableAdmissions(limit = 40): Admission[] {
-  return admissionsCollection
-    .all()
-    .slice()
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    .slice(0, limit)
-}
-
-/* -------------------------------------------------------------------------- */
-/* Commission reporting helpers                                               */
-/* -------------------------------------------------------------------------- */
-
-/** Days since a commission was earned but not yet paid. Ageing, per §3.1. */
 export function unpaidAgeing(today: string = TODAY): Array<{ label: string; count: number; amount: Kobo; alarming: boolean }> {
   const buckets: Array<{ label: string; min: number; max: number | null; alarming: boolean }> = [
     { label: '0–7 days', min: 0, max: 7, alarming: false },
@@ -947,9 +735,7 @@ export function unpaidAgeing(today: string = TODAY): Array<{ label: string; coun
     { label: '15–30 days', min: 15, max: 30, alarming: false },
     { label: '30+ days', min: 31, max: null, alarming: true },
   ]
-  const unpaid = commissionsCollection.where(
-    (c) => c.earnedAt !== null && !c.paidAt && ['earned', 'approved', 'payable'].includes(c.state),
-  )
+  const unpaid = commissionsCollection.where((c) => c.earnedAt !== null && !c.paidAt && OWED_STATES.includes(c.state))
   return buckets.map((b) => {
     const rows = unpaid.filter((c) => {
       const days = Math.floor((Date.parse(`${today}T00:00:00Z`) - Date.parse(c.earnedAt as string)) / 86_400_000)
@@ -969,18 +755,23 @@ export function daysSinceEarned(commission: Commission, today: string = TODAY): 
   return Math.floor((Date.parse(`${today}T00:00:00Z`) - Date.parse(commission.earnedAt)) / 86_400_000)
 }
 
+export function daysBetween(from: string, today: string = TODAY): number {
+  return Math.max(0, Math.floor((Date.parse(`${today}T00:00:00Z`) - Date.parse(from)) / 86_400_000))
+}
+
+export function waitingTone(days: number): BadgeTone {
+  if (days > 30) return 'danger'
+  if (days > 14) return 'warning'
+  return 'neutral'
+}
+
 export function commissionsForRule(ruleId: string): Commission[] {
   return commissionsCollection.where((c) => c.ruleId === ruleId)
 }
 
-/** The day before a date — what a superseded version's effective-to becomes. */
 export function dayBefore(date: string): string {
   return addDays(date, -1)
 }
-
-/* -------------------------------------------------------------------------- */
-/* Field-level diff between two rule versions                                 */
-/* -------------------------------------------------------------------------- */
 
 export interface RuleDiffRow {
   field: string
@@ -989,24 +780,21 @@ export interface RuleDiffRow {
 }
 
 function describe(rule: CommissionRule): Record<string, string> {
+  const draft = draftFromRule(rule)
   return {
     Name: rule.name,
-    'Beneficiary type': BENEFICIARY_LABEL[rule.beneficiaryType],
-    'Role on deal': ROLE_LABEL[rule.roleOnDeal],
-    Calculation: ruleCalculationSentence(rule),
-    Basis: BASIS_LABEL[rule.basis],
+    'Who gets paid': whoGetsPaid(draft),
+    'How much': calculationSentence(draft),
+    'Of what': BASIS_LABEL[rule.basis],
+    'When it is paid': whenPaid(draft),
     Units: rule.unitIds.length ? rule.unitIds.map(unitName).join(', ') : 'All units',
     Branches: rule.branchIds.length ? rule.branchIds.map(branchName).join(', ') : 'All branches',
-    'Requires full payment': rule.eligibility.requiresFullPayment ? 'Yes' : 'No',
-    'Minimum percent paid': rule.eligibility.minimumPercentPaid === null ? 'None' : `${rule.eligibility.minimumPercentPaid}%`,
-    'Payment aged': rule.eligibility.paymentAgedDays === null ? 'None' : `${rule.eligibility.paymentAgedDays} days`,
-    'State before eligible': rule.eligibility.stateBeforeEligible === 'tracked' ? 'Tracked' : 'Pending',
-    'On refund': ON_REFUND_LABEL[rule.reversal.onRefund],
-    'If already paid': IF_PAID_LABEL[rule.reversal.ifAlreadyPaid],
-    'Payout schedule': SCHEDULE_LABEL[rule.payoutSchedule],
-    'Approval required': rule.approvalRequired ? `Yes — ${roleName(rule.approverRoleId)}` : 'No',
-    'Effective from': formatDate(rule.effectiveFrom),
-    'Effective to': rule.effectiveTo ? formatDate(rule.effectiveTo) : 'Open',
+    'On a refund': ON_REFUND_LABEL[rule.reversal.onRefund],
+    'If already paid out': IF_PAID_LABEL[rule.reversal.ifAlreadyPaid],
+    'Payout timing': SCHEDULE_LABEL[rule.payoutSchedule],
+    'Sign-off needed': rule.approvalRequired ? `Yes — ${roleName(rule.approverRoleId)}` : 'No',
+    'From when': formatDate(rule.effectiveFrom),
+    'Until': rule.effectiveTo ? formatDate(rule.effectiveTo) : 'Open',
   }
 }
 

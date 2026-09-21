@@ -1,15 +1,3 @@
-/**
- * My profile — `/my-workspace/profile`.
- *
- * What the organisation holds about you, shown to you. Read-only on purpose:
- * job title, department, manager and salary are not fields an employee edits,
- * they are outcomes of decisions recorded elsewhere (an offer, a promotion, a
- * transfer), and a form here would imply otherwise.
- *
- * Bank details are shown masked even to their owner — the record only ever
- * stores the last four digits, so there is nothing fuller to reveal.
- */
-
 import { AlertCircle } from 'lucide-react'
 
 import {

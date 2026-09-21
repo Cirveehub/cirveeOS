@@ -1,20 +1,3 @@
-/**
- * §3.9 — Attribution report.
- *
- * The three-field independence proved at reporting level rather than asserted
- * in a tooltip: one row per admission, with **referrer**, **lead owner** and
- * **closer** as three separate columns and three separate commission totals
- * beside them.
- *
- * Read-only by design. Every figure is derived from the commission ledger, so
- * approving, adjusting or reversing a commission anywhere in the module moves
- * the numbers here on the next render.
- *
- * The rows worth looking at first are the ones where the three people differ,
- * and the ones with no referrer at all — the report leads with a count of each,
- * because "these are genuinely independent" is a claim a table can settle.
- */
-
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Download, Users } from 'lucide-react'
@@ -61,9 +44,7 @@ interface AttributionRow {
   ownerCommission: Kobo
   closerCommission: Kobo
   totalCommission: Kobo
-  /** Commission as a percentage of revenue, one decimal. */
   share: number
-  /** Three different people on the same deal — the point of the report. */
   allThreeDiffer: boolean
 }
 
@@ -83,7 +64,6 @@ const COLUMN_CATALOGUE: ColumnCatalogueEntry[] = [
   { key: 'share', label: 'Commission % of revenue', defaultVisible: true },
 ]
 
-/** States that represent money the business has actually committed to. */
 const COUNTED_STATES: Commission['state'][] = [
   'tracked',
   'pending',
@@ -345,7 +325,7 @@ export default function Attribution() {
   if (errored) {
     return (
       <Screen>
-        <ModulePage tab="attribution" title="Attribution" />
+        <ModulePage title="Attribution" />
         <LoadFailed what="The attribution report" onRetry={retry} />
       </Screen>
     )
@@ -354,7 +334,7 @@ export default function Attribution() {
   if (loading) {
     return (
       <Screen>
-        <ModulePage tab="attribution" title="Attribution" />
+        <ModulePage title="Attribution" />
         <Card padding="none">
           <SkeletonTable rows={8} columns={7} />
         </Card>
@@ -365,7 +345,6 @@ export default function Attribution() {
   return (
     <Screen>
       <ModulePage
-        tab="attribution"
         title="Attribution"
         description="Referrer, lead owner and closer on the same deals, evaluated separately. Read-only."
         actions={

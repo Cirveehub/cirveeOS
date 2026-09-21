@@ -1,13 +1,3 @@
-/**
- * The test-run engine.
- *
- * A test run **writes nothing**. This module is deliberately pure: it reads
- * seeded records through the collections, evaluates the draft node graph
- * against them, and returns a description of what *would* have happened. There
- * is no `insert` and no `update` anywhere in this file, and the test-run modal
- * proves it by counting the collections before and after.
- */
-
 import {
   admissionsCollection,
   automationRunsCollection,
@@ -42,10 +32,6 @@ import {
   type ConditionRule,
 } from './lib'
 
-/* -------------------------------------------------------------------------- */
-/* Subjects — the seeded records a test run can be pointed at                 */
-/* -------------------------------------------------------------------------- */
-
 export interface TestSubject {
   id: string
   label: string
@@ -54,10 +40,6 @@ export interface TestSubject {
   admissionId: string | null
 }
 
-/**
- * Fully-paid Academy invoices first, because that is the reference journey's
- * trigger. Everything else follows so the picker is never empty.
- */
 export function testSubjects(limit = 24): TestSubject[] {
   const invoices = invoicesCollection
     .where((i) => i.personId !== null && i.voidedAt === null)
@@ -80,10 +62,6 @@ export function testSubjects(limit = 24): TestSubject[] {
     }
   })
 }
-
-/* -------------------------------------------------------------------------- */
-/* The evaluation context                                                     */
-/* -------------------------------------------------------------------------- */
 
 export interface TestContext {
   person: Person | undefined
@@ -124,10 +102,6 @@ export function buildContext(subject: TestSubject): TestContext {
 
   return { person, invoice, admission, values }
 }
-
-/* -------------------------------------------------------------------------- */
-/* Comparison                                                                 */
-/* -------------------------------------------------------------------------- */
 
 function same(a: unknown, b: unknown): boolean {
   if (a === null || a === undefined) return b === null || b === undefined || b === ''
@@ -175,7 +149,6 @@ function compare(op: string, actual: unknown, expected: unknown): boolean {
   }
 }
 
-/** "invoice.unit = ACADEMY" — the actual value, never the configured one. */
 export function actualText(path: string, ctx: TestContext): string {
   const raw = ctx.values[path]
   const meta = fieldMeta(path)
@@ -223,10 +196,6 @@ export function evaluateGroup(group: ConditionGroup, ctx: TestContext): GroupRes
   return { passed, lines }
 }
 
-/* -------------------------------------------------------------------------- */
-/* The dry run                                                                */
-/* -------------------------------------------------------------------------- */
-
 export type StepVerdict = 'evaluated' | 'would_execute' | 'skipped' | 'stopped' | 'waiting'
 
 export interface SimStep {
@@ -234,13 +203,9 @@ export interface SimStep {
   kind: AutomationNode['kind']
   title: string
   verdict: StepVerdict
-  /** What the node read. */
   inputs: Array<{ label: string; value: string }>
-  /** What it concluded, in the record's own values. */
   outcome: string
-  /** Condition lines, each with its own pass mark. */
   detail: Array<{ text: string; passed: boolean }>
-  /** What it *would* have created. Nothing is created. */
   wouldProduce: string[]
   skippedReason: string | null
 }
@@ -251,7 +216,6 @@ export interface SimResult {
   reached: 'end' | 'stopped' | 'conditions_not_met'
   actionsWouldRun: number
   actionsTotal: number
-  /** Collection sizes, captured before and after, to prove nothing was written. */
   before: StoreCounts
   after: StoreCounts
 }
@@ -562,7 +526,6 @@ function inputsForAction(
   }
 }
 
-/** The real key this record would produce, not the sample preview. */
 export function idempotencyPreviewFor(
   automationKey: string,
   fields: string[],
@@ -578,16 +541,6 @@ export function idempotencyPreviewFor(
   return `${automationKey || 'automation-key'}:${parts.join(':')}`
 }
 
-/* -------------------------------------------------------------------------- */
-/* Template preview                                                           */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Resolves a template's merge fields against a real seeded record, so the
- * builder's preview shows "Hi Chiamaka" rather than "Hi {{person.firstName}}".
- * Anything the sample record cannot answer is left visible as an unresolved
- * field rather than silently blanked — a blank is how a template ships broken.
- */
 export function renderTemplatePreview(body: string, subject: TestSubject | undefined): {
   text: string
   unresolved: string[]

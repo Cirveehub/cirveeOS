@@ -1,20 +1,3 @@
-/**
- * My referral — shared scaffolding.
- *
- * This is the self-service lens on the same data the admin `referral` module
- * already manages at team scope — not a parallel, simpler model. A person's
- * `ReferrerProfile`, their `Referral` rows and the `Commission`s that pay
- * them are the exact records a Growth admin sees on `/referral/referrers/:id`
- * (see `ReferrerProfile.tsx`), just filtered down to one person's own. The
- * earned/paid/outstanding math below is copied from that screen on purpose,
- * so a number never disagrees with itself between the staff view and this one.
- *
- * Every persona in the app gets this module (see `index.tsx`), so unlike
- * `my-learning`'s `useStudent()`, there is no "fall back to the seed's named
- * persona" — a signed-in user with no referrer profile yet is the normal,
- * expected first-run state, not a demo-data gap.
- */
-
 import type { ReactNode } from 'react'
 import toast, { Toaster } from 'react-hot-toast'
 
@@ -32,10 +15,6 @@ import {
   type ReferrerProfile,
   type ReferrerType,
 } from '@/mocks'
-
-/* -------------------------------------------------------------------------- */
-/* The signed-in person's referrer record                                    */
-/* -------------------------------------------------------------------------- */
 
 export interface MyReferralState {
   personId: PersonId | undefined
@@ -81,7 +60,6 @@ export function useMyReferral(): MyReferralState {
   }
 }
 
-/** What kind of referrer a persona is, when they generate their first code. */
 export function referrerTypeForPersona(personaId: string | undefined): ReferrerType {
   switch (personaId) {
     case 'student':
@@ -98,10 +76,6 @@ export function referrerTypeForPersona(personaId: string | undefined): ReferrerT
       return 'employee'
   }
 }
-
-/* -------------------------------------------------------------------------- */
-/* Screen chrome                                                              */
-/* -------------------------------------------------------------------------- */
 
 export function Screen({ children }: { children: ReactNode }) {
   return (

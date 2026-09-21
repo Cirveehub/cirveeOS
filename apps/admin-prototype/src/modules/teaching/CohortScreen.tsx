@@ -1,17 +1,3 @@
-/**
- * The cohort hub — the screen a tutor lives on.
- *
- * Shape is the legacy `CourseDetail.tsx`: a hero naming the cohort and its
- * facilitator, then five tabs behind one page rather than five routes. The
- * hero and tab strip are `CohortHub` from `_learning-shared`, shared with the
- * student module, because both legacy portals independently arrived at this
- * exact shape.
- *
- * The two modals live here rather than in the tabs, exactly as the legacy page
- * holds `isUploadModalOpen` / `isAssignmentModalOpen` and hands the tabs an
- * `onAdd` callback — so the header action and the in-tab action open the same
- * dialog.
- */
 import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
@@ -82,9 +68,6 @@ export default function CohortScreen() {
     [enrolments, cohortId],
   )
 
-  /* Course-wide assignments count for this cohort too — the seed pins most
-     assignments to the course, not the cohort, and a tutor who could not see
-     them would think the course had none. */
   const cohortAssignments = useMemo(
     () =>
       assignments.filter(

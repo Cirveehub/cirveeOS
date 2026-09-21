@@ -1,12 +1,3 @@
-/**
- * Period detail.
- *
- * The one screen in Payroll that has to be exactly right: **every non-base
- * component is click-through to its source.** A commission line names the
- * commission and opens the ledger row. An adjustment names the event that
- * produced it and the policy version it was computed under. A statutory line
- * names the formula. Nothing on a payslip is an unexplained number.
- */
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
@@ -74,10 +65,6 @@ interface Stage {
   note: string
 }
 
-/**
- * FLAG: a horizontal stepper belongs in `src/ui/`. It is layout markup here
- * rather than a component so the module does not ship a private primitive.
- */
 function buildStages(
   period: PayrollPeriod,
   items: PayrollItem[],

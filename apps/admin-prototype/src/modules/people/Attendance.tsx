@@ -1,14 +1,3 @@
-/**
- * Attendance — `/people/attendance` (screen-spec §9).
- *
- * The consequence column is the point of this screen. Every row reads
- * "No financial impact", because the attendance policy's financial switch is
- * off: a breach notifies the employee and their manager and can open a
- * performance record, but it never touches pay. The engine exists and the
- * policy version that governed each day is named on the row, so the rule is
- * auditable rather than implied.
- */
-
 import { useMemo, useState } from 'react'
 import { Lock, MessageSquareQuote, ScanLine } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -17,7 +6,6 @@ import { formatDate, formatNumber, formatPercent, formatTime } from '@/lib/forma
 import { useCurrentUserId } from '@/auth'
 import { acceptAttendanceExplanation } from '@/modules/my-workspace/writes'
 import {
-  Alert,
   Badge,
   Button,
   Card,
@@ -51,6 +39,7 @@ import type { AttendanceEvent, AttendanceState } from '@/mocks'
 import {
   ATTENDANCE_SOURCE_LABEL,
   ATTENDANCE_STATE_LABEL,
+  CONSEQUENCE_LABEL,
   PeopleGroupTabs,
   Page,
   ScreenError,
@@ -87,15 +76,6 @@ const COLUMN_CATALOGUE: ColumnCatalogueEntry[] = [
   { key: 'policy', label: 'Policy version applied', defaultVisible: false },
   { key: 'override', label: 'Override reason', defaultVisible: false },
 ]
-
-const CONSEQUENCE_LABEL: Record<string, string> = {
-  none: 'No financial impact',
-  notify_employee: 'Employee notified',
-  notify_manager: 'Manager notified',
-  warning_record: 'Warning recorded',
-  escalate_performance: 'Escalated to performance',
-  propose_adjustment: 'Payroll adjustment proposed',
-}
 
 export default function Attendance() {
   const state = useScreenState()
@@ -241,9 +221,6 @@ export default function Attendance() {
 
   const columns = visible.map((key) => allColumns[key]).filter(Boolean)
 
-  // Explained by the employee on their own screen, not yet accepted here.
-  // The `overrideReason` column has existed all along with nothing in the app
-  // able to write it; this is the other half of that.
   const awaitingReview = events.filter((r) => r.overrideReason && !r.overriddenByUserId)
 
   return (
@@ -256,11 +233,6 @@ export default function Attendance() {
       <PeopleGroupTabs group="time" active="attendance" />
 
       <ScreenError state={state} />
-
-      <Alert tone="info" icon={Lock} className="mb-6" title="Attendance has no financial consequence, and that is deliberate">
-        The engine calculates a figure so the breach is visible, but the policy's financial switch is off. Nothing on this
-        screen deducts pay, and the payroll adjustment count derived from attendance is zero.
-      </Alert>
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard

@@ -1,13 +1,3 @@
-/**
- * The course-builder shell — three panes, shared by `/learn/courses/:id/builder`
- * and the lesson editor beneath it.
- *
- * Left: the outline tree, where every lesson carries five format pills so
- * incompleteness is visible without clicking. Centre: whatever node is
- * selected. Right: the readiness checklist, live-computed, where each unmet
- * item links to the offending lesson.
- */
-
 import { useMemo, useState, type ReactNode } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
@@ -77,7 +67,6 @@ export { LESSON_TYPE_ICON, LESSON_TYPE_LABEL }
 
 export interface BuilderShellProps {
   courseId: string
-  /** The lesson currently open in the centre pane, if any. */
   selectedLessonId?: string
   children: ReactNode
 }
@@ -110,10 +99,6 @@ export function BuilderShell({ courseId, selectedLessonId, children }: BuilderSh
     </div>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* Left — outline tree                                                        */
-/* -------------------------------------------------------------------------- */
 
 function OutlineTree({
   course,
@@ -477,15 +462,10 @@ function RenameField({
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Right — readiness checklist                                                */
-/* -------------------------------------------------------------------------- */
-
 export interface ReadinessItem {
   key: string
   label: string
   met: boolean
-  /** The first lesson that fails this item, so the row can link to it. */
   offender?: Lesson
   count?: number
 }

@@ -1,12 +1,3 @@
-/**
- * The report filter bar's state, held in the query string so a filtered
- * report is a link somebody can paste into a meeting invite.
- *
- * Modules are self-contained, so this is deliberately a second, smaller copy
- * of the Command Centre's scope rather than a cross-module import. If a third
- * module needs one, it belongs in `src/lib/`.
- */
-
 import { useCallback, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 

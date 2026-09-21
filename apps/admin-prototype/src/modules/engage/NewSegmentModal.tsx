@@ -1,24 +1,8 @@
-/**
- * Segment builder — a single modal, in `referral/Referrers.tsx`'s shape.
- *
- * The screen it opens from and the modal itself both state the module's hard
- * PRD rule out loud: **segments are built from Person records, and there is no
- * separate marketing contact list.** Saying it matters as much as implementing
- * it, because the failure mode this rule exists to prevent — a marketing list
- * that drifts away from the CRM — looks fine right up until it doesn't.
- *
- * The live count is not decorative. It resolves the draft criteria against the
- * real collections on every keystroke, and the sample beneath it names actual
- * people, so an empty segment is visible before it is saved rather than after
- * a campaign sends to nobody.
- */
-
 import { useMemo, useState } from 'react'
-import { Plus, Trash2, Users } from 'lucide-react'
+import { Plus, Trash2 } from 'lucide-react'
 
 import { formatNumber } from '@/lib/format'
 import {
-  Alert,
   Button,
   Field,
   IconButton,
@@ -86,14 +70,14 @@ export function NewSegmentModal({
   const duplicate = segments.some((s) => s.name.trim().toLowerCase() === name.trim().toLowerCase())
   const nameError =
     name.trim().length < MIN_NAME
-      ? 'Give the segment a name of at least four characters.'
+      ? 'Give the audience a name of at least four characters.'
       : duplicate
-        ? 'A segment already carries this name. Two segments with the same name is how the wrong audience gets picked.'
+        ? 'An audience already carries this name. Two with the same name is how the wrong one gets picked.'
         : undefined
   const descriptionError =
     description.trim().length < 10 ? 'Say in a sentence who this is and why you would message them.' : undefined
   const rulesError = rules.every((rule) => rule.value === '')
-    ? 'Add at least one criterion. A segment with no rules would resolve to nobody.'
+    ? 'Add at least one rule. An audience with no rules would resolve to nobody.'
     : undefined
   const valid = !nameError && !descriptionError && !rulesError
 
@@ -116,8 +100,8 @@ export function NewSegmentModal({
         reset()
         onClose()
       }}
-      title="New segment"
-      description="A saved query over Person records, resolved fresh every time it is used."
+      title="New audience"
+      description="Who a campaign will go to. Resolved fresh from Person records every time it is used."
       size="xl"
       footer={
         <>
@@ -147,18 +131,12 @@ export function NewSegmentModal({
               onClose()
             }}
           >
-            Create segment
+            Create audience
           </Button>
         </>
       }
     >
       <div className="flex flex-col gap-5">
-        <Alert tone="info" icon={Users} title="Segments are built from Person records">
-          There is no separate marketing contact list in this system, and there will not be one. A lead, a student, a
-          parent and an alumnus are the same Person record with different relationships, so a segment can never disagree
-          with the CRM about who someone is — or about whether they have unsubscribed.
-        </Alert>
-
         <Field label="Name" required error={touched || name.length > 0 ? nameError : undefined}>
           <Input
             value={name}
@@ -179,7 +157,7 @@ export function NewSegmentModal({
         </Field>
 
         <RadioGroup
-          legend="Combine the criteria with"
+          legend="Include a person when they match"
           description="All: a person must match every rule. Any: matching one rule is enough."
           orientation="horizontal"
         >
@@ -202,9 +180,9 @@ export function NewSegmentModal({
         {/* ---- the rules ---- */}
         <section className="rounded-xl border border-border">
           <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
-            <span className="text-label-11 text-text-muted">Criteria</span>
+            <span className="text-label-11 text-text-muted">Rules</span>
             <Button size="sm" variant="secondary" leftIcon={<Plus size={14} />} onClick={() => setRules((prev) => [...prev, blankRule()])}>
-              Add criterion
+              Add rule
             </Button>
           </div>
           <ul className="divide-y divide-border">
@@ -253,7 +231,7 @@ export function NewSegmentModal({
                   </Field>
                   <IconButton
                     icon={Trash2}
-                    label="Remove this criterion"
+                    label="Remove this rule"
                     variant="ghost"
                     disabled={rules.length === 1}
                     onClick={() => setRules((prev) => prev.filter((r) => r.id !== rule.id))}
@@ -276,8 +254,8 @@ export function NewSegmentModal({
           <p className="mt-1 text-body-13 text-text-secondary">{summary}</p>
           {members.size === 0 ? (
             <p className="mt-3 text-body-13 text-warning-text">
-              No Person record matches these criteria. Saving this would create a segment nothing can be sent to — widen a
-              rule, or switch the combination to Any.
+              Nobody matches these rules yet. Saving would create an audience nothing can be sent to — widen a rule, or
+              switch to Any of them.
             </p>
           ) : (
             <>
@@ -292,7 +270,7 @@ export function NewSegmentModal({
               {members.size > sample.length && (
                 <p className="mt-2 text-body-12 text-text-secondary">
                   and {formatNumber(members.size - sample.length)} more. Membership resolves again at send time, so
-                  somebody who qualifies tomorrow is included tomorrow without anybody editing a list.
+                  somebody who qualifies tomorrow is included tomorrow.
                 </p>
               )}
             </>

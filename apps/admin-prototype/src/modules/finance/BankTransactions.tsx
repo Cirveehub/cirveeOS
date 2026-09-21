@@ -3,7 +3,6 @@ import { Landmark } from 'lucide-react'
 
 import { formatDate, formatNumber } from '@/lib/format'
 import {
-  Alert,
   Badge,
   Button,
   Card,
@@ -143,11 +142,6 @@ export default function BankTransactions() {
       />
 
       <ScreenError state={state} />
-
-      <Alert tone="info" title="Statement lines are imported, never typed" className="mb-6">
-        In production this feed arrives by CSV import or bank API. A line is read-only here: resolving it creates a payment record
-        rather than editing the statement.
-      </Alert>
 
       <Card>
         <CardBody padding="none">

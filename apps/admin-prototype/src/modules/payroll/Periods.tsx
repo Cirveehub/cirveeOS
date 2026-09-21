@@ -5,7 +5,6 @@ import { Lock, Wallet } from 'lucide-react'
 
 import { formatDate, formatDateTime, formatNumber } from '@/lib/format'
 import {
-  Alert,
   Badge,
   Button,
   Card,
@@ -220,11 +219,6 @@ export default function Periods() {
       />
 
       <ScreenError state={state} />
-
-      <Alert tone="info" icon={Lock} className="mb-4" title="A closed period is never reopened">
-        Reopening would rewrite a payslip somebody has already been paid against and already holds a copy of. When a closed
-        period turns out to be wrong, the fix is an adjustment in the open period that names the closed one as its source.
-      </Alert>
 
       <Card>
         <CardBody padding="none">

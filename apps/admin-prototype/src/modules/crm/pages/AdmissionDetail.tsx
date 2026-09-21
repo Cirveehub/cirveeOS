@@ -1,16 +1,3 @@
-/**
- * Admission detail — §2.9.
- *
- * Where the wizard lands, and where the vertical slice is checked: the
- * Admission, the Invoice it generated, the Student relationship it added to an
- * existing Person, and the Commission rows it wrote — each one linked, each one
- * naming the rule version it was computed under.
- *
- * Withdrawal is here too, and it deletes nothing: the invoice is voided,
- * pending commissions are cancelled with a reason and the student relationship
- * is end-dated. The admission stays visible with a Withdrawn badge.
- */
-
 import { useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import {
@@ -58,7 +45,7 @@ import {
 } from '@/mocks'
 import type { AuditEvent, Commission, Instalment, Payment } from '@/mocks/types'
 import { CrmPage } from '../components/CrmPage'
-import { AttributionBlock } from '../components/AttributionBlock'
+import { ThreePeople } from '../components/ThreePeople'
 import { toast } from '../components/Toasts'
 import {
   ADMISSION_STATUS_LABELS,
@@ -302,11 +289,10 @@ export default function AdmissionDetail() {
 
       <div className="grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
         <div className="flex flex-col gap-4">
-          <AttributionBlock
+          <ThreePeople
             referrerPersonId={admission.referrerPersonId}
             ownerUserId={admission.leadOwnerUserId}
             closerUserId={admission.closerUserId}
-            footnote="Snapshotted on the admission at creation. The commission rows below were evaluated against each of these three fields independently."
           />
 
           <Card padding="none">
@@ -533,10 +519,6 @@ export default function AdmissionDetail() {
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Fee & plan                                                                 */
-/* -------------------------------------------------------------------------- */
-
 function FeeTab({
   quotedFee,
   discountAmount,
@@ -635,10 +617,6 @@ function FeeTab({
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Payments                                                                   */
-/* -------------------------------------------------------------------------- */
-
 function PaymentsCard({ payments }: { payments: Payment[] }) {
   const columns: Column<Payment>[] = [
     { key: 'ref', header: 'Payment', minWidth: 130, accessor: (row) => row.ref },
@@ -691,10 +669,6 @@ function PaymentsCard({ payments }: { payments: Payment[] }) {
     </Card>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* Commission                                                                 */
-/* -------------------------------------------------------------------------- */
 
 function CommissionTab({ rows }: { rows: Commission[] }) {
   const directory = useDirectory()
@@ -792,10 +766,6 @@ function CommissionTab({ rows }: { rows: Commission[] }) {
     </Card>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* Audit                                                                      */
-/* -------------------------------------------------------------------------- */
 
 function AuditCard({ rows }: { rows: AuditEvent[] }) {
   const columns: Column<AuditEvent>[] = [

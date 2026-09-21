@@ -1,22 +1,3 @@
-/**
- * Materials — the one screen that deliberately does **not** reproduce the
- * legacy layout.
- *
- * The legacy portal's Materials tab is a flat list of uploads: title, type,
- * date, delete. It has no idea what a course is made of, so it cannot tell a
- * tutor what is missing — only what happens to exist.
- *
- * Cirvee OS's model is Course → Module → Lesson → one `ContentAsset` per
- * `ContentFormat`, and PRD §4's whole point is that a lesson should carry all
- * five formats because a student on 240p in Bodija needs the audio and the
- * transcript, not the video. **A missing format is the information.** So this
- * is a coverage table: one row per lesson, five slots per row, a present slot
- * opens the viewer and a missing slot opens the upload dialog already pointed
- * at that lesson and that format.
- *
- * The card recipe, the header of title + count + one action, and the density
- * are still the legacy's.
- */
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { FileText, Headphones, Layers, Mic, Plus, Upload, Video } from 'lucide-react'

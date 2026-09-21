@@ -1,11 +1,3 @@
-/**
- * New lead — §2.3.
- *
- * Capture, with the duplicate check happening **before anything is written**.
- * Step 1 cannot write a Person until the reviewer has answered the duplicate
- * panel, which is the gate the whole identity layer rests on.
- */
-
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, Check, ChevronDown, Lock } from 'lucide-react'
@@ -100,14 +92,12 @@ export default function NewLead() {
   const [identity, setIdentity] = useState<IdentityState>(EMPTY_IDENTITY)
   const [touched, setTouched] = useState(false)
 
-  /* Duplicate state — nothing is written while this is unresolved. */
   const [checking, setChecking] = useState(false)
   const [matches, setMatches] = useState<DuplicateMatch[]>([])
   const [decision, setDecision] = useState<IdentityDecision>('clear')
   const [existingPerson, setExistingPerson] = useState<Person | null>(null)
   const [overrideNote, setOverrideNote] = useState<{ person: Person; reason: string } | null>(null)
 
-  /* Step 2 */
   const [courseId, setCourseId] = useState<CourseId | ''>('')
   const [mode, setMode] = useState<Mode>('on_campus')
   const [branchId, setBranchId] = useState<BranchId | ''>('')
@@ -129,8 +119,6 @@ export default function NewLead() {
   const [step2Touched, setStep2Touched] = useState(false)
 
   const course = courseId ? courses.find((c) => c.id === courseId) : undefined
-
-  /* ---- routing rule --------------------------------------------------- */
 
   const routing = useMemo(() => {
     const branch = branches.find((b) => b.id === branchId)
@@ -155,8 +143,6 @@ export default function NewLead() {
   }, [branches, branchId, users, leads])
 
   const ownerUserId = ownerOverride ?? routing.ownerUserId
-
-  /* ---- duplicate check ------------------------------------------------ */
 
   const runDuplicateCheck = () => {
     const probe = {
@@ -200,12 +186,6 @@ export default function NewLead() {
     })
   }
 
-  /**
-   * Merge, in the pre-creation case: fold the newly typed contact details into
-   * the record that already exists, one audited field at a time. There is no
-   * second Person to merge, and creating one only to merge it away would be
-   * exactly the bug this screen exists to prevent.
-   */
   const mergeInto = (person: Person) => {
     const changes: Array<[string, string | null, string]> = []
     const whatsapp = identity.sameWhatsapp ? identity.phone : identity.whatsapp
@@ -249,8 +229,6 @@ export default function NewLead() {
     })
   }
 
-  /* ---- validation ----------------------------------------------------- */
-
   const identityErrors = {
     firstName: identity.firstName.trim() ? undefined : 'A first name is required.',
     lastName: identity.lastName.trim() ? undefined : 'A last name is required.',
@@ -278,8 +256,6 @@ export default function NewLead() {
     nextAction: nextAction.trim() ? undefined : 'Every lead needs a next action.',
   }
   const step2Valid = Object.values(step2Errors).every((e) => e === undefined)
-
-  /* ---- save ----------------------------------------------------------- */
 
   const save = (andAnother: boolean) => {
     setStep2Touched(true)
@@ -373,11 +349,10 @@ export default function NewLead() {
       title="New lead"
       description="Two steps. The duplicate check runs before a Person is created."
       breadcrumbs={[
-        { label: 'CRM & admissions', to: '/crm' },
-        { label: 'Leads', to: '/crm/leads' },
+        { label: 'Admissions', to: '/crm' },
+        { label: 'Enquiries', to: '/crm/enquiries' },
         { label: 'New lead' },
       ]}
-      hideSectionNav
       actions={
         <Button variant="ghost" asChild leftIcon={<ArrowLeft size={16} aria-hidden="true" />}>
           <Link to="/crm/leads">Back to leads</Link>

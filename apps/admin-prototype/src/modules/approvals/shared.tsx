@@ -1,12 +1,3 @@
-/**
- * Shared vocabulary for the Work, Documents & Approvals module.
- *
- * Nothing in here renders a screen. It holds the lookups every screen needs
- * (who is this user, what unit is this, how long until escalation), the type
- * metadata that keeps one engine looking like one engine across nine request
- * types, and the four standard states wrapped into one hook.
- */
-
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -38,16 +29,6 @@ import {
 } from '@/mocks'
 import type { ApprovalRequest, ApprovalType, SlaState, UserId } from '@/mocks'
 
-/* -------------------------------------------------------------------------- */
-/* The acting user                                                            */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Prototype scaffolding. Flow 3 needs the reviewer to stop being the requester
- * so the self-approval block can be lifted legitimately — the spec puts that
- * control in `/settings/demo`, which this module does not own, so it lives
- * here as a header affordance until Settings ships one.
- */
 const ACTING_KEY = 'cirvee-os:acting-user'
 
 function readActing(): UserId {
@@ -55,7 +36,6 @@ function readActing(): UserId {
     const raw = sessionStorage.getItem(ACTING_KEY)
     if (raw) return raw as UserId
   } catch {
-    /* storage blocked — fall through to the signed-in user */
   }
   return CURRENT_USER_ID as UserId
 }
@@ -68,7 +48,6 @@ export function setActingUser(id: UserId) {
   try {
     sessionStorage.setItem(ACTING_KEY, id)
   } catch {
-    /* in-memory only */
   }
   actingListeners.forEach((l) => l())
 }
@@ -88,14 +67,9 @@ export function useActingUser(): UserId {
   return useSyncExternalStore(subscribeActing, getActing, getActing)
 }
 
-/** Non-reactive read, for engine functions called from event handlers. */
 export function currentActingUser(): UserId {
   return actingUser
 }
-
-/* -------------------------------------------------------------------------- */
-/* Lookups                                                                    */
-/* -------------------------------------------------------------------------- */
 
 export function userName(userId: string | null | undefined): string {
   if (!userId) return 'Unassigned'
@@ -135,7 +109,6 @@ export function unitName(unitId: string | null | undefined): string {
   return unitsCollection.find(unitId)?.name ?? '—'
 }
 
-/** `UnitTag` takes the lowercase business-unit key; the store holds the code. */
 export function unitKey(unitId: string | null | undefined): BusinessUnit | null {
   if (!unitId) return null
   const code = unitsCollection.find(unitId)?.code
@@ -149,16 +122,10 @@ export function userOptions(): Array<{ value: string; label: string }> {
     .sort((a, b) => a.label.localeCompare(b.label))
 }
 
-/* -------------------------------------------------------------------------- */
-/* Request types                                                              */
-/* -------------------------------------------------------------------------- */
-
 export interface ApprovalTypeMeta {
   label: string
   icon: LucideIcon
-  /** Financial types carry an amount; the rest leave the column blank. */
   financial: boolean
-  /** Raised by a person, rather than produced by another module. */
   raisable: boolean
   blurb: string
 }
@@ -205,10 +172,6 @@ export const STATUS_LABEL: Record<ApprovalRequest['status'], string> = {
   expired: 'Expired',
 }
 
-/* -------------------------------------------------------------------------- */
-/* SLA and escalation                                                         */
-/* -------------------------------------------------------------------------- */
-
 export const NOW_ISO = atTime(TODAY, 9, 0)
 
 export const SLA_LABEL: Record<SlaState, string> = {
@@ -223,7 +186,6 @@ export const SLA_TONE: Record<SlaState, BadgeTone> = {
   breached: 'danger',
 }
 
-/** Returned-for-information pauses the clock — the PRD's third outcome. */
 export function slaIsPaused(request: ApprovalRequest): boolean {
   return request.status === 'returned_for_information'
 }
@@ -239,7 +201,6 @@ export function formatHours(hours: number): string {
   return `${Math.round(hours / 24)}d`
 }
 
-/** "Escalates to Musa Ibrahim in 6h", or the overdue equivalent. */
 export function escalationLabel(request: ApprovalRequest): string | null {
   if (request.status !== 'pending' || !request.escalatesToUserId) return null
   const hours = hoursUntil(request.escalatesAt)
@@ -255,21 +216,12 @@ export function ageLabel(request: ApprovalRequest): string {
   return `${Math.round(hours / 24)}d`
 }
 
-/* -------------------------------------------------------------------------- */
-/* The four standard states                                                   */
-/* -------------------------------------------------------------------------- */
-
 export interface ScreenState {
   loading: boolean
   error: string | null
   retry: () => void
 }
 
-/**
- * Every DEEP screen shows a skeleton on first mount, and can be pushed into a
- * recoverable error by appending `?demo=error` to the URL — the spec puts that
- * switch in Settings → Demo controls, which this module does not own.
- */
 export function useScreenState(forceError = false): ScreenState {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -294,10 +246,6 @@ export function useScreenState(forceError = false): ScreenState {
   }
 }
 
-/* -------------------------------------------------------------------------- */
-/* Small presentational helpers reused across the module                      */
-/* -------------------------------------------------------------------------- */
-
 export const STEP_STATE_TONE: Record<string, BadgeTone> = {
   approved: 'success',
   pending: 'warning',
@@ -318,21 +266,6 @@ export const STEP_STATE_LABEL: Record<string, string> = {
 
 export const BREACH_ICON = AlertTriangle
 
-/* -------------------------------------------------------------------------- */
-/* Page-level navigation                                                      */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Each of these is now its own real sidebar row (`index.tsx`'s
- * `expandSubnavInSidebar` subnav), not a tab on a shared dashboard — the
- * same pattern already used for Teaching and for People's Hiring/Workforce/
- * Time-and-leave groups. Two of those rows still cover more than one screen
- * apiece — "Approvals" is the inbox plus the requester's own request list
- * plus the routing config that decides who an approval goes to next, and
- * "Documents" is the generated-document register plus the templates it is
- * rendered from — so those two keep a second-row tab strip, wired to real
- * navigation instead of a query-param view switch.
- */
 export type WorkGroup = 'approvals' | 'documents'
 
 export const WORK_GROUP_CHILDREN: Record<WorkGroup, TabItem[]> = {

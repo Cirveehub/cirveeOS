@@ -1,13 +1,5 @@
-/**
- * Review requests.
- *
- * Every row names the moment that fired it. That column is the whole control:
- * a request that cannot name a high-satisfaction event should not have been
- * sent, and a request is never sweetened — no reward, no discount, no
- * incentive, ever.
- */
 import { useMemo, useState } from 'react'
-import { Send, ShieldAlert, Star } from 'lucide-react'
+import { BadgeCheck, Send, Star, Target } from 'lucide-react'
 
 import { formatDate, formatDateTime, formatNumber, formatPercent } from '@/lib/format'
 import { useQueryState } from '@/lib/view-state'
@@ -32,19 +24,17 @@ import {
 import { reviewRequestsCollection, useCollection } from '@/mocks'
 import type { Channel, ReviewRequest } from '@/mocks'
 
-import { daysSince, sendReviewRequest, triggerEvents, type TriggerEvent } from './writes'
-
+import { sendReviewRequest, triggerEvents, type TriggerEvent } from './writes'
 import {
   CHANNEL_LABEL,
   ErrorPanel,
-  ModuleHeader,
-  REVIEW_COMPLIANCE_NOTE,
-  Screen,
-  TRIGGER_LABEL,
-  TRIGGER_ORDER,
+  MOMENT_LABEL,
+  MOMENTS,
+  agoLabel,
   average,
+  daysAgo,
+  isThisMonth,
   isWithin30Days,
-  percent,
   useBranchName,
   useCohortCode,
   useModuleData,
@@ -52,6 +42,11 @@ import {
 } from './parts'
 
 const PAGE_SIZE = 25
+const CHANNELS: Channel[] = ['whatsapp', 'email', 'sms', 'in_app']
+
+function percent(part: number, whole: number): number {
+  return whole === 0 ? 0 : Number(((part / whole) * 100).toFixed(1))
+}
 
 export default function Requests() {
   const allRequests = useCollection(reviewRequestsCollection)
@@ -64,7 +59,7 @@ export default function Requests() {
   const [search, setSearch] = useState('')
   const initial = useQueryState()
   const [filters, setFilters] = useState<FilterValues>(() => ({
-    trigger: initial.get('trigger'),
+    moment: initial.get('moment') ?? initial.get('trigger'),
     channel: initial.get('channel'),
     outcome: initial.get('outcome'),
   }))
@@ -72,23 +67,36 @@ export default function Requests() {
   const [sending, setSending] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
 
+  const waiting = useMemo(() => triggerEvents().length, [allRequests])
+
+  const occurredAt = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const event of triggerEvents({ excludeAlreadyRequested: false })) {
+      map.set(`${event.sourceEventType}:${event.sourceEventId}`, event.occurredAt)
+    }
+    return map
+  }, [allRequests])
+
   const figures = useMemo(() => {
     const reviewed = requests.filter((r) => r.reviewed)
     const ratings = reviewed.map((r) => r.rating).filter((v): v is number => v !== null)
     return {
       sent: requests.length,
-      sent30d: requests.filter((r) => isWithin30Days(r.sentAt)).length,
-      opened: requests.filter((r) => r.openedAt !== null).length,
+      askedThisMonth: requests.filter((r) => isThisMonth(r.sentAt)).length,
+      asked30d: requests.filter((r) => isWithin30Days(r.sentAt)).length,
       reviewed: reviewed.length,
+      reviewed30d: reviewed.filter((r) => isWithin30Days(r.sentAt)).length,
+      ratings: ratings.length,
       averageRating: average(ratings),
     }
   }, [requests])
+  const conversion = percent(figures.reviewed, figures.sent)
 
   const rows = useMemo(() => {
     const term = search.trim().toLowerCase()
     return requests
       .filter((request) => {
-        if (filters.trigger && request.triggerMoment !== filters.trigger) return false
+        if (filters.moment && request.triggerMoment !== filters.moment) return false
         if (filters.channel && request.channel !== filters.channel) return false
         if (filters.outcome === 'reviewed' && !request.reviewed) return false
         if (filters.outcome === 'not_reviewed' && request.reviewed) return false
@@ -96,8 +104,7 @@ export default function Requests() {
         if (!term) return true
         return (
           personName(request.personId).toLowerCase().includes(term) ||
-          TRIGGER_LABEL[request.triggerMoment].toLowerCase().includes(term) ||
-          request.sourceEventType.toLowerCase().includes(term) ||
+          MOMENT_LABEL[request.triggerMoment].toLowerCase().includes(term) ||
           cohortCode(request.cohortId).toLowerCase().includes(term)
         )
       })
@@ -112,6 +119,11 @@ export default function Requests() {
     setPage(1)
   }
 
+  const momentWhen = (row: ReviewRequest): string => {
+    const at = occurredAt.get(`${row.sourceEventType}:${row.sourceEventId}`)
+    return at ? agoLabel(at) : `asked ${agoLabel(row.sentAt)}`
+  }
+
   const columns: Array<Column<ReviewRequest>> = [
     {
       key: 'person',
@@ -123,33 +135,21 @@ export default function Requests() {
       sortable: true,
     },
     {
-      key: 'trigger',
-      header: 'Trigger moment',
-      minWidth: 220,
-      cell: (row) => (
-        <Badge tone="accent" size="sm">
-          {TRIGGER_LABEL[row.triggerMoment]}
-        </Badge>
-      ),
-      sortValue: (row) => TRIGGER_LABEL[row.triggerMoment],
-      sortable: true,
-    },
-    {
-      key: 'source',
-      header: 'Source event',
-      minWidth: 220,
+      key: 'moment',
+      header: 'The moment',
+      minWidth: 240,
       cell: (row) => (
         <span className="min-w-0">
-          <span className="block text-body-13 text-text">{row.sourceEventType}</span>
-          <span className="block font-mono text-body-12 text-text-secondary">{row.sourceEventId}</span>
+          <span className="block text-body-13 text-text">{MOMENT_LABEL[row.triggerMoment]}</span>
+          <span className="block text-body-12 text-text-secondary">{momentWhen(row)}</span>
         </span>
       ),
-      sortValue: (row) => `${row.sourceEventType} ${row.sourceEventId}`,
+      sortValue: (row) => MOMENT_LABEL[row.triggerMoment],
       sortable: true,
     },
     {
       key: 'sent',
-      header: 'Sent',
+      header: 'Asked',
       width: 180,
       accessor: (row) => formatDateTime(row.sentAt),
       sortValue: (row) => row.sentAt,
@@ -195,11 +195,11 @@ export default function Requests() {
     },
     {
       key: 'reviewed',
-      header: 'Reviewed',
+      header: 'Left a review',
       width: 136,
       cell: (row) => (
         <Badge tone={row.reviewed ? 'success' : 'neutral'} size="sm">
-          {row.reviewed ? 'Yes' : 'No'}
+          {row.reviewed ? 'Yes' : 'Not yet'}
         </Badge>
       ),
       sortValue: (row) => (row.reviewed ? 1 : 0),
@@ -212,7 +212,7 @@ export default function Requests() {
       width: 132,
       cell: (row) =>
         row.rating === null ? (
-          <span className="text-text-secondary">Not known</span>
+          <span className="text-text-secondary">—</span>
         ) : (
           <span className="inline-flex items-center gap-1 tabular-nums">
             <Star size={14} aria-hidden="true" />
@@ -241,16 +241,17 @@ export default function Requests() {
   ]
 
   return (
-    <Screen>
-      <ModuleHeader
-        title="Review requests"
-        description="Sent on a high-satisfaction moment, never at random and never sweetened."
-        actions={
-          <Button size="sm" leftIcon={<Send size={16} aria-hidden="true" />} onClick={() => setSending(true)}>
-            Send a request
-          </Button>
-        }
-      />
+    <>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-body-13 text-text-secondary">
+          {waiting === 0
+            ? 'Nobody is waiting to be asked right now.'
+            : `${formatNumber(waiting)} ${waiting === 1 ? 'person has' : 'people have'} just had a good moment and not been asked yet.`}
+        </p>
+        <Button size="sm" leftIcon={<Send size={16} aria-hidden="true" />} onClick={() => setSending(true)}>
+          Send a request
+        </Button>
+      </div>
 
       {notice && (
         <Alert tone="success" className="mb-4" onDismiss={() => setNotice(null)}>
@@ -262,39 +263,35 @@ export default function Requests() {
         <ErrorPanel onRetry={retry} what="Review requests" />
       ) : (
         <>
-          <Alert tone="warning" icon={ShieldAlert} title="Never incentivise a review">
-            {REVIEW_COMPLIANCE_NOTE} The trigger column below is the control: every request names the
-            event that earned it. Nothing is offered in return, on any channel, for any rating.
-          </Alert>
-
-          <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <StatCard
-              label="Requests sent"
-              value={formatNumber(figures.sent)}
-              icon={Send}
-              caption={`${formatNumber(figures.sent30d)} in the last 30 days`}
-              loading={loading}
-            />
-            <StatCard
-              label="Opened"
-              value={formatPercent(percent(figures.opened, figures.sent))}
-              icon={Send}
-              caption={`${formatNumber(figures.opened)} of ${formatNumber(figures.sent)} requests`}
-              loading={loading}
-            />
-            <StatCard
-              label="Conversion to review"
-              value={formatPercent(percent(figures.reviewed, figures.sent))}
-              icon={Star}
-              variant={percent(figures.reviewed, figures.sent) >= 20 ? 'success' : 'default'}
-              caption={`${formatNumber(figures.reviewed)} reviews left`}
-              loading={loading}
-            />
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <StatCard
               label="Average rating"
               value={figures.averageRating === null ? 'No ratings yet' : `${figures.averageRating.toFixed(1)} of 5`}
               icon={Star}
-              caption="Where the rating could be matched back"
+              variant={(figures.averageRating ?? 0) >= 4.5 ? 'success' : 'default'}
+              caption={`Across ${formatNumber(figures.ratings)} rated reviews`}
+              loading={loading}
+            />
+            <StatCard
+              label="Reviews left"
+              value={formatNumber(figures.reviewed)}
+              icon={BadgeCheck}
+              caption={`${formatNumber(figures.reviewed30d)} in the last 30 days`}
+              loading={loading}
+            />
+            <StatCard
+              label="Asked this month"
+              value={formatNumber(figures.askedThisMonth)}
+              icon={Send}
+              caption={`${formatNumber(figures.asked30d)} in the last 30 days`}
+              loading={loading}
+            />
+            <StatCard
+              label="Turned into a review"
+              value={formatPercent(conversion)}
+              icon={Target}
+              variant={conversion >= 20 ? 'success' : 'default'}
+              caption={`${formatNumber(figures.reviewed)} of ${formatNumber(figures.sent)} asked`}
               loading={loading}
             />
           </div>
@@ -308,7 +305,7 @@ export default function Requests() {
                     setSearch(value)
                     setPage(1)
                   }}
-                  searchPlaceholder="Search by person, trigger moment, source event or cohort"
+                  searchPlaceholder="Search by person, moment or cohort"
                   values={filters}
                   onFilterChange={(key, value) => {
                     setFilters((prev) => ({ ...prev, [key]: value }))
@@ -317,27 +314,21 @@ export default function Requests() {
                   onClearAll={clear}
                   filters={[
                     {
-                      key: 'trigger',
-                      label: 'Trigger moment',
-                      options: TRIGGER_ORDER.map((trigger) => ({
-                        value: trigger,
-                        label: TRIGGER_LABEL[trigger],
-                      })),
+                      key: 'moment',
+                      label: 'Moment',
+                      options: MOMENTS.map((moment) => ({ value: moment, label: MOMENT_LABEL[moment] })),
                     },
                     {
                       key: 'channel',
                       label: 'Channel',
-                      options: (['whatsapp', 'email', 'sms', 'in_app'] as const).map((channel) => ({
-                        value: channel,
-                        label: CHANNEL_LABEL[channel],
-                      })),
+                      options: CHANNELS.map((channel) => ({ value: channel, label: CHANNEL_LABEL[channel] })),
                     },
                     {
                       key: 'outcome',
                       label: 'Outcome',
                       options: [
                         { value: 'reviewed', label: 'Left a review' },
-                        { value: 'not_reviewed', label: 'No review' },
+                        { value: 'not_reviewed', label: 'No review yet' },
                         { value: 'unopened', label: 'Never opened' },
                       ],
                     },
@@ -351,15 +342,15 @@ export default function Requests() {
                 rowKey={(row) => row.id}
                 loading={loading}
                 density="compact"
-                minWidth={2200}
+                minWidth={1800}
                 bordered={false}
-                caption="Review requests with the trigger moment and source event that fired them, channel, open, click, review and rating"
+                caption="Review requests, the moment each one was asked on, channel, open, click, review and rating"
                 empty={
                   filtered ? (
                     <EmptyState
                       variant="search"
                       title="No requests match these filters"
-                      message="Try another trigger moment or channel, or clear the search."
+                      message="Try another moment or channel, or clear the search."
                       action={
                         <Button size="sm" variant="secondary" onClick={clear}>
                           Clear filters
@@ -369,8 +360,8 @@ export default function Requests() {
                   ) : (
                     <EmptyState
                       icon={Send}
-                      title="No review requests sent"
-                      message="Requests fire off a certificate being issued, a strong grade coming back or a placement being confirmed. With no such event, there is no honest moment to ask, and asking anyway is how a listing collects two-star reviews."
+                      title="Nobody has been asked for a review yet"
+                      message="A request is sent after something good happened: a certificate, a strong grade, a placement. Pick one of those moments to ask on."
                       action={
                         <Button size="sm" onClick={() => setSending(true)}>
                           Send the first request
@@ -406,20 +397,10 @@ export default function Requests() {
           setNotice(message)
         }}
       />
-    </Screen>
+    </>
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Send a request                                                             */
-/* -------------------------------------------------------------------------- */
-
-/**
- * The form has no message field and no offer field — deliberately. A request
- * is a well-timed ask against a named event and nothing more; the compliance
- * note sits above the form because this is the screen where somebody would be
- * tempted to sweeten it.
- */
 function SendRequestModal({
   open,
   onClose,
@@ -430,27 +411,24 @@ function SendRequestModal({
   onSent: (message: string) => void
 }) {
   const requests = useCollection(reviewRequestsCollection)
-  const [triggerFilter, setTriggerFilter] = useState('')
+  const [momentFilter, setMomentFilter] = useState('')
   const [eventKey, setEventKey] = useState('')
   const [channel, setChannel] = useState<Channel>('whatsapp')
   const [touched, setTouched] = useState(false)
 
-  /* Recomputed whenever a request lands, so an event never appears twice. */
   const events = useMemo(() => triggerEvents(), [requests])
-  const available = triggerFilter
-    ? events.filter((event) => event.triggerMoment === triggerFilter)
-    : events
+  const available = momentFilter ? events.filter((event) => event.triggerMoment === momentFilter) : events
   const chosen: TriggerEvent | undefined = available.find((event) => event.key === eventKey)
 
-  const eventError = touched && !chosen ? 'Choose the event this request hangs off.' : undefined
-  const stale = chosen ? daysSince(chosen.occurredAt) : 0
+  const eventError = touched && !chosen ? 'Pick who to ask, and the moment that earned it.' : undefined
+  const stale = chosen ? daysAgo(chosen.occurredAt) : 0
 
   const submit = () => {
     setTouched(true)
     if (!chosen) return
     sendReviewRequest(chosen, channel)
     onSent(
-      `Request sent to ${chosen.personName} on ${CHANNEL_LABEL[channel]}, tied to ${TRIGGER_LABEL[chosen.triggerMoment].toLowerCase()}.`,
+      `Asked ${chosen.personName} for a review on ${CHANNEL_LABEL[channel]} — ${MOMENT_LABEL[chosen.triggerMoment].toLowerCase()}, ${agoLabel(chosen.occurredAt)}.`,
     )
     setEventKey('')
     setTouched(false)
@@ -461,55 +439,52 @@ function SendRequestModal({
       open={open}
       onClose={onClose}
       size="lg"
-      title="Send a review request"
-      description="Pick the event that earned the ask. Only events that already happened appear here, and each one can be asked on once."
+      title="Ask for a review"
+      description="Pick a real moment that just went well. Each one can be asked on once."
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={submit}>Send request</Button>
+          <Button onClick={submit} disabled={available.length === 0}>
+            Send request
+          </Button>
         </>
       }
     >
       <div className="flex flex-col gap-4">
-        <Alert tone="warning" icon={ShieldAlert} title="Never incentivise a review">
-          {REVIEW_COMPLIANCE_NOTE} There is no message or offer on this form on purpose — the timing is
-          the whole technique.
-        </Alert>
-
-        <Field label="Trigger moment" optional hint="Narrows the list below. Leave it empty to see every event.">
+        <Field label="Moment" optional hint="Narrows the list below.">
           <Select
-            value={triggerFilter}
-            placeholder="Every trigger moment"
-            options={TRIGGER_ORDER.map((trigger) => ({
-              value: trigger,
-              label: `${TRIGGER_LABEL[trigger]} · ${formatNumber(events.filter((e) => e.triggerMoment === trigger).length)} available`,
+            value={momentFilter}
+            placeholder="Any moment"
+            options={MOMENTS.map((moment) => ({
+              value: moment,
+              label: `${MOMENT_LABEL[moment]} · ${formatNumber(events.filter((e) => e.triggerMoment === moment).length)} waiting`,
             }))}
             onChange={(e) => {
-              setTriggerFilter(e.target.value)
+              setMomentFilter(e.target.value)
               setEventKey('')
             }}
           />
         </Field>
 
         <Field
-          label="Event"
+          label="Who, and what happened"
           required
           error={eventError}
           hint={
             available.length === 0
-              ? 'No event of this kind is waiting to be asked on. That is not a reason to ask anyway.'
-              : `${formatNumber(available.length)} events have not been asked on yet.`
+              ? 'Nobody with this moment is waiting to be asked.'
+              : `${formatNumber(available.length)} ${available.length === 1 ? 'person has' : 'people have'} not been asked yet.`
           }
         >
           <Select
             value={eventKey}
-            placeholder={available.length === 0 ? 'Nothing available' : 'Choose an event'}
+            placeholder={available.length === 0 ? 'Nobody waiting' : 'Choose a person'}
             disabled={available.length === 0}
             options={available.slice(0, 200).map((event) => ({
               value: event.key,
-              label: `${event.personName} — ${event.summary} · ${formatDate(event.occurredAt)}`,
+              label: `${event.personName} — ${event.summary} · ${agoLabel(event.occurredAt)}`,
             }))}
             onChange={(e) => setEventKey(e.target.value)}
           />
@@ -517,17 +492,14 @@ function SendRequestModal({
 
         {chosen && (
           <div className="rounded-xl border border-border bg-surface-sunken px-4 py-3">
-            <p className="text-label-11 text-text-label">What the request will record</p>
-            <p className="mt-1 text-body-14 text-text">
-              {chosen.personName} · {TRIGGER_LABEL[chosen.triggerMoment]}
+            <p className="text-body-14 text-text">
+              {chosen.personName} · {MOMENT_LABEL[chosen.triggerMoment]} {agoLabel(chosen.occurredAt)}
             </p>
-            <p className="mt-0.5 font-mono text-body-12 text-text-secondary">
-              {chosen.sourceEventType} {chosen.sourceEventId}
-            </p>
+            <p className="mt-0.5 text-body-13 text-text-secondary">{chosen.summary}</p>
             {stale > 30 && (
               <p className="mt-2 text-body-12 text-warning-text">
-                This happened {formatNumber(stale)} days ago. A late ask converts poorly and reads as a
-                campaign rather than a thank-you.
+                This was {formatNumber(stale)} days ago. A late ask converts poorly and reads as a campaign rather than a
+                thank-you.
               </p>
             )}
           </div>
@@ -536,10 +508,7 @@ function SendRequestModal({
         <Field label="Channel" required hint="Whichever channel this person already answers on.">
           <Select
             value={channel}
-            options={(['whatsapp', 'email', 'sms', 'in_app'] as const).map((c) => ({
-              value: c,
-              label: CHANNEL_LABEL[c],
-            }))}
+            options={CHANNELS.map((c) => ({ value: c, label: CHANNEL_LABEL[c] }))}
             onChange={(e) => setChannel(e.target.value as Channel)}
           />
         </Field>

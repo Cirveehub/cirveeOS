@@ -1,16 +1,3 @@
-/**
- * The condition-group builder.
- *
- * One component serves every place a `ConditionGroup` appears — a condition
- * node, a branch lane, "wait until a condition becomes true", and the stop
- * condition — so the operator vocabulary is identical everywhere.
- *
- * AND/OR at the group, rows of `field · operator · value`, and one level of
- * nested groups. The operator list and the shape of the value input both come
- * from the field's type, so `invoice.balance` offers "is at least" and a naira
- * input while `admission.status` offers "is one of" and a picker.
- */
-
 import { Plus, Trash2 } from 'lucide-react'
 
 import type { ConditionGroup } from '@/mocks/types'
@@ -27,10 +14,6 @@ import {
   type ConditionRule,
   type FieldMeta,
 } from './lib'
-
-/* -------------------------------------------------------------------------- */
-/* Field picker — grouped by the entity the path hangs off                    */
-/* -------------------------------------------------------------------------- */
 
 const ENTITIES = [...new Set(FIELDS.map((f) => f.entity))]
 
@@ -63,10 +46,6 @@ function FieldSelect({
     </Select>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* Value input — shape follows the field type                                 */
-/* -------------------------------------------------------------------------- */
 
 function ValueInput({
   meta,
@@ -193,16 +172,10 @@ function ValueInput({
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* The group editor                                                           */
-/* -------------------------------------------------------------------------- */
-
 export interface ConditionEditorProps {
   group: ConditionGroup
   onChange: (group: ConditionGroup) => void
-  /** Nested groups do not offer a further "Add group". One level is enough. */
   depth?: number
-  /** Shown under the rows. Turn off for the nested group. */
   showSummary?: boolean
   emptyHint?: string
 }

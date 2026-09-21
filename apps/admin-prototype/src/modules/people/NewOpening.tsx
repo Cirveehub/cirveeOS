@@ -1,13 +1,3 @@
-/**
- * Add a job opening — `/people/openings/new`.
- *
- * A requisition in two steps, because step 2 genuinely depends on step 1: the
- * band and the headcount together decide who has to sign it, and the approver
- * chain is resolved live from the configured bands as the numbers change. No
- * threshold is typed on this screen — `previewRoute` reads the route that is
- * in force today.
- */
-
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, Check, ShieldCheck } from 'lucide-react'

@@ -1,16 +1,3 @@
-/**
- * The Assignments tab of the student's course hub.
- *
- * Straight from the legacy portal: one card, one table, the status pill and
- * the due date, a single "View" per row. Two columns the legacy did not have
- * are here because Cirvee OS holds the data and a learner cares about it
- * more than anything else on the screen — the score they got, and whether the
- * tutor has returned the work for revision.
- *
- * No create, no grade. That split is the entire reason `CohortHub` takes its
- * tab content from the caller rather than knowing what a gradebook is.
- */
-
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 

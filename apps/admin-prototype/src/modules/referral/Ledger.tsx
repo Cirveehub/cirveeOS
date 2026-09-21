@@ -1,20 +1,5 @@
-/**
- * §3.6 — Commission ledger.
- *
- * The rules this screen exists to make visible:
- *
- *  - Every row names the **rule version** it was computed under, and the chip
- *    opens that version read-only. A commission created in March still says v1.
- *  - Corrections are **records, not edits**. Adjust and Reverse both insert a
- *    new commission that points back at the original; the original keeps its
- *    amount, its state and its payout batch.
- *  - Nothing is hard-deleted.
- *  - An approver cannot approve their own commission. The button is disabled
- *    with a reason, not hidden.
- */
-
 import { useMemo, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Ban, CheckCheck, Download, MessageSquareWarning, Receipt, Scale, Undo2 } from 'lucide-react'
 
 import {
@@ -26,16 +11,9 @@ import {
   paymentsCollection,
   TODAY,
   useCollection,
-  usersCollection,
 } from '@/mocks'
 import { commissionId as asCommissionId, disputeId as asDisputeId } from '@/mocks/types'
-import type {
-  Commission,
-  CommissionDispute,
-  CommissionState,
-  CommissionStateChange,
-  Kobo,
-} from '@/mocks/types'
+import type { Commission, CommissionDispute, CommissionState, Kobo } from '@/mocks/types'
 import {
   Alert,
   Badge,
@@ -67,53 +45,52 @@ import {
 } from '@/ui'
 import type { Column, ColumnCatalogueEntry, FilterValues, TimelineItem } from '@/ui'
 import { formatDate, formatDateTime, formatNaira, formatNumber } from '@/lib/format'
+import { downloadCsv } from '@/lib/view-state'
 
 import {
   BASIS_LABEL,
-  COMMISSION_STATES,
   ROLE_LABEL,
   ROLE_ON_DEAL,
+  SIDE_FLAGS,
+  SIDE_FLAG_LABEL,
+  SIMPLE_STATES,
+  SIMPLE_STATE_LABEL,
+  SIMPLE_STATE_TONE,
   STATE_LABEL,
-  STATE_TONE,
   branchName,
   courseTitle,
   daysSinceEarned,
   effectiveRange,
   findRule,
   personName,
+  presentState,
   ruleCode,
+  stateMatches,
   unitKey,
   unitName,
   userName,
 } from './lib'
-import { LoadFailed, ModulePage, RoleBadge, RuleChip, Screen, StateBadge, useScreenState } from './parts'
+import { LoadFailed, ModulePage, PayoutsTabs, RoleBadge, RuleChip, Screen, SimpleStateBadge, useScreenState } from './parts'
+import { approvalBlock, approveCommissions } from './writes'
 
 const now = () => `${TODAY}T09:30:00+01:00`
 
-/**
- * Sixteen columns is the full trace, and the full trace is the point of this
- * screen — but not all at once. The eight defaults answer "what is this row,
- * whose is it, and is anything holding it up"; the rest, including the full
- * calculation workings, are one click away in the picker and stay in the URL,
- * so a colleague opens the same view rather than a reset one.
- */
 const COLUMN_CATALOGUE: ColumnCatalogueEntry[] = [
   { key: 'ref', label: 'Commission', defaultVisible: true, locked: true },
-  { key: 'beneficiary', label: 'Beneficiary', defaultVisible: true },
-  { key: 'roleOnDeal', label: 'Role on deal', defaultVisible: true },
-  { key: 'admission', label: 'Admission', defaultVisible: false },
+  { key: 'beneficiary', label: 'Who', defaultVisible: true },
+  { key: 'roleOnDeal', label: 'Paid as', defaultVisible: true },
+  { key: 'admission', label: 'Enrolment', defaultVisible: false },
   { key: 'course', label: 'Course', defaultVisible: false },
   { key: 'unit', label: 'Unit', defaultVisible: false },
-  { key: 'rule', label: 'Rule + version', defaultVisible: true },
-  { key: 'basis', label: 'Basis', defaultVisible: false },
-  { key: 'basisAmount', label: 'Basis amount', defaultVisible: false },
-  { key: 'rate', label: 'Rate', defaultVisible: false },
+  { key: 'rule', label: 'Rate', defaultVisible: true },
+  { key: 'basis', label: 'Of what', defaultVisible: false },
+  { key: 'basisAmount', label: 'Worked out on', defaultVisible: false },
+  { key: 'rate', label: 'Rate applied', defaultVisible: false },
   { key: 'amount', label: 'Amount', defaultVisible: true },
-  { key: 'state', label: 'State', defaultVisible: true },
-  { key: 'eligibilityNote', label: 'Eligibility note', defaultVisible: true },
-  { key: 'earnedAt', label: 'Earned date', defaultVisible: true },
+  { key: 'state', label: 'Status', defaultVisible: true },
+  { key: 'earnedAt', label: 'Earned', defaultVisible: true },
   { key: 'approvedBy', label: 'Approved by', defaultVisible: false },
-  { key: 'payoutBatch', label: 'Payout batch', defaultVisible: false },
+  { key: 'payoutBatch', label: 'Paid in', defaultVisible: false },
 ]
 
 function nextCommissionRef(): { id: string; ref: string } {
@@ -128,10 +105,11 @@ function nextCommissionRef(): { id: string; ref: string } {
 
 export default function Ledger() {
   const commissions = useCollection(commissionsCollection)
+  const disputes = useCollection(commissionDisputesCollection)
   useCollection(commissionRulesCollection)
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
-  const { loading, errored, forcedEmpty, retry } = useScreenState('referral:ledger')
+  const { loading, errored, forcedEmpty, retry } = useScreenState('referral:history')
   const { visible, defaultKeys, setVisible } = useColumnVisibility(COLUMN_CATALOGUE)
 
   const [selected, setSelected] = useState<string[]>([])
@@ -140,8 +118,6 @@ export default function Ledger() {
   const [reversing, setReversing] = useState<Commission | null>(null)
   const [disputing, setDisputing] = useState<Commission | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
-
-  const currentPersonId = usersCollection.find(CURRENT_USER_ID)?.personId ?? null
 
   const drawerId = params.get('drawer')
   const search = params.get('q') ?? ''
@@ -163,10 +139,11 @@ export default function Ledger() {
   }
 
   const source = forcedEmpty ? [] : commissions
+  const openQueries = disputes.filter((d) => d.status === 'open' || d.status === 'under_review').length
 
   const rows = useMemo(() => {
     return source.filter((c) => {
-      if (values.state && c.state !== values.state) return false
+      if (values.state && !stateMatches(c, values.state)) return false
       if (values.roleOnDeal && c.roleOnDeal !== values.roleOnDeal) return false
       if (values.ruleKey && c.ruleKey !== values.ruleKey) return false
       if (values.unit && c.unitId !== values.unit) return false
@@ -183,12 +160,10 @@ export default function Ledger() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [source, values.state, values.roleOnDeal, values.ruleKey, values.unit, values.branch, from, to, search])
 
-  /* The summary strip totals the *current filter*, so it moves as filters move. */
-  const totals = COMMISSION_STATES.map((state) => ({
-    state,
-    count: rows.filter((c) => c.state === state).length,
-    amount: rows.filter((c) => c.state === state).reduce((acc, c) => acc + c.amount, 0),
-  })).filter((t) => t.count > 0)
+  const totals = SIMPLE_STATES.map((simple) => {
+    const list = rows.filter((c) => presentState(c).simple === simple)
+    return { simple, count: list.length, amount: list.reduce((acc, c) => acc + c.amount, 0) }
+  }).filter((t) => t.count > 0)
   const grandTotal = rows.reduce((acc, c) => acc + c.amount, 0)
 
   const ruleKeys = [...new Set(commissions.map((c) => c.ruleKey))]
@@ -196,37 +171,15 @@ export default function Ledger() {
   const branches = [...new Set(commissions.map((c) => c.branchId))]
 
   const canApprove = (c: Commission): { allowed: boolean; reason: string | null } => {
-    if (c.beneficiaryPersonId === currentPersonId) {
-      return { allowed: false, reason: 'You are the beneficiary of this commission. A requester cannot approve their own.' }
-    }
-    if (c.state !== 'earned') {
-      return { allowed: false, reason: `Only Earned commissions can be approved. This one is ${STATE_LABEL[c.state]}.` }
-    }
-    return { allowed: true, reason: null }
+    const reason = approvalBlock(c)
+    return { allowed: reason === null, reason }
   }
 
   function approve(list: Commission[]) {
-    for (const c of list) {
-      if (!canApprove(c).allowed) continue
-      const change: CommissionStateChange = {
-        from: c.state,
-        to: 'approved',
-        at: now(),
-        byUserId: CURRENT_USER_ID,
-        note: 'Approved in the commission ledger. An approval request was routed to Finance.',
-      }
-      commissionsCollection.update(c.id, {
-        state: 'approved',
-        approvedByUserId: CURRENT_USER_ID,
-        approvedAt: now(),
-        stateHistory: [...c.stateHistory, change],
-        updatedAt: now(),
-        updatedBy: CURRENT_USER_ID,
-      })
-    }
+    const done = approveCommissions(list, 'Approved from History.')
     setSelected([])
     setApproving(null)
-    setNotice(`${formatNumber(list.length)} commission${list.length === 1 ? '' : 's'} approved. Amounts were not changed.`)
+    setNotice(`${formatNumber(done.length)} commission${done.length === 1 ? '' : 's'} approved. Amounts were not changed.`)
   }
 
   function adjust(original: Commission, newAmount: Kobo, reason: string) {
@@ -262,9 +215,7 @@ export default function Ledger() {
       updatedBy: CURRENT_USER_ID,
     })
     setAdjusting(null)
-    setNotice(
-      `${ref} created as an adjustment of ${delta >= 0 ? '+' : '−'}${formatNaira(Math.abs(delta))} against ${original.ref}. ${original.ref} is unchanged.`,
-    )
+    setNotice(`${ref} created as an adjustment of ${delta >= 0 ? '+' : '−'}${formatNaira(Math.abs(delta))} against ${original.ref}. ${original.ref} is unchanged.`)
   }
 
   function reverse(original: Commission, reason: string) {
@@ -299,7 +250,7 @@ export default function Ledger() {
     })
     commissionsCollection.update(original.id, { reversedByCommissionId: reversalId, updatedAt: now(), updatedBy: CURRENT_USER_ID })
     setReversing(null)
-    setNotice(`${ref} created as a reversal of ${original.ref}. ${original.ref} keeps its ${formatNaira(original.amount)} and its state.`)
+    setNotice(`${ref} created as a reversal of ${original.ref}. ${original.ref} keeps its ${formatNaira(original.amount)} and its status.`)
   }
 
   function raiseDispute(commission: Commission, category: CommissionDispute['category'], narrative: string) {
@@ -327,13 +278,41 @@ export default function Ledger() {
       state: 'disputed',
       stateHistory: [
         ...commission.stateHistory,
-        { from: commission.state, to: 'disputed', at: now(), byUserId: CURRENT_USER_ID, note: `Dispute ${ref} raised.` },
+        { from: commission.state, to: 'disputed', at: now(), byUserId: CURRENT_USER_ID, note: `Query ${ref} raised.` },
       ],
       updatedAt: now(),
       updatedBy: CURRENT_USER_ID,
     })
     setDisputing(null)
-    setNotice(`${ref} raised against ${commission.ref}. The commission amount was not changed.`)
+    setNotice(`Query ${ref} raised on ${commission.ref}. The amount was not changed.`)
+  }
+
+  function exportCsv() {
+    downloadCsv(
+      'cirvee-commission-history.csv',
+      ['Commission', 'Who', 'Paid as', 'Enrolment', 'Course', 'Rate', 'Of what', 'Worked out on (NGN)', 'Rate applied', 'Amount (NGN)', 'Status', 'Note', 'Earned', 'Approved by', 'Paid in'],
+      rows.map((c) => {
+        const { simple, flag } = presentState(c)
+        const status = [simple ? SIMPLE_STATE_LABEL[simple] : '', flag ? SIDE_FLAG_LABEL[flag] : ''].filter(Boolean).join(' · ')
+        return [
+          c.ref,
+          personName(c.beneficiaryPersonId),
+          ROLE_LABEL[c.roleOnDeal],
+          c.admissionId,
+          courseTitle(c.courseId),
+          `${c.ruleKey} v${c.ruleVersion}`,
+          BASIS_LABEL[c.basis],
+          (c.basisAmount / 100).toFixed(2),
+          c.rateApplied === null ? 'Flat' : `${c.rateApplied}%`,
+          (c.amount / 100).toFixed(2),
+          status,
+          c.eligibilityNote ?? '',
+          c.earnedAt ? formatDate(c.earnedAt) : '',
+          c.approvedByUserId ? userName(c.approvedByUserId) : '',
+          c.payoutBatchId ?? '',
+        ]
+      }),
+    )
   }
 
   const columns: Array<Column<Commission>> = [
@@ -345,37 +324,22 @@ export default function Ledger() {
       cell: (c) => (
         <div className="flex min-w-0 flex-col gap-0.5">
           <span className="font-medium text-text">{c.ref}</span>
-          {c.reversalOfCommissionId && (
-            <span className="text-body-12 text-danger-text">Reversal of {refOf(c.reversalOfCommissionId)}</span>
-          )}
-          {c.adjustmentOfCommissionId && (
-            <span className="text-body-12 text-warning-text">Adjustment of {refOf(c.adjustmentOfCommissionId)}</span>
-          )}
+          {c.reversalOfCommissionId && <span className="text-body-12 text-danger-text">Reversal of {refOf(c.reversalOfCommissionId)}</span>}
+          {c.adjustmentOfCommissionId && <span className="text-body-12 text-warning-text">Adjustment of {refOf(c.adjustmentOfCommissionId)}</span>}
         </div>
       ),
       sortValue: (c) => c.ref,
     },
     {
       key: 'beneficiary',
-      header: 'Beneficiary',
+      header: 'Who',
       minWidth: 170,
       cell: (c) => <PersonChip name={personName(c.beneficiaryPersonId)} size="sm" />,
       sortValue: (c) => personName(c.beneficiaryPersonId),
     },
-    {
-      key: 'roleOnDeal',
-      header: 'Role on deal',
-      cell: (c) => <RoleBadge role={c.roleOnDeal} />,
-      sortValue: (c) => ROLE_LABEL[c.roleOnDeal],
-    },
-    { key: 'admission', header: 'Admission', accessor: (c) => c.admissionId, sortValue: (c) => c.admissionId },
-    {
-      key: 'course',
-      header: 'Course',
-      minWidth: 160,
-      accessor: (c) => courseTitle(c.courseId),
-      sortValue: (c) => courseTitle(c.courseId),
-    },
+    { key: 'roleOnDeal', header: 'Paid as', cell: (c) => <RoleBadge role={c.roleOnDeal} />, sortValue: (c) => ROLE_LABEL[c.roleOnDeal] },
+    { key: 'admission', header: 'Enrolment', accessor: (c) => c.admissionId, sortValue: (c) => c.admissionId },
+    { key: 'course', header: 'Course', minWidth: 160, accessor: (c) => courseTitle(c.courseId), sortValue: (c) => courseTitle(c.courseId) },
     {
       key: 'unit',
       header: 'Unit',
@@ -387,80 +351,45 @@ export default function Ledger() {
     },
     {
       key: 'rule',
-      header: 'Rule + version',
+      header: 'Rate',
       minWidth: 170,
       cell: (c) => <RuleChip rule={findRule(c.ruleId)} onOpen={() => navigate(`/referral/rules/${c.ruleId}`)} />,
       sortValue: (c) => `${c.ruleKey} ${String(c.ruleVersion).padStart(3, '0')}`,
     },
-    {
-      key: 'basis',
-      header: 'Basis',
-      accessor: (c) => BASIS_LABEL[c.basis],
-      sortValue: (c) => BASIS_LABEL[c.basis],
-    },
+    { key: 'basis', header: 'Of what', accessor: (c) => BASIS_LABEL[c.basis], sortValue: (c) => BASIS_LABEL[c.basis] },
     {
       key: 'basisAmount',
-      header: 'Basis amount',
+      header: 'Worked out on',
       align: 'right',
       accessor: (c) => <span className="tabular-nums">{formatNaira(c.basisAmount)}</span>,
       sortValue: (c) => c.basisAmount,
     },
-    {
-      key: 'rate',
-      header: 'Rate',
-      align: 'right',
-      accessor: (c) => (c.rateApplied === null ? 'Flat' : `${c.rateApplied}%`),
-      sortValue: (c) => c.rateApplied ?? -1,
-    },
+    { key: 'rate', header: 'Rate applied', align: 'right', accessor: (c) => (c.rateApplied === null ? 'Flat' : `${c.rateApplied}%`), sortValue: (c) => c.rateApplied ?? -1 },
     {
       key: 'amount',
       header: 'Amount',
       align: 'right',
-      cell: (c) => (
-        <span className={`tabular-nums font-medium ${c.amount < 0 ? 'text-danger-text' : 'text-text'}`}>
-          {formatNaira(c.amount)}
-        </span>
-      ),
+      cell: (c) => <span className={`tabular-nums font-medium ${c.amount < 0 ? 'text-danger-text' : 'text-text'}`}>{formatNaira(c.amount)}</span>,
       sortValue: (c) => c.amount,
     },
     {
       key: 'state',
-      header: 'State',
-      cell: (c) => <StateBadge state={c.state} />,
-      sortValue: (c) => COMMISSION_STATES.indexOf(c.state),
+      header: 'Status',
+      minWidth: 220,
+      cell: (c) => <SimpleStateBadge commission={c} subtitle />,
+      sortValue: (c) => {
+        const { simple, flag } = presentState(c)
+        return `${simple ? SIMPLE_STATES.indexOf(simple) : 9}${flag ?? ''}`
+      },
     },
-    {
-      key: 'eligibilityNote',
-      header: 'Eligibility note',
-      minWidth: 240,
-      cell: (c) =>
-        c.eligibilityNote ? (
-          <span className={c.state === 'pending' || c.state === 'tracked' ? 'text-warning-text' : 'text-text-secondary'}>
-            {c.eligibilityNote}
-          </span>
-        ) : (
-          <span className="text-text-secondary">—</span>
-        ),
-      sortValue: (c) => c.eligibilityNote ?? '',
-    },
-    {
-      key: 'earnedAt',
-      header: 'Earned',
-      accessor: (c) => (c.earnedAt ? formatDate(c.earnedAt) : '—'),
-      sortValue: (c) => c.earnedAt ?? '',
-    },
+    { key: 'earnedAt', header: 'Earned', accessor: (c) => (c.earnedAt ? formatDate(c.earnedAt) : '—'), sortValue: (c) => c.earnedAt ?? '' },
     {
       key: 'approvedBy',
       header: 'Approved by',
       accessor: (c) => (c.approvedByUserId ? userName(c.approvedByUserId) : '—'),
       sortValue: (c) => (c.approvedByUserId ? userName(c.approvedByUserId) : ''),
     },
-    {
-      key: 'payoutBatch',
-      header: 'Payout batch',
-      accessor: (c) => c.payoutBatchId ?? '—',
-      sortValue: (c) => c.payoutBatchId ?? '',
-    },
+    { key: 'payoutBatch', header: 'Paid in', accessor: (c) => c.payoutBatchId ?? '—', sortValue: (c) => c.payoutBatchId ?? '' },
   ]
 
   const visibleColumns = columns.filter((column) => visible.includes(column.key))
@@ -472,29 +401,23 @@ export default function Ledger() {
   return (
     <Screen>
       <ModulePage
-        tab="commissions"
-        title="Commission ledger"
-        description="Every commission traces back to the payments that triggered it, the rule version it was computed under, its beneficiary and its approval."
+        title="Payouts"
+        description="Every commission ever worked out, and what happened to it. Open a row to see the arithmetic and the payments behind it."
         actions={
           <>
-            <ColumnPicker
-              catalogue={COLUMN_CATALOGUE}
-              visible={visible}
-              defaultKeys={defaultKeys}
-              onChange={setVisible}
-            />
-            <Button
-              variant="secondary"
-              leftIcon={<Download size={16} />}
-              onClick={() => setNotice('Not built in this prototype — this would export the filtered ledger as CSV.')}
-            >
+            <Link to="/referral/attribution" className="text-body-13 text-accent hover:underline">
+              Who got credit (report)
+            </Link>
+            <ColumnPicker catalogue={COLUMN_CATALOGUE} visible={visible} defaultKeys={defaultKeys} onChange={setVisible} />
+            <Button variant="secondary" leftIcon={<Download size={16} />} disabled={rows.length === 0} onClick={exportCsv}>
               Export
             </Button>
           </>
         }
       />
+      <PayoutsTabs active="history" />
 
-      {errored && <LoadFailed what="The commission ledger" onRetry={retry} />}
+      {errored && <LoadFailed what="Commission history" onRetry={retry} />}
 
       {!errored && (
         <>
@@ -507,11 +430,18 @@ export default function Ledger() {
           <FilterBar
             search={search}
             onSearchChange={(value) => setParam('q', value || undefined)}
-            searchPlaceholder="Search by reference, beneficiary or course"
+            searchPlaceholder="Search by reference, name or course"
             filters={[
-              { key: 'state', label: 'State', options: COMMISSION_STATES.map((s) => ({ value: s, label: STATE_LABEL[s] })) },
-              { key: 'roleOnDeal', label: 'Role on deal', options: ROLE_ON_DEAL.map((r) => ({ value: r, label: ROLE_LABEL[r] })) },
-              { key: 'ruleKey', label: 'Rule', options: ruleKeys.map((k) => ({ value: k, label: k })) },
+              {
+                key: 'state',
+                label: 'Status',
+                options: [
+                  ...SIMPLE_STATES.map((s) => ({ value: s, label: SIMPLE_STATE_LABEL[s] })),
+                  ...SIDE_FLAGS.map((f) => ({ value: f, label: SIDE_FLAG_LABEL[f] })),
+                ],
+              },
+              { key: 'roleOnDeal', label: 'Paid as', options: ROLE_ON_DEAL.map((r) => ({ value: r, label: ROLE_LABEL[r] })) },
+              { key: 'ruleKey', label: 'Rate', options: ruleKeys.map((k) => ({ value: k, label: k })) },
               { key: 'unit', label: 'Unit', options: units.map((u) => ({ value: u, label: unitName(u) })) },
               { key: 'branch', label: 'Branch', options: branches.map((b) => ({ value: b, label: branchName(b) })) },
             ]}
@@ -520,26 +450,13 @@ export default function Ledger() {
             onClearAll={() => setParams(new URLSearchParams(), { replace: true })}
           >
             <Field label="Created from" layout="inline" className="items-center">
-              <Input
-                type="date"
-                inputSize="sm"
-                value={from}
-                containerClassName="w-[160px]"
-                onChange={(e) => setParam('from', e.target.value || undefined)}
-              />
+              <Input type="date" inputSize="sm" value={from} containerClassName="w-[160px]" onChange={(e) => setParam('from', e.target.value || undefined)} />
             </Field>
             <Field label="to" layout="inline" className="items-center">
-              <Input
-                type="date"
-                inputSize="sm"
-                value={to}
-                containerClassName="w-[160px]"
-                onChange={(e) => setParam('to', e.target.value || undefined)}
-              />
+              <Input type="date" inputSize="sm" value={to} containerClassName="w-[160px]" onChange={(e) => setParam('to', e.target.value || undefined)} />
             </Field>
           </FilterBar>
 
-          {/* ---- summary strip, totalled over the current filter ---- */}
           <div className="mb-5 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-surface px-4 py-3">
             <span className="text-label-10 text-text-muted">This filter</span>
             <span className="text-body-14 font-semibold tabular-nums text-text">
@@ -547,10 +464,17 @@ export default function Ledger() {
             </span>
             <span aria-hidden="true" className="mx-1 h-4 w-px bg-border" />
             {totals.map((t) => (
-              <Badge key={t.state} tone={STATE_TONE[t.state]} variant="subtle" size="md" className="tabular-nums">
-                {STATE_LABEL[t.state]} {formatNumber(t.count)} · {formatNaira(t.amount, { compact: true })}
+              <Badge key={t.simple} tone={SIMPLE_STATE_TONE[t.simple]} variant="subtle" size="md" className="tabular-nums">
+                {SIMPLE_STATE_LABEL[t.simple]} {formatNumber(t.count)} · {formatNaira(t.amount, { compact: true })}
               </Badge>
             ))}
+            {openQueries > 0 && (
+              <Link to="/referral/disputes" className="ml-auto" onClick={(e) => e.stopPropagation()}>
+                <Badge tone="warning" variant="subtle" size="md" className="tabular-nums">
+                  {formatNumber(openQueries)} open {openQueries === 1 ? 'query' : 'queries'}
+                </Badge>
+              </Link>
+            )}
           </div>
 
           {selected.length > 0 && (
@@ -558,16 +482,11 @@ export default function Ledger() {
               <Tooltip
                 content={
                   approvable.length === selectedRows.length
-                    ? 'Route an approval request for each selected commission'
-                    : `${selectedRows.length - approvable.length} of these cannot be approved — either they are not Earned, or you are the beneficiary.`
+                    ? 'Approve each selected commission'
+                    : `${selectedRows.length - approvable.length} of these cannot be approved — either they are not earned yet, or they are yours.`
                 }
               >
-                <Button
-                  size="sm"
-                  leftIcon={<CheckCheck size={16} />}
-                  disabled={approvable.length === 0}
-                  onClick={() => setApproving(approvable)}
-                >
+                <Button size="sm" leftIcon={<CheckCheck size={16} />} disabled={approvable.length === 0} onClick={() => setApproving(approvable)}>
                   Approve {formatNumber(approvable.length)}
                 </Button>
               </Tooltip>
@@ -589,7 +508,7 @@ export default function Ledger() {
                 selectable
                 selectedKeys={selected}
                 onSelectionChange={setSelected}
-                caption="Commission ledger"
+                caption="Commission history"
                 defaultSort={{ key: 'earnedAt', direction: 'desc' }}
                 onRowClick={(c) => setParam('drawer', c.id)}
                 activeRowKey={drawerId ?? undefined}
@@ -598,10 +517,10 @@ export default function Ledger() {
                     <EmptyState
                       icon={Receipt}
                       title="No commissions yet"
-                      message="Commissions appear when an admission matches a rule version in force on the day it was created. If the rules list is empty, nothing will ever land here."
+                      message="A commission appears when an enrolment matches a rate in force on the day. If there are no rates, nothing will ever land here."
                       action={
-                        <Button variant="secondary" onClick={() => navigate('/referral/rules')}>
-                          Open commission rules
+                        <Button variant="secondary" onClick={() => navigate('/referral/rates')}>
+                          Open rates
                         </Button>
                       }
                     />
@@ -609,7 +528,7 @@ export default function Ledger() {
                     <EmptyState
                       variant="search"
                       title="No commissions match these filters."
-                      message="Widen the state or date range, or clear the filters to see the whole ledger."
+                      message="Widen the status or date range, or clear the filters."
                       action={
                         <Button variant="secondary" onClick={() => setParams(new URLSearchParams(), { replace: true })}>
                           Clear filters
@@ -624,7 +543,6 @@ export default function Ledger() {
         </>
       )}
 
-      {/* ---------------- the trace drawer ---------------- */}
       <CommissionDrawer
         commission={open}
         onClose={() => setParam('drawer', undefined)}
@@ -636,7 +554,6 @@ export default function Ledger() {
         canApprove={canApprove}
       />
 
-      {/* ---------------- approve ---------------- */}
       <ConfirmDialog
         open={approving !== null}
         onClose={() => setApproving(null)}
@@ -649,11 +566,8 @@ export default function Ledger() {
       >
         {approving && (
           <div className="flex flex-col gap-2 text-body-14 text-text-secondary">
-            <p>
-              {formatNaira(approving.reduce((acc, c) => acc + c.amount, 0))} moves from Earned to Approved and becomes
-              eligible for a payout batch.
-            </p>
-            <p>No amount changes. Approval is recorded against your name and the timestamp.</p>
+            <p>{formatNaira(approving.reduce((acc, c) => acc + c.amount, 0))} becomes ready to pay. It shows on Owed now with a Pay button.</p>
+            <p>No amount changes. Approval is recorded against your name and the time.</p>
           </div>
         )}
       </ConfirmDialog>
@@ -668,10 +582,6 @@ export default function Ledger() {
 function refOf(id: string): string {
   return commissionsCollection.find(id)?.ref ?? id
 }
-
-/* -------------------------------------------------------------------------- */
-/* The trace drawer                                                           */
-/* -------------------------------------------------------------------------- */
 
 function CommissionDrawer({
   commission,
@@ -696,12 +606,11 @@ function CommissionDrawer({
 
   const rule = findRule(commission.ruleId)
   const invoice = invoicesCollection.find(commission.invoiceId)
-  const payments = commission.triggeringPaymentIds
-    .map((id) => paymentsCollection.find(id))
-    .filter((p): p is NonNullable<typeof p> => p !== undefined)
+  const payments = commission.triggeringPaymentIds.map((id) => paymentsCollection.find(id)).filter((p): p is NonNullable<typeof p> => p !== undefined)
   const approval = canApprove(commission)
   const ageing = daysSinceEarned(commission)
   const reversal = commission.reversedByCommissionId ? commissionsCollection.find(commission.reversedByCommissionId) : undefined
+  const waiting = commission.state === 'pending' || commission.state === 'tracked'
 
   const timeline: TimelineItem[] = commission.stateHistory.map((change, index) => ({
     id: `${commission.id}-${index}`,
@@ -718,11 +627,11 @@ function CommissionDrawer({
       onClose={onClose}
       size="xl"
       title={commission.ref}
-      description={`${personName(commission.beneficiaryPersonId)} · ${ROLE_LABEL[commission.roleOnDeal]} on ${commission.admissionId}`}
+      description={`${personName(commission.beneficiaryPersonId)} · ${ROLE_LABEL[commission.roleOnDeal].toLowerCase()} on ${commission.admissionId}`}
       footer={
         <div className="flex flex-wrap items-center justify-end gap-2">
-          <Button variant="ghost" leftIcon={<MessageSquareWarning size={16} />} onClick={() => onDispute(commission)}>
-            Dispute
+          <Button variant="ghost" leftIcon={<MessageSquareWarning size={16} />} disabled={commission.state === 'disputed'} onClick={() => onDispute(commission)}>
+            Query this
           </Button>
           <Button variant="secondary" leftIcon={<Scale size={16} />} onClick={() => onAdjust(commission)}>
             Adjust
@@ -745,66 +654,56 @@ function CommissionDrawer({
     >
       <div className="flex flex-col gap-6">
         <div className="flex flex-wrap items-center gap-2">
-          <StateBadge state={commission.state} size="md" />
+          <SimpleStateBadge commission={commission} size="md" />
           <RoleBadge role={commission.roleOnDeal} size="md" />
           <RuleChip rule={rule} onOpen={() => rule && onOpenRule(rule.id)} />
           {ageing !== null && !commission.paidAt && (
             <Badge tone={ageing > 30 ? 'danger' : ageing > 14 ? 'warning' : 'neutral'} variant="subtle" size="md">
-              {formatNumber(ageing)} days since earned, unpaid
+              waiting {formatNumber(ageing)} days
             </Badge>
           )}
         </div>
 
         {commission.eligibilityNote && (
-          <Alert tone={commission.state === 'pending' || commission.state === 'tracked' ? 'warning' : 'info'} title="Eligibility">
+          <Alert tone={waiting ? 'warning' : 'info'} title={waiting ? 'Why it is waiting' : 'Note'}>
             {commission.eligibilityNote}
           </Alert>
         )}
 
         {commission.reversalOfCommissionId && (
           <Alert tone="danger" icon={Undo2} title="This is a correction record">
-            It reverses {refOf(commission.reversalOfCommissionId)}, which keeps its original amount and its state.{' '}
-            {commission.reversalReason}
+            It reverses {refOf(commission.reversalOfCommissionId)}, which keeps its original amount and status. {commission.reversalReason}
           </Alert>
         )}
 
         {reversal && (
           <Alert tone="warning" icon={Undo2} title="This commission has been reversed">
-            {reversal.ref} carries {formatNaira(reversal.amount)} against it. This row is unchanged — the reversal is a
-            separate record.
+            {reversal.ref} carries {formatNaira(reversal.amount)} against it. This row is unchanged.
           </Alert>
         )}
 
-        {/* ---- the arithmetic ---- */}
         <Card padding="none">
-          <CardHeader title="The calculation" description="Shown as arithmetic, from the version in force when it was created." />
+          <CardHeader title="How it was worked out" description={rule ? `Using ${rule.name} v${rule.version}, the rate in force when the enrolment was recorded.` : undefined} />
           <CardBody>
             <p className="font-mono text-body-15 tabular-nums text-text">
               {formatNaira(commission.basisAmount)}
-              {commission.rateApplied !== null ? ` × ${commission.rateApplied}%` : ' → flat amount'} ={' '}
-              <strong>{formatNaira(commission.amount)}</strong>
+              {commission.rateApplied !== null ? ` × ${commission.rateApplied}%` : ' → fixed amount'} = <strong>{formatNaira(commission.amount)}</strong>
             </p>
-            {commission.tierLabel && (
-              <p className="mt-1.5 text-body-13 text-text-secondary">Band applied: {commission.tierLabel}</p>
-            )}
+            {commission.tierLabel && <p className="mt-1.5 text-body-13 text-text-secondary">Rate step: {commission.tierLabel}</p>}
             <KeyValueList className="mt-4" columns={2}>
-              <KeyValue label="Basis" divided>
+              <KeyValue label="Of what" divided>
                 {BASIS_LABEL[commission.basis]}
               </KeyValue>
-              <KeyValue label="Rule version" divided>
+              <KeyValue label="Rate" divided>
                 {rule ? (
-                  <button
-                    type="button"
-                    onClick={() => onOpenRule(rule.id)}
-                    className="rounded-sm text-accent underline-offset-2 hover:underline"
-                  >
+                  <button type="button" onClick={() => onOpenRule(rule.id)} className="rounded-sm text-accent underline-offset-2 hover:underline">
                     {rule.name} v{rule.version} · {effectiveRange(rule)}
                   </button>
                 ) : (
                   <span className="text-danger-text">Version {commission.ruleVersion} not found</span>
                 )}
               </KeyValue>
-              <KeyValue label="Rule reference" divided>
+              <KeyValue label="Rate reference" divided>
                 {rule ? ruleCode(rule) : commission.ruleKey}
               </KeyValue>
               <KeyValue label="Course" divided>
@@ -820,12 +719,8 @@ function CommissionDrawer({
           </CardBody>
         </Card>
 
-        {/* ---- the money that triggered it ---- */}
         <Card padding="none">
-          <CardHeader
-            title="The money behind it"
-            description="Every commission traces back to real payments. Nothing is earned on a number nobody received."
-          />
+          <CardHeader title="The payments behind it" />
           <CardBody>
             {invoice && (
               <KeyValueList columns={2}>
@@ -839,9 +734,7 @@ function CommissionDrawer({
                   <span className="tabular-nums">{formatNaira(invoice.paidAmount)}</span>
                 </KeyValue>
                 <KeyValue label="Balance" divided>
-                  <span className={invoice.balance > 0 ? 'tabular-nums text-warning-text' : 'tabular-nums text-success-text'}>
-                    {formatNaira(invoice.balance)}
-                  </span>
+                  <span className={invoice.balance > 0 ? 'tabular-nums text-warning-text' : 'tabular-nums text-success-text'}>{formatNaira(invoice.balance)}</span>
                 </KeyValue>
               </KeyValueList>
             )}
@@ -862,54 +755,43 @@ function CommissionDrawer({
                 ))}
               </ul>
             ) : (
-              <p className="mt-4 text-body-13 text-warning-text">
-                No matched payment is linked yet. This commission cannot become payable until money arrives.
-              </p>
+              <p className="mt-4 text-body-13 text-warning-text">No payment is linked yet. Nothing can be paid out until money arrives.</p>
             )}
           </CardBody>
         </Card>
 
-        {/* ---- approval ---- */}
         <Card padding="none">
-          <CardHeader title="Approval" />
+          <CardHeader title="Approval and payment" />
           <CardBody>
             <KeyValueList columns={2}>
-              <KeyValue label="Approval request" divided>
-                {commission.approvalRequestId ?? 'None routed'}
-              </KeyValue>
               <KeyValue label="Approved by" divided>
-                {commission.approvedByUserId ? userName(commission.approvedByUserId) : 'Not approved'}
+                {commission.approvedByUserId ? userName(commission.approvedByUserId) : 'Not yet'}
               </KeyValue>
               <KeyValue label="Approved at" divided>
                 {commission.approvedAt ? formatDateTime(commission.approvedAt) : '—'}
               </KeyValue>
-              <KeyValue label="Payout batch" divided>
-                {commission.payoutBatchId ?? 'Not in a batch'}
+              <KeyValue label="Paid in" divided>
+                {commission.payoutBatchId ?? 'Not yet'}
               </KeyValue>
               <KeyValue label="Paid at" divided>
                 {commission.paidAt ? formatDateTime(commission.paidAt) : '—'}
               </KeyValue>
-              <KeyValue label="Beneficiary" divided>
+              <KeyValue label="Who" divided>
                 <PersonChip name={personName(commission.beneficiaryPersonId)} size="sm" role={ROLE_LABEL[commission.roleOnDeal]} />
               </KeyValue>
             </KeyValueList>
-            {!approval.allowed && approval.reason && (
-              <Alert tone="warning" icon={Ban} title="Approval blocked" className="mt-4">
+            {!approval.allowed && approval.reason && commission.state === 'earned' && (
+              <Alert tone="warning" icon={Ban} title="You cannot approve this one" className="mt-4">
                 {approval.reason}
               </Alert>
             )}
           </CardBody>
         </Card>
 
-        {/* ---- state history ---- */}
         <Card padding="none">
-          <CardHeader title="State history" description="Every transition, with the actor and the timestamp." />
+          <CardHeader title="What happened" />
           <CardBody>
-            {timeline.length ? (
-              <Timeline items={timeline} timeFormat="absolute" dense />
-            ) : (
-              <p className="text-body-13 text-text-secondary">Created in its current state; no transitions yet.</p>
-            )}
+            {timeline.length ? <Timeline items={timeline} timeFormat="absolute" dense /> : <p className="text-body-13 text-text-secondary">Nothing has changed since it was created.</p>}
           </CardBody>
         </Card>
       </div>
@@ -925,19 +807,7 @@ function toneFor(state: CommissionState): TimelineItem['tone'] {
   return 'neutral'
 }
 
-/* -------------------------------------------------------------------------- */
-/* Correction modals — every one of these writes a NEW record                  */
-/* -------------------------------------------------------------------------- */
-
-function AdjustModal({
-  commission,
-  onClose,
-  onSubmit,
-}: {
-  commission: Commission | null
-  onClose: () => void
-  onSubmit: (c: Commission, amount: Kobo, reason: string) => void
-}) {
+function AdjustModal({ commission, onClose, onSubmit }: { commission: Commission | null; onClose: () => void; onSubmit: (c: Commission, amount: Kobo, reason: string) => void }) {
   const [amount, setAmount] = useState<number | null>(null)
   const [reason, setReason] = useState('')
   const target = amount ?? commission?.amount ?? 0
@@ -949,17 +819,14 @@ function AdjustModal({
       open={commission !== null}
       onClose={onClose}
       title={commission ? `Adjust ${commission.ref}` : ''}
-      description="The original commission is never edited. An adjustment is a separate record that carries the difference."
+      description="The original stays as it is. A separate record carries the difference."
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button
-            disabled={!commission || invalidReason !== null || delta === 0}
-            onClick={() => commission && onSubmit(commission, target as Kobo, reason.trim())}
-          >
-            Create adjustment record
+          <Button disabled={!commission || invalidReason !== null || delta === 0} onClick={() => commission && onSubmit(commission, target as Kobo, reason.trim())}>
+            Create adjustment
           </Button>
         </>
       }
@@ -970,7 +837,7 @@ function AdjustModal({
             <KeyValue label="Original amount" divided>
               <span className="tabular-nums">{formatNaira(commission.amount)}</span>
             </KeyValue>
-            <KeyValue label="Adjustment record will carry" divided>
+            <KeyValue label="Adjustment" divided>
               <span className={`tabular-nums ${delta < 0 ? 'text-danger-text' : 'text-success-text'}`}>
                 {delta >= 0 ? '+' : '−'}
                 {formatNaira(Math.abs(delta))}
@@ -981,7 +848,7 @@ function AdjustModal({
             </KeyValue>
           </KeyValueList>
 
-          <Field label="Corrected total amount" required>
+          <Field label="Corrected total" required>
             <CurrencyInput value={amount ?? commission.amount} onChange={setAmount} />
           </Field>
           <Field label="Reason" required error={reason.length > 0 ? (invalidReason ?? undefined) : undefined}>
@@ -991,7 +858,7 @@ function AdjustModal({
               rows={3}
               maxLength={240}
               showCount
-              placeholder="Basis amount was taken before the ₦50,000 discount was applied to the invoice."
+              placeholder="Worked out before the ₦50,000 discount was applied to the invoice."
             />
           </Field>
         </div>
@@ -1000,15 +867,7 @@ function AdjustModal({
   )
 }
 
-function ReverseModal({
-  commission,
-  onClose,
-  onSubmit,
-}: {
-  commission: Commission | null
-  onClose: () => void
-  onSubmit: (c: Commission, reason: string) => void
-}) {
+function ReverseModal({ commission, onClose, onSubmit }: { commission: Commission | null; onClose: () => void; onSubmit: (c: Commission, reason: string) => void }) {
   const [reason, setReason] = useState('')
   const invalid = reason.trim().length < 8 ? 'Give a reason of at least eight characters.' : null
 
@@ -1017,18 +876,14 @@ function ReverseModal({
       open={commission !== null}
       onClose={onClose}
       title={commission ? `Reverse ${commission.ref}` : ''}
-      description="A reversal is a new negative record pointing back at the original. Nothing is deleted or rewritten."
+      description="A new negative record points back at the original. Nothing is deleted."
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button
-            variant="danger"
-            disabled={!commission || invalid !== null}
-            onClick={() => commission && onSubmit(commission, reason.trim())}
-          >
-            Create reversal record
+          <Button variant="danger" disabled={!commission || invalid !== null} onClick={() => commission && onSubmit(commission, reason.trim())}>
+            Create reversal
           </Button>
         </>
       }
@@ -1036,9 +891,8 @@ function ReverseModal({
       {commission && (
         <div className="flex flex-col gap-4">
           <Alert tone="warning" title="What this will do">
-            A new commission of {formatNaira(-commission.amount)} is created against{' '}
-            {personName(commission.beneficiaryPersonId)}. {commission.ref} keeps its {formatNaira(commission.amount)},
-            its state and its payout batch.
+            A new commission of {formatNaira(-commission.amount)} is created against {personName(commission.beneficiaryPersonId)}. {commission.ref} keeps its{' '}
+            {formatNaira(commission.amount)} and its status.
           </Alert>
           <Field label="Reason" required error={reason.length > 0 ? (invalid ?? undefined) : undefined}>
             <Textarea
@@ -1057,11 +911,11 @@ function ReverseModal({
 }
 
 const DISPUTE_CATEGORIES: Array<{ value: CommissionDispute['category']; label: string }> = [
-  { value: 'wrong_beneficiary', label: 'Wrong beneficiary' },
+  { value: 'wrong_beneficiary', label: 'Wrong person' },
   { value: 'wrong_amount', label: 'Wrong amount' },
   { value: 'not_paid', label: 'Not paid' },
-  { value: 'eligibility_contested', label: 'Eligibility contested' },
-  { value: 'attribution_contested', label: 'Attribution contested' },
+  { value: 'eligibility_contested', label: 'Should have been earned by now' },
+  { value: 'attribution_contested', label: 'Wrong referrer on the enrolment' },
 ]
 
 function DisputeModal({
@@ -1075,38 +929,31 @@ function DisputeModal({
 }) {
   const [category, setCategory] = useState<CommissionDispute['category']>('wrong_amount')
   const [narrative, setNarrative] = useState('')
-  const invalid = narrative.trim().length < 12 ? 'Describe the dispute in at least twelve characters.' : null
+  const invalid = narrative.trim().length < 12 ? 'Describe the problem in at least twelve characters.' : null
 
   return (
     <Modal
       open={commission !== null}
       onClose={onClose}
-      title={commission ? `Raise a dispute against ${commission.ref}` : ''}
-      description="The commission moves to Disputed. Its amount is not changed — a dispute that is upheld produces an adjustment record."
+      title={commission ? `Query ${commission.ref}` : ''}
+      description="The commission is marked Queried while someone looks into it. The amount does not change."
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button
-            disabled={!commission || invalid !== null}
-            onClick={() => commission && onSubmit(commission, category, narrative.trim())}
-          >
-            Raise dispute
+          <Button disabled={!commission || invalid !== null} onClick={() => commission && onSubmit(commission, category, narrative.trim())}>
+            Raise query
           </Button>
         </>
       }
     >
       {commission && (
         <div className="flex flex-col gap-4">
-          <Field label="Reason category" required>
-            <Select
-              value={category}
-              options={DISPUTE_CATEGORIES}
-              onChange={(e) => setCategory(e.target.value as CommissionDispute['category'])}
-            />
+          <Field label="What's wrong" required>
+            <Select value={category} options={DISPUTE_CATEGORIES} onChange={(e) => setCategory(e.target.value as CommissionDispute['category'])} />
           </Field>
-          <Field label="What is being disputed" required error={narrative.length > 0 ? (invalid ?? undefined) : undefined}>
+          <Field label="Details" required error={narrative.length > 0 ? (invalid ?? undefined) : undefined}>
             <Textarea
               value={narrative}
               onChange={(e) => setNarrative(e.target.value)}

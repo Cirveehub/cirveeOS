@@ -1,24 +1,15 @@
-/**
- * §3.2 — Referrers.
- *
- * A referrer is suspended, never deleted: their commissions and their referral
- * history stay attached to the ledger, and their superseded codes keep
- * resolving.
- */
-
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Check, Copy, QrCode, UserPlus, UserX, Users } from 'lucide-react'
+import { Banknote, Check, Copy, HandCoins, QrCode, UserPlus, UserRoundPlus, UserX, Users } from 'lucide-react'
+import QRCode from 'qrcode'
 
 import {
   TODAY,
   CURRENT_USER_ID,
-  branchesCollection,
   commissionsCollection,
   peopleCollection,
   referralsCollection,
   referrerProfilesCollection,
-  topReferrers,
   useCollection,
 } from '@/mocks'
 import { referrerId as asReferrerId } from '@/mocks/types'
@@ -39,43 +30,31 @@ import {
   PersonChip,
   Select,
   SkeletonTable,
+  StatCard,
   StatusBadge,
   Textarea,
   Tooltip,
 } from '@/ui'
 import type { Column, FilterValues } from '@/ui'
-import { formatDate, formatNaira, formatNumber, formatPercent } from '@/lib/format'
+import { formatNaira, formatNumber } from '@/lib/format'
 
-import { BENEFICIARY_LABEL, branchName, personName } from './lib'
-import { LoadFailed, ModulePage, Screen, useScreenState } from './parts'
-
-const REFERRER_TYPES: ReferrerType[] = [
-  'student',
-  'alumnus',
-  'parent',
-  'employee',
-  'tutor',
-  'influencer',
-  'partner',
-  'external_agent',
-  'corporate_partner',
-]
+import { BENEFICIARY_LABEL, OWED_STATES, REFERRER_TYPES, personName } from './lib'
+import { LoadFailed, ModulePage, ReferrerTypeBadge, Screen, useScreenState } from './parts'
 
 interface Row {
   profile: ReferrerProfile
   name: string
-  referrals: number
-  converted: number
-  conversion: number
+  brought: number
+  paidCount: number
   earned: Kobo
   paid: Kobo
-  outstanding: Kobo
+  owed: Kobo
 }
 
 export default function Referrers() {
   const profiles = useCollection(referrerProfilesCollection)
-  useCollection(commissionsCollection)
-  useCollection(referralsCollection)
+  const commissions = useCollection(commissionsCollection)
+  const referrals = useCollection(referralsCollection)
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
   const { loading, errored, forcedEmpty, retry } = useScreenState('referral:referrers')
@@ -84,14 +63,13 @@ export default function Referrers() {
   const [suspending, setSuspending] = useState<ReferrerProfile | null>(null)
   const [creating, setCreating] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
+  const [notice, setNotice] = useState<{ tone: 'success' | 'warning'; text: string } | null>(null)
 
   const search = params.get('q') ?? ''
   const values: FilterValues = {
     type: params.get('type') ?? undefined,
     status: params.get('status') ?? undefined,
-    branch: params.get('branch') ?? undefined,
-    outstanding: params.get('outstanding') ?? undefined,
+    owed: params.get('owed') ?? params.get('outstanding') ?? undefined,
   }
   const setParam = (key: string, value: string | undefined) => {
     const next = new URLSearchParams(params)
@@ -100,31 +78,34 @@ export default function Referrers() {
     setParams(next, { replace: true })
   }
 
-  const stats = new Map(topReferrers(profiles.length + 1).map((r) => [r.profileId, r]))
+  const month = TODAY.slice(0, 7)
+  const activeCount = profiles.filter((p) => p.status === 'active').length
+  const broughtThisMonth = referrals.filter((r) => r.capturedAt.startsWith(month)).length
+  const paidThisMonth = commissions.filter((c) => c.roleOnDeal === 'referrer' && c.state === 'paid' && c.paidAt?.startsWith(month)).reduce((a, c) => a + c.amount, 0)
+  const owedNow = commissions.filter((c) => c.roleOnDeal === 'referrer' && OWED_STATES.includes(c.state)).reduce((a, c) => a + c.amount, 0)
 
   const rows: Row[] = (forcedEmpty ? [] : profiles)
     .map((profile) => {
-      const s = stats.get(profile.id)
+      const mine = commissions.filter((c) => c.beneficiaryPersonId === profile.personId)
+      const theirs = referrals.filter((r) => r.referrerProfileId === profile.id)
+      const earned = mine.filter((c) => c.state !== 'cancelled' && c.state !== 'reversed').reduce((a, c) => a + c.amount, 0) as Kobo
+      const paid = mine.filter((c) => c.state === 'paid').reduce((a, c) => a + c.amount, 0) as Kobo
+      const owed = mine.filter((c) => OWED_STATES.includes(c.state)).reduce((a, c) => a + c.amount, 0) as Kobo
       return {
         profile,
         name: personName(profile.personId),
-        referrals: s?.referrals ?? 0,
-        converted: s?.converted ?? 0,
-        conversion: s?.conversion ?? 0,
-        earned: (s?.earned ?? 0) as Kobo,
-        paid: (s?.paid ?? 0) as Kobo,
-        outstanding: (s?.outstanding ?? 0) as Kobo,
+        brought: theirs.length,
+        paidCount: theirs.filter((r) => r.admissionId !== null).length,
+        earned,
+        paid,
+        owed,
       }
     })
     .filter((row) => {
       if (values.type && row.profile.type !== values.type) return false
       if (values.status && row.profile.status !== values.status) return false
-      if (values.branch) {
-        const person = peopleCollection.find(row.profile.personId)
-        if (person?.primaryBranchId !== values.branch) return false
-      }
-      if (values.outstanding === 'yes' && row.outstanding <= 0) return false
-      if (values.outstanding === 'no' && row.outstanding > 0) return false
+      if (values.owed === 'yes' && row.owed <= 0) return false
+      if (values.owed === 'no' && row.owed > 0) return false
       if (search) {
         const haystack = `${row.name} ${row.profile.ref} ${row.profile.code} ${row.profile.supersededCodes.join(' ')}`
         if (!haystack.toLowerCase().includes(search.toLowerCase())) return false
@@ -138,57 +119,38 @@ export default function Referrers() {
       setCopied(key)
       window.setTimeout(() => setCopied((c) => (c === key ? null : c)), 1800)
     } catch {
-      setNotice(`Copy is blocked in this browser. The link is ${text}`)
+      setNotice({ tone: 'warning', text: `Copy is blocked in this browser. The link is ${text}` })
     }
   }
-
-  const branches = useCollection(branchesCollection)
 
   const columns: Array<Column<Row>> = [
     {
       key: 'name',
       header: 'Referrer',
       pinned: true,
-      minWidth: 190,
-      cell: (row) => <PersonChip name={row.name} size="sm" role={row.profile.ref} />,
+      minWidth: 200,
+      cell: (row) => <PersonChip name={row.name} size="sm" />,
       sortValue: (row) => row.name,
     },
     {
       key: 'type',
       header: 'Type',
-      cell: (row) => (
-        <Badge tone="neutral" variant="subtle" size="sm">
-          {BENEFICIARY_LABEL[row.profile.type]}
-        </Badge>
-      ),
+      cell: (row) => <ReferrerTypeBadge type={row.profile.type} />,
       sortValue: (row) => BENEFICIARY_LABEL[row.profile.type],
     },
-    { key: 'ref', header: 'Referral ID', accessor: (row) => row.profile.ref, sortValue: (row) => row.profile.ref },
     {
-      key: 'code',
-      header: 'Code',
+      key: 'link',
+      header: 'Their link',
+      minWidth: 260,
       cell: (row) => (
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <span className="font-mono text-body-13 text-text">{row.profile.code}</span>
-          {row.profile.supersededCodes.length > 0 && (
-            <span className="text-body-12 text-text-muted">
-              was {row.profile.supersededCodes.join(', ')} — still resolves
-            </span>
-          )}
-        </div>
-      ),
-      sortValue: (row) => row.profile.code,
-    },
-    {
-      key: 'trackedUrl',
-      header: 'Tracked URL',
-      minWidth: 220,
-      cell: (row) => (
-        <span className="flex items-center gap-1.5">
-          <span className="truncate text-body-13 text-text-secondary">{row.profile.trackedUrl}</span>
+        <span className="flex items-center gap-1">
+          <span className="flex min-w-0 flex-col">
+            <span className="truncate font-mono text-body-13 text-text">{row.profile.code}</span>
+            <span className="truncate text-body-12 text-text-secondary">{row.profile.trackedUrl}</span>
+          </span>
           <IconButton
             icon={copied === row.profile.id ? Check : Copy}
-            label={`Copy the tracked URL for ${row.name}`}
+            label={`Copy ${row.name}'s link`}
             variant="ghost"
             size="sm"
             onClick={(event) => {
@@ -196,48 +158,33 @@ export default function Referrers() {
               void copy(row.profile.trackedUrl, row.profile.id)
             }}
           />
+          <IconButton
+            icon={QrCode}
+            label={`Show the QR code for ${row.name}`}
+            variant="ghost"
+            size="sm"
+            onClick={(event) => {
+              event.stopPropagation()
+              setQrFor(row.profile)
+            }}
+          />
         </span>
       ),
-      sortValue: (row) => row.profile.trackedUrl,
+      sortValue: (row) => row.profile.code,
     },
     {
-      key: 'qr',
-      header: 'QR',
-      align: 'center',
-      width: 56,
-      cell: (row) => (
-        <IconButton
-          icon={QrCode}
-          label={`Show the QR code for ${row.name}`}
-          variant="ghost"
-          size="sm"
-          onClick={(event) => {
-            event.stopPropagation()
-            setQrFor(row.profile)
-          }}
-        />
-      ),
-    },
-    {
-      key: 'referrals',
-      header: 'Referrals',
+      key: 'brought',
+      header: 'Brought',
       align: 'right',
-      accessor: (row) => <span className="tabular-nums">{formatNumber(row.referrals)}</span>,
-      sortValue: (row) => row.referrals,
+      accessor: (row) => <span className="tabular-nums">{formatNumber(row.brought)}</span>,
+      sortValue: (row) => row.brought,
     },
     {
-      key: 'converted',
-      header: 'Converted',
+      key: 'paidCount',
+      header: 'Enrolled',
       align: 'right',
-      accessor: (row) => <span className="tabular-nums">{formatNumber(row.converted)}</span>,
-      sortValue: (row) => row.converted,
-    },
-    {
-      key: 'conversion',
-      header: 'Conversion',
-      align: 'right',
-      accessor: (row) => <span className="tabular-nums">{formatPercent(row.conversion)}</span>,
-      sortValue: (row) => row.conversion,
+      accessor: (row) => <span className="tabular-nums">{formatNumber(row.paidCount)}</span>,
+      sortValue: (row) => row.paidCount,
     },
     {
       key: 'earned',
@@ -247,34 +194,17 @@ export default function Referrers() {
       sortValue: (row) => row.earned,
     },
     {
-      key: 'paid',
-      header: 'Paid',
+      key: 'owed',
+      header: 'Owed',
       align: 'right',
-      accessor: (row) => <span className="tabular-nums">{formatNaira(row.paid)}</span>,
-      sortValue: (row) => row.paid,
-    },
-    {
-      key: 'outstanding',
-      header: 'Outstanding',
-      align: 'right',
-      cell: (row) => (
-        <span className={`tabular-nums ${row.outstanding > 0 ? 'text-warning-text' : 'text-text-secondary'}`}>
-          {formatNaira(row.outstanding)}
-        </span>
-      ),
-      sortValue: (row) => row.outstanding,
+      cell: (row) => <span className={`tabular-nums ${row.owed > 0 ? 'font-medium text-warning-text' : 'text-text-secondary'}`}>{formatNaira(row.owed)}</span>,
+      sortValue: (row) => row.owed,
     },
     {
       key: 'status',
       header: 'Status',
       cell: (row) => <StatusBadge status={row.profile.status} size="sm" />,
       sortValue: (row) => row.profile.status,
-    },
-    {
-      key: 'joinedAt',
-      header: 'Joined',
-      accessor: (row) => <span className="tabular-nums">{formatDate(row.profile.joinedAt)}</span>,
-      sortValue: (row) => row.profile.joinedAt,
     },
     {
       key: 'actions',
@@ -302,9 +232,8 @@ export default function Referrers() {
   return (
     <Screen>
       <ModulePage
-        tab="referrers"
         title="Referrers"
-        description="Every person with a referral code. Suspending stops new attribution; it never removes what they have already earned."
+        description="Everyone with a referral link, what they have brought in and what they are owed."
         actions={
           <Button leftIcon={<UserPlus size={16} />} onClick={() => setCreating(true)}>
             New referrer
@@ -317,15 +246,29 @@ export default function Referrers() {
       {!errored && (
         <>
           {notice && (
-            <Alert tone="info" className="mb-5" onDismiss={() => setNotice(null)}>
-              {notice}
+            <Alert tone={notice.tone} className="mb-5" onDismiss={() => setNotice(null)}>
+              {notice.text}
             </Alert>
           )}
+
+          <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <StatCard label="Active referrers" value={formatNumber(activeCount)} icon={Users} onClick={() => setParam('status', 'active')} />
+            <StatCard label="Brought this month" value={formatNumber(broughtThisMonth)} caption="people referred since the 1st" icon={UserRoundPlus} />
+            <StatCard label="Paid this month" value={formatNaira(paidThisMonth)} caption="to referrers since the 1st" icon={Banknote} variant="success" />
+            <StatCard
+              label="Owed now"
+              value={formatNaira(owedNow)}
+              caption="earned, not yet paid"
+              icon={HandCoins}
+              variant={owedNow > 0 ? 'warning' : 'default'}
+              onClick={() => navigate('/referral/payouts')}
+            />
+          </div>
 
           <FilterBar
             search={search}
             onSearchChange={(value) => setParam('q', value || undefined)}
-            searchPlaceholder="Search by name, referral ID or code"
+            searchPlaceholder="Search by name or code"
             filters={[
               { key: 'type', label: 'Type', options: REFERRER_TYPES.map((t) => ({ value: t, label: BENEFICIARY_LABEL[t] })) },
               {
@@ -337,13 +280,12 @@ export default function Referrers() {
                   { value: 'ended', label: 'Ended' },
                 ],
               },
-              { key: 'branch', label: 'Branch', options: branches.map((b) => ({ value: b.id, label: b.name })) },
               {
-                key: 'outstanding',
-                label: 'Outstanding',
+                key: 'owed',
+                label: 'Owed',
                 options: [
-                  { value: 'yes', label: 'Has outstanding' },
-                  { value: 'no', label: 'Nothing outstanding' },
+                  { value: 'yes', label: 'Owed money' },
+                  { value: 'no', label: 'Nothing owed' },
                 ],
               },
             ]}
@@ -365,14 +307,14 @@ export default function Referrers() {
                 density="compact"
                 stickyHeader
                 caption="Referrers"
-                defaultSort={{ key: 'earned', direction: 'desc' }}
+                defaultSort={{ key: 'owed', direction: 'desc' }}
                 onRowClick={(row) => navigate(`/referral/referrers/${row.profile.id}`)}
                 empty={
                   profiles.length === 0 || forcedEmpty ? (
                     <EmptyState
                       icon={Users}
                       title="No referrers yet"
-                      message="A referrer is a person with a code and a tracked link. Without one, referrals arrive unattributed and no commission can name a beneficiary."
+                      message="A referrer is a person with a link. Add one and share the link with them."
                       action={
                         <Button leftIcon={<UserPlus size={16} />} onClick={() => setCreating(true)}>
                           Add the first referrer
@@ -410,107 +352,75 @@ export default function Referrers() {
             updatedAt: `${TODAY}T09:00:00+01:00`,
             updatedBy: CURRENT_USER_ID,
           })
-          setNotice(`${personName(suspending.personId)} is suspended. Their existing commissions are untouched.`)
+          setNotice({ tone: 'success', text: `${personName(suspending.personId)} is suspended. What they have already earned is still owed.` })
           setSuspending(null)
         }}
         title={suspending ? `Suspend ${personName(suspending.personId)}?` : ''}
-        confirmLabel="Suspend this referrer"
+        confirmLabel="Suspend"
         destructive
         icon={UserX}
       >
         {suspending && (
           <div className="flex flex-col gap-2 text-body-14 text-text-secondary">
-            <p>
-              The code {suspending.code} stops attributing new referrals. Nothing is deleted: the referrer stays in this
-              list with a Suspended badge, and every commission already computed against them keeps its amount and its
-              place in the payout queue.
-            </p>
-            <p className="text-warning-text">
-              {formatNaira(suspending.stats.outstanding)} is currently outstanding to them. Suspending does not cancel
-              it.
-            </p>
+            <p>The code {suspending.code} stops bringing in new referrals. Nothing is deleted and nothing already earned is cancelled.</p>
+            {suspending.stats.outstanding > 0 && <p className="text-warning-text">{formatNaira(suspending.stats.outstanding)} is currently owed to them and stays owed.</p>}
           </div>
         )}
       </ConfirmDialog>
 
-      <NewReferrerModal open={creating} onClose={() => setCreating(false)} onCreated={(name) => setNotice(`${name} added as a referrer.`)} />
+      <NewReferrerModal open={creating} onClose={() => setCreating(false)} onCreated={(name) => setNotice({ tone: 'success', text: `${name} added as a referrer.` })} />
     </Screen>
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* QR                                                                         */
-/* -------------------------------------------------------------------------- */
-
 export function QrModal({ profile, onClose }: { profile: ReferrerProfile | null; onClose: () => void }) {
+  const [dataUrl, setDataUrl] = useState<string | null>(null)
+  const payload = profile?.qrPayload ?? null
+
+  useEffect(() => {
+    if (!payload) {
+      setDataUrl(null)
+      return
+    }
+    let cancelled = false
+    QRCode.toDataURL(payload, { width: 320, margin: 2, errorCorrectionLevel: 'M' })
+      .then((url) => {
+        if (!cancelled) setDataUrl(url)
+      })
+      .catch(() => {
+        if (!cancelled) setDataUrl(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [payload])
+
+  const download = () => {
+    if (!dataUrl || !profile) return
+    const link = document.createElement('a')
+    link.href = dataUrl
+    link.download = `${profile.code}-qr.png`
+    link.click()
+  }
+
   return (
-    <Modal
-      open={profile !== null}
-      onClose={onClose}
-      size="sm"
-      title={profile ? `${profile.code} — QR` : ''}
-      description={profile ? `Encodes ${profile.qrPayload}` : undefined}
-    >
+    <Modal open={profile !== null} onClose={onClose} size="sm" title={profile ? `${profile.code} — QR code` : ''} description={profile ? 'Scans to their referral link.' : undefined}>
       {profile && (
         <div className="flex flex-col items-center gap-4">
-          <QrPattern payload={profile.qrPayload} />
+          {dataUrl ? (
+            <img src={dataUrl} alt={`QR code for ${profile.trackedUrl}`} width={240} height={240} className="rounded-xl border border-border bg-white p-2" />
+          ) : (
+            <div className="size-60 animate-pulse rounded-xl border border-border bg-canvas" aria-hidden="true" />
+          )}
           <p className="text-center font-mono text-body-13 text-text">{profile.trackedUrl}</p>
-          <p className="text-center text-body-12 text-text-secondary">
-            Printed on flyers and the campus stand. The pattern above is generated from the payload in the browser; the
-            production system renders the scannable code at print time.
-          </p>
+          <Button variant="secondary" size="sm" disabled={!dataUrl} onClick={download}>
+            Download PNG
+          </Button>
         </div>
       )}
     </Modal>
   )
 }
-
-/** A deterministic square pattern derived from the payload, with finder marks. */
-function QrPattern({ payload }: { payload: string }) {
-  const size = 21
-  let hash = 2166136261
-  for (let i = 0; i < payload.length; i++) {
-    hash ^= payload.charCodeAt(i)
-    hash = Math.imul(hash, 16777619)
-  }
-  const isFinder = (r: number, c: number) => {
-    const inBox = (br: number, bc: number) => r >= br && r < br + 7 && c >= bc && c < bc + 7
-    return inBox(0, 0) || inBox(0, size - 7) || inBox(size - 7, 0)
-  }
-  const finderOn = (r: number, c: number) => {
-    const lr = r < 7 ? r : r - (size - 7)
-    const lc = c < 7 ? c : c - (size - 7)
-    const ring = Math.max(Math.abs(lr - 3), Math.abs(lc - 3))
-    return ring === 3 || ring <= 1
-  }
-  const cells: boolean[] = []
-  for (let r = 0; r < size; r++) {
-    for (let c = 0; c < size; c++) {
-      if (isFinder(r, c)) {
-        cells.push(finderOn(r, c))
-      } else {
-        const v = Math.imul(hash ^ (r * 31 + c * 17), 2654435761) >>> 0
-        cells.push((v & 0x40) !== 0)
-      }
-    }
-  }
-  return (
-    <div
-      role="img"
-      aria-label={`QR pattern encoding ${payload}`}
-      className="grid gap-px rounded-xl border border-border bg-surface p-3"
-      style={{ gridTemplateColumns: `repeat(${size}, 8px)` }}
-    >
-      {cells.map((on, i) => (
-        <span key={i} className={on ? 'size-2 bg-text' : 'size-2 bg-surface'} />
-      ))}
-    </div>
-  )
-}
-
-/* -------------------------------------------------------------------------- */
-/* New referrer                                                               */
-/* -------------------------------------------------------------------------- */
 
 function suggestCode(name: string, taken: Set<string>): string {
   const stem = (name.split(/\s+/)[0] ?? 'CIRVEE').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 6) || 'CIRVEE'
@@ -521,15 +431,7 @@ function suggestCode(name: string, taken: Set<string>): string {
   return `${stem}${Date.now() % 100}`
 }
 
-function NewReferrerModal({
-  open,
-  onClose,
-  onCreated,
-}: {
-  open: boolean
-  onClose: () => void
-  onCreated: (name: string) => void
-}) {
+function NewReferrerModal({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: (name: string) => void }) {
   const people = useCollection(peopleCollection)
   const profiles = useCollection(referrerProfilesCollection)
   const [personId, setPersonId] = useState('')
@@ -546,8 +448,8 @@ function NewReferrerModal({
   const suggested = name ? suggestCode(name, taken) : ''
   const effectiveCode = (code || suggested).toUpperCase()
   const codeTaken = effectiveCode !== '' && taken.has(effectiveCode)
-  const personError = touched && !personId ? 'Choose the person this code belongs to.' : undefined
-  const codeError = codeTaken ? `${effectiveCode} is already in use. Codes never collide, including retired ones.` : undefined
+  const personError = touched && !personId ? 'Choose who this link belongs to.' : undefined
+  const codeError = codeTaken ? `${effectiveCode} is already in use.` : undefined
 
   const submit = () => {
     setTouched(true)
@@ -587,7 +489,6 @@ function NewReferrerModal({
       open={open}
       onClose={onClose}
       title="New referrer"
-      description="A referrer is a person plus a code. The code is what attributes a lead, so it has to be unique across live and retired codes."
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
@@ -602,9 +503,7 @@ function NewReferrerModal({
           <Select
             value={personId}
             placeholder="Choose a person"
-            options={withoutProfile
-              .slice(0, 200)
-              .map((p) => ({ value: p.id, label: `${p.firstName} ${p.lastName}${p.email ? ` · ${p.email}` : ''}` }))}
+            options={withoutProfile.slice(0, 200).map((p) => ({ value: p.id, label: `${p.firstName} ${p.lastName}${p.email ? ` · ${p.email}` : ''}` }))}
             onChange={(e) => {
               setPersonId(e.target.value)
               setCode('')
@@ -612,20 +511,11 @@ function NewReferrerModal({
           />
         </Field>
 
-        <Field label="Referrer type" required>
-          <Select
-            value={type}
-            options={REFERRER_TYPES.map((t) => ({ value: t, label: BENEFICIARY_LABEL[t] }))}
-            onChange={(e) => setType(e.target.value as ReferrerType)}
-          />
+        <Field label="Type" required>
+          <Select value={type} options={REFERRER_TYPES.map((t) => ({ value: t, label: BENEFICIARY_LABEL[t] }))} onChange={(e) => setType(e.target.value as ReferrerType)} />
         </Field>
 
-        <Field
-          label="Referral code"
-          required
-          error={codeError}
-          hint={suggested && !code ? `Suggested from their name: ${suggested}` : 'Checked against every live and retired code.'}
-        >
+        <Field label="Referral code" required error={codeError} hint={suggested && !code ? `Suggested from their name: ${suggested}` : undefined}>
           <Input
             value={code || suggested}
             onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
@@ -640,7 +530,7 @@ function NewReferrerModal({
           />
         </Field>
 
-        <Field label="Payout method" required>
+        <Field label="How they get paid" required>
           <Select
             value={method}
             options={[
@@ -653,27 +543,17 @@ function NewReferrerModal({
         </Field>
 
         {method === 'bank_transfer' && (
-          <Field label="Bank" required hint="Account details are verified before the first payout.">
+          <Field label="Bank" required hint="Account details are checked before the first payout.">
             <Select
               value={bankName}
-              options={['GTBank', 'Zenith Bank', 'Providus Bank', 'Access Bank', 'First Bank', 'Sterling Bank'].map((b) => ({
-                value: b,
-                label: b,
-              }))}
+              options={['GTBank', 'Zenith Bank', 'Providus Bank', 'Access Bank', 'First Bank', 'Sterling Bank'].map((b) => ({ value: b, label: b }))}
               onChange={(e) => setBankName(e.target.value)}
             />
           </Field>
         )}
 
         <Field label="Tax note" optional>
-          <Textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            rows={2}
-            maxLength={200}
-            showCount
-            placeholder="Individual referrer. No WHT applied below ₦1,000,000 per annum."
-          />
+          <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} maxLength={200} showCount placeholder="Individual referrer. No WHT applied below ₦1,000,000 per annum." />
         </Field>
       </div>
     </Modal>

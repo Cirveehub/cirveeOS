@@ -1,12 +1,3 @@
-/**
- * Settings — profile only, matching the legacy portal's scope for a tutor.
- *
- * The legacy Settings page has three tabs (profile, preferences, security).
- * Preferences and security are account plumbing this prototype has no backend
- * for, and inventing a password form with nothing behind it would be a lie, so
- * this is the profile tab and a read-only statement of what the role can and
- * cannot reach — which is the genuinely useful half of "security" here.
- */
 import { useEffect, useState } from 'react'
 import { Mail, MapPin, Phone, ShieldCheck, User } from 'lucide-react'
 

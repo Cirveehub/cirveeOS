@@ -1,33 +1,3 @@
-/**
- * Every write the People module makes.
- *
- * Four rules this file exists to enforce, all of them PRD absolutes rather
- * than house style:
- *
- *  1. **A pipeline stage transition never overwrites its history.** The
- *     `Candidate` record carries one current stage, so the trail lives in the
- *     audit log: one row per move, with the stage it came from, the stage it
- *     went to, who moved it and why. `candidateTrail()` reads it back. A
- *     candidate's past is therefore reconstructable even though the record
- *     itself only holds "where are they now".
- *
- *  2. **An accepted offer does not create an employee.** Acceptance is a
- *     response from the candidate; resumption is an event that may never
- *     happen. `recordOfferResponse` only ever sets the response.
- *     `recordResumption` is a separate, deliberate act and is the *only*
- *     path that inserts an `Employee`. An accepted offer whose start date
- *     passes without a resumption becomes `lapsed` — no employment record,
- *     no payroll line, nothing to unwind.
- *
- *  3. **Compensation is versioned.** The first `CompensationVersion` is
- *     written at resumption from the offer's own figures, with the approval
- *     that authorised the hire named on it. Nothing here ever edits one.
- *
- *  4. **Raising a requisition goes through the approval route**, resolved
- *     from the configured bands at the salary band's ceiling. No threshold is
- *     typed in this file.
- */
-
 import {
   CURRENT_USER_ID,
   TODAY,
@@ -125,10 +95,6 @@ function rand(prefix: string): string {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`
 }
 
-/* -------------------------------------------------------------------------- */
-/* Audit                                                                      */
-/* -------------------------------------------------------------------------- */
-
 export interface AuditInput {
   action: string
   entityType: string
@@ -140,11 +106,6 @@ export interface AuditInput {
   actorUserId?: UserId
 }
 
-/**
- * The audit log, not the activity feed. Actor, timestamp, record, field,
- * previous value and new value — the six things the PRD requires of an audit
- * row, and the reason a stage history can be rebuilt from it.
- */
 export function emitAudit(input: AuditInput): AuditEvent {
   const actorUserId = input.actorUserId ?? CURRENT_USER_ID
   const event: AuditEvent = {
@@ -167,16 +128,11 @@ export function emitAudit(input: AuditInput): AuditEvent {
   return event
 }
 
-/** Every audited event against one record, newest first. */
 export function auditTrail(entityType: string, entityId: string): AuditEvent[] {
   return auditEventsCollection
     .where((e) => e.entityType === entityType && e.entityId === entityId)
     .sort((a, b) => b.at.localeCompare(a.at))
 }
-
-/* -------------------------------------------------------------------------- */
-/* Approvals — raised from here, decided in the Work & approvals module        */
-/* -------------------------------------------------------------------------- */
 
 function nextApprovalRef(): string {
   const numbers = approvalRequestsCollection
@@ -197,21 +153,9 @@ export interface RaiseInput {
   relatedEntityId: string
   relatedEntityRef: string
   impact: Array<{ text: string; entityType: string; entityId: string; entityRef: string }>
-  /**
-   * Who is raising it. Defaults to the seed's fixed user for the admin screens
-   * that pre-date sign-in; the personal module passes the signed-in person, so
-   * their own leave request is not filed under somebody else's name — which
-   * also decides whether the self-approval block bites.
-   */
   requesterUserId?: UserId
 }
 
-/**
- * Preview the approver chain the configured bands resolve to, without writing
- * anything. The requisition form calls this on every salary keystroke, so who
- * has to sign is visible before the request exists — and if the hire route is
- * ever re-banded, this screen follows it without a code change.
- */
 export function previewRoute(type: RaiseInput['type'], amount: Kobo): ApprovalStep[] {
   return resolveApprovalRoute(type, amount)
 }
@@ -284,10 +228,6 @@ export function raiseRequest(input: RaiseInput): ApprovalRequest | null {
   return request
 }
 
-/* -------------------------------------------------------------------------- */
-/* Job openings                                                               */
-/* -------------------------------------------------------------------------- */
-
 function nextOpeningRef(): string {
   const numbers = jobOpeningsCollection
     .all()
@@ -309,7 +249,6 @@ export interface NewOpeningInput {
   jobDescription: string
   reason: string
   targetStartDate: string
-  /** False raises the requisition as a draft with no approval attached. */
   seekApproval: boolean
 }
 
@@ -318,12 +257,6 @@ export interface OpeningResult {
   approval: ApprovalRequest | null
 }
 
-/**
- * A requisition. The annual cost of the headcount at the top of the band is
- * what the approval route is resolved against — a two-headcount role at
- * ₦700,000 is a different decision from a one-headcount role at ₦250,000, and
- * the route bands are what decides who signs it.
- */
 export function createJobOpening(input: NewOpeningInput): OpeningResult {
   const opening: JobOpening = {
     id: asOpeningId(rand('job')),
@@ -400,7 +333,6 @@ export function createJobOpening(input: NewOpeningInput): OpeningResult {
   return { opening: jobOpeningsCollection.find(opening.id) ?? opening, approval }
 }
 
-/** Twelve months of the band ceiling, times the headcount. */
 export function annualisedCost(opening: Pick<JobOpening, 'salaryMax' | 'headcount'>): Kobo {
   return (opening.salaryMax * 12 * opening.headcount) as Kobo
 }
@@ -425,12 +357,7 @@ export function setOpeningStatus(openingId: JobOpeningId, status: JobOpening['st
   })
 }
 
-/* -------------------------------------------------------------------------- */
-/* Candidates                                                                 */
-/* -------------------------------------------------------------------------- */
-
 export interface NewCandidateInput {
-  /** An existing person, or null to create one from the name and contact. */
   personId: PersonId | null
   firstName: string
   lastName: string
@@ -534,13 +461,6 @@ export function createCandidate(input: NewCandidateInput): Candidate {
   return candidate
 }
 
-/**
- * Move a candidate along the pipeline.
- *
- * The record keeps one current stage; the move itself is written to the audit
- * log with both ends of the transition, so the trail is append-only and a
- * later move can never erase an earlier one.
- */
 export function moveCandidateStage(
   candidateId: CandidateId,
   to: CandidateStage,
@@ -606,11 +526,6 @@ function stageDefaultNextStep(stage: CandidateStage): string | null {
   }
 }
 
-/**
- * The stage trail, rebuilt from the audit log. This is what makes the
- * never-mutate discipline visible: every move a candidate has ever made is
- * still here, in order, with who made it and why.
- */
 export interface StageMove {
   id: string
   at: string
@@ -629,10 +544,6 @@ export function candidateTrail(candidateId: CandidateId): StageMove[] {
     .sort((a, b) => a.at.localeCompare(b.at))
     .map((e) => ({ id: e.id as string, at: e.at, actorName: e.actorName, from: e.before, to: e.after ?? '' }))
 }
-
-/* -------------------------------------------------------------------------- */
-/* Interviews and scorecards                                                  */
-/* -------------------------------------------------------------------------- */
 
 export interface NewInterviewInput {
   candidateId: CandidateId
@@ -709,11 +620,6 @@ export interface NewScorecardInput {
   notes: string
 }
 
-/**
- * A submitted scorecard is evidence, not an opinion that can be revised away —
- * it is written once and the candidate's average recomputes from every
- * scorecard on record rather than being typed.
- */
 export function submitScorecard(input: NewScorecardInput): Scorecard {
   const at = nowIso()
   const scorecard: Scorecard = {
@@ -767,10 +673,6 @@ function recomputeCandidateScore(candidateId: CandidateId): void {
   candidatesCollection.update(candidateId, { averageScore: average, updatedAt: nowIso(), updatedBy: CURRENT_USER_ID })
 }
 
-/* -------------------------------------------------------------------------- */
-/* Offers                                                                     */
-/* -------------------------------------------------------------------------- */
-
 function nextOfferRef(): string {
   const numbers = offersCollection
     .all()
@@ -791,7 +693,6 @@ export interface NewOfferInput {
   startDate: string
   probationMonths: number
   expiresAt: string
-  /** Issue straight away rather than leaving the offer in draft. */
   issueNow: boolean
 }
 
@@ -799,12 +700,6 @@ export function offerGross(offer: Pick<Offer, 'baseSalary' | 'allowances'>): Kob
   return (offer.baseSalary + offer.allowances.reduce((acc, a) => acc + a.amount, 0)) as Kobo
 }
 
-/**
- * Generate an offer from the offer-letter template. The document is a real
- * `GeneratedDocument` row naming the template version it was rendered from, so
- * a letter sent last year can still be explained by the template that produced
- * it after the template moves on.
- */
 export function createOffer(input: NewOfferInput): Offer {
   const candidate = candidatesCollection.find(input.candidateId)
   if (!candidate) throw new Error('That candidate no longer exists.')
@@ -904,15 +799,6 @@ export function issueOffer(offerId: OfferId): void {
   })
 }
 
-/**
- * The candidate's answer, and nothing more.
- *
- * Accepting an offer creates **no employment record**. The PRD's edge case is
- * exactly this: people accept and then never resume, and a system that treats
- * acceptance as employment has to unwind a payroll line, a card, a mailbox and
- * a unit cost allocation for someone who never walked in. Resumption is a
- * separate event — see `recordResumption`.
- */
 export function recordOfferResponse(offerId: OfferId, response: 'accepted' | 'declined', note: string): void {
   const offer = offersCollection.find(offerId)
   if (!offer || offer.status !== 'issued') return
@@ -961,11 +847,6 @@ export function withdrawOffer(offerId: OfferId, reason: string): void {
   })
 }
 
-/**
- * Accepted, start date passed, never resumed. The offer closes as **lapsed**
- * and no employment record is created, so nothing downstream has to be
- * unwound. This is the state the PRD calls out by name.
- */
 export function lapseOffer(offerId: OfferId, reason: string): void {
   const offer = offersCollection.find(offerId)
   if (!offer || offer.status !== 'accepted') return
@@ -993,10 +874,6 @@ export function employeeForOffer(offer: Offer): Employee | undefined {
     .find((e) => e.startDate === offer.startDate || e.jobTitle === offer.jobTitle)
 }
 
-/* -------------------------------------------------------------------------- */
-/* Resumption — the only path that creates an employee                        */
-/* -------------------------------------------------------------------------- */
-
 function nextEmployeeNumber(): string {
   const numbers = employeesCollection
     .all()
@@ -1022,7 +899,6 @@ export const ONBOARDING_TASKS: Array<{ group: string; title: string; dueOffsetDa
 
 export interface ResumptionInput {
   offerId: OfferId
-  /** The day they actually walked in, which need not be the offered start date. */
   resumedOn: string
   employmentType: EmploymentType
   buddyUserId: UserId | null
@@ -1033,13 +909,6 @@ export interface ResumptionResult {
   tasks: Task[]
 }
 
-/**
- * The person resumed. Now — and only now — an employment record exists.
- *
- * Creates the `Employee`, its first immutable `CompensationVersion` from the
- * offer's own figures, a candidate relationship end-date, an employee
- * relationship, and the onboarding checklist.
- */
 export function recordResumption(input: ResumptionInput): ResumptionResult | null {
   const offer = offersCollection.find(input.offerId)
   if (!offer || offer.status !== 'accepted') return null
@@ -1162,16 +1031,6 @@ export function recordResumption(input: ResumptionInput): ResumptionResult | nul
   return { employee, tasks }
 }
 
-/* -------------------------------------------------------------------------- */
-/* Onboarding checklist                                                       */
-/* -------------------------------------------------------------------------- */
-
-/**
- * The same twelve tasks `recordResumption` writes, raised against somebody who
- * already has an employment record. The seed's employees predate this screen,
- * so without this an onboarding checklist could only ever exist for a hire made
- * inside the current session.
- */
 export function createOnboardingChecklist(employeeRecordId: string): Task[] {
   const employee = employeesCollection.find(employeeRecordId)
   if (!employee) return []
@@ -1209,7 +1068,6 @@ export function createOnboardingChecklist(employeeRecordId: string): Task[] {
   return tasks
 }
 
-/** Which checklist group a task belongs to, read back off its description. */
 export function taskGroup(task: Task): string {
   return task.description?.split(' · ')[0] ?? 'Other'
 }
@@ -1240,10 +1098,6 @@ export function setTaskStatus(taskIdValue: string, status: TaskStatus): void {
     after: status,
   })
 }
-
-/* -------------------------------------------------------------------------- */
-/* Performance reviews                                                        */
-/* -------------------------------------------------------------------------- */
 
 export interface NewPerformanceReviewInput {
   employeeId: string
@@ -1323,10 +1177,6 @@ export function acknowledgePerformanceReview(reviewId: string): void {
   })
 }
 
-/* -------------------------------------------------------------------------- */
-/* Exit cases                                                                 */
-/* -------------------------------------------------------------------------- */
-
 const CLEARANCE_DEPARTMENTS = ['IT', 'Finance', 'HR', 'Facilities', 'Line manager']
 
 function nextExitRef(): string {
@@ -1405,14 +1255,6 @@ export function clearExitDepartment(exitCaseId: string, department: string, note
   })
 }
 
-/**
- * Walks the PRD's own §6 sequence. `department_clearance` cannot advance
- * while any department is still unsigned; reaching `access_review` revokes
- * the employee's real card through the Physical module rather than hand-
- * setting a timestamp (closing gap §5's exit-side half for free); reaching
- * `closed` is what finally end-dates the employee — nothing else in the app
- * does, so an "exited" employee stayed active everywhere until this existed.
- */
 export function advanceExitCase(exitCaseId: string): { ok: boolean; reason?: string } {
   const exitCase = exitCasesCollection.find(exitCaseId)
   if (!exitCase) return { ok: false, reason: 'This exit case no longer exists.' }
@@ -1467,17 +1309,6 @@ export function advanceExitCase(exitCaseId: string): { ok: boolean; reason?: str
   return { ok: true }
 }
 
-/* -------------------------------------------------------------------------- */
-/* Probation                                                                  */
-/* -------------------------------------------------------------------------- */
-
-/**
- * `ended` never sets the employee `exited` directly — that is
- * `advanceExitCase`'s job at `closed`, the same "never delete, always open
- * the downstream case" rule the rest of this file follows. This opens a real
- * `ExitCase` and lets the exit flow itself carry the employee the rest of
- * the way.
- */
 export function setProbationOutcome(
   employeeId: string,
   outcome: 'confirmed' | 'extended' | 'ended',
@@ -1517,10 +1348,6 @@ export function setProbationOutcome(
     after: `${outcome}${note.trim() ? ` — ${note.trim()}` : ''}`,
   })
 }
-
-/* -------------------------------------------------------------------------- */
-/* Directory helpers the forms need                                           */
-/* -------------------------------------------------------------------------- */
 
 export function staffOptions(): Array<{ value: string; label: string }> {
   return usersCollection

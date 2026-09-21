@@ -1,16 +1,3 @@
-/**
- * My classes — the legacy `MyCoursesTab`, one card and one table.
- *
- * Columns follow the legacy exactly (course, cohort, students, one action) and
- * add two things it could not show: the cohort's real attendance rate, and how
- * much of this cohort's work is still unmarked. Both are computed live.
- *
- * The filter that matters here is not a dropdown: `tutorAssignmentsCollection`
- * is filtered to `status === 'active'`, because the PRD's rule is that a tutor
- * replaced mid-cohort has their assignment **ended** and a new row created.
- * Showing an ended assignment as "my class" would put a tutor back in a room
- * they no longer teach.
- */
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { GraduationCap } from 'lucide-react'

@@ -1,9 +1,3 @@
-/**
- * The meeting list — the operating rhythm, one row per sitting.
- *
- * Action items and decisions are counted live from their own collections, so a
- * decision logged anywhere moves the count on the meeting that produced it.
- */
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'

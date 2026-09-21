@@ -1,15 +1,3 @@
-/**
- * Admissions — §2.7.
- *
- * This route used to alias `LeadList`, so "Admissions" showed leads. It now
- * shows Admission records, which is the only way the invoice, the discount
- * approval state and the three attribution fields are visible in one place.
- *
- * Twenty possible columns is well past the point where showing them all is a
- * kindness, so the eight that answer "what is this, and does it need me" are
- * the default and the rest sit behind `ColumnPicker`.
- */
-
 import { useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Download, GraduationCap, Plus } from 'lucide-react'

@@ -39,23 +39,8 @@ import {
   type UserId,
 } from '@/mocks'
 
-/**
- * Sign-in personas — the roles that exist at Cirvee, in the department each
- * one actually reports into.
- *
- * A persona is "sign in as this human, acting in this role". The role decides
- * what the interface offers; the person supplies the name, the branch and the
- * records the session is scoped to.
- *
- * `shape` is a UX classification, not a business one. Five kinds of person use
- * this system and they want very different things from a screen — an executive
- * skims, an ops lead works a queue, a tutor has ten minutes before a class
- * starts, a learner wants one answer. The home screen keys off this, which is
- * what stops every role being handed the same wall of metrics.
- */
 export type HomeShape = 'configurator' | 'executive' | 'ops' | 'frontline' | 'consumer'
 
-/** The nine core departments, in the order the business lists them. */
 export const DEPARTMENTS: Array<{ id: DepartmentId | 'external'; label: string; covers: string }> = [
   { id: DEPT.management, label: 'Management', covers: 'Strategic oversight and the operating rhythm' },
   { id: DEPT.hrPeople, label: 'HR & People', covers: 'Recruitment, welfare, performance, culture' },
@@ -70,10 +55,8 @@ export const DEPARTMENTS: Array<{ id: DepartmentId | 'external'; label: string; 
 ]
 
 export interface Persona {
-  /** Stable key, used in the URL and in session storage. */
   id: string
   label: string
-  /** One line on the login card — what this person actually does. */
   blurb: string
   roleId: RoleId
   departmentId: DepartmentId | 'external'
@@ -81,10 +64,6 @@ export interface Persona {
   shape: HomeShape
   personId?: PersonId
   userId?: UserId
-  /**
-   * For personas the seed does not name individually, resolve one from the
-   * data rather than hardcoding an id that may not survive a reseed.
-   */
   resolvePersonId?: () => PersonId | undefined
 }
 
@@ -98,7 +77,6 @@ function firstStaffIn(departmentId: DepartmentId): () => PersonId | undefined {
 }
 
 export const PERSONAS: Persona[] = [
-  /* ---- Management -------------------------------------------------------- */
   {
     id: 'super-admin',
     label: 'Super Admin',
@@ -143,7 +121,6 @@ export const PERSONAS: Persona[] = [
     userId: U.chukwuemeka,
   },
 
-  /* ---- HR & People ------------------------------------------------------- */
   {
     id: 'hr',
     label: 'HR Manager',
@@ -167,7 +144,6 @@ export const PERSONAS: Persona[] = [
     userId: U.temitope,
   },
 
-  /* ---- Finance & Legal --------------------------------------------------- */
   {
     id: 'finance',
     label: 'Finance Manager',
@@ -201,7 +177,6 @@ export const PERSONAS: Persona[] = [
     resolvePersonId: firstStaffIn(DEPT.financeLegal),
   },
 
-  /* ---- Growth ------------------------------------------------------------ */
   {
     id: 'growth-head',
     label: 'Head of Growth',
@@ -236,7 +211,6 @@ export const PERSONAS: Persona[] = [
     userId: U.blessing,
   },
 
-  /* ---- Customer Experience ----------------------------------------------- */
   {
     id: 'student-support',
     label: 'Student Support',
@@ -259,7 +233,6 @@ export const PERSONAS: Persona[] = [
     resolvePersonId: firstStaffIn(DEPT.customerExperience),
   },
 
-  /* ---- Education --------------------------------------------------------- */
   {
     id: 'curriculum-lead',
     label: 'Curriculum Lead',
@@ -282,7 +255,6 @@ export const PERSONAS: Persona[] = [
     userId: U.tundeBakare,
   },
 
-  /* ---- Programs & Delivery ----------------------------------------------- */
   {
     id: 'academy-ops',
     label: 'Academy Operations',
@@ -305,7 +277,6 @@ export const PERSONAS: Persona[] = [
     resolvePersonId: firstStaffIn(DEPT.programsDelivery),
   },
 
-  /* ---- Media ------------------------------------------------------------- */
   {
     id: 'media-lead',
     label: 'Media Lead',
@@ -328,7 +299,6 @@ export const PERSONAS: Persona[] = [
     userId: U.amarachi,
   },
 
-  /* ---- Technology & Systems ---------------------------------------------- */
   {
     id: 'technology-lead',
     label: 'Technology Lead',
@@ -341,7 +311,6 @@ export const PERSONAS: Persona[] = [
     userId: U.damilola,
   },
 
-  /* ---- Learners, parents & clients --------------------------------------- */
   {
     id: 'employee',
     label: 'Employee',
@@ -427,7 +396,6 @@ export function resolvePersona(persona: Persona): ResolvedPersona {
   }
 }
 
-/** Personas grouped for the login screen, in department order. */
 export const PERSONAS_BY_DEPARTMENT = DEPARTMENTS.map((dept) => ({
   ...dept,
   personas: PERSONAS.filter((p) => p.departmentId === dept.id),

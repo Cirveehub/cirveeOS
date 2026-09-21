@@ -34,7 +34,6 @@ import {
   useModuleData,
 } from './parts'
 
-/** Year to date, counted from the financial year start the organisation declares. */
 function financialYearStart(startMonth: number): string {
   const year = Number(TODAY.slice(0, 4))
   const month = Number(TODAY.slice(5, 7))

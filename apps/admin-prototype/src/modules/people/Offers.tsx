@@ -1,14 +1,3 @@
-/**
- * Offers — `/people/offers` (screen-spec §9).
- *
- * The screen where the PRD's sharpest hiring edge case lives. Accepting an
- * offer is a **response**, not an employment event: this screen will not let
- * acceptance create an `Employee`. Resumption is a separate, deliberate action
- * — "Record resumption" — and an accepted offer whose start date passes with
- * nobody walking in is closed as **Lapsed**, with no employment record, no
- * payroll line and nothing downstream to unwind.
- */
-
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { FileSignature, Lock, Plus, TriangleAlert } from 'lucide-react'
@@ -434,8 +423,7 @@ function OfferDrawer({
 
         {offer.status === 'lapsed' && (
           <Alert tone="warning" title="Accepted, then never resumed">
-            The offer is closed as lapsed. No employment record was created, so there is no payroll line, no card and no unit
-            cost allocation to reverse — which is the whole reason acceptance and resumption are separate events here.
+            No employment record was created, so there is no payroll line or unit cost allocation to reverse.
           </Alert>
         )}
 

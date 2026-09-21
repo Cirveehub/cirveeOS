@@ -1,15 +1,8 @@
-/**
- * Numbering and references.
- *
- * Small screen, but it is where every `INV-`, `PAY-` and `COM-` in the system
- * comes from. The **next number** column is derived from the live collections
- * rather than stored, so raising an invoice elsewhere moves it here.
- */
 import { useMemo } from 'react'
 import { FileDigit } from 'lucide-react'
 
 import { formatNumber } from '@/lib/format'
-import { Alert, Card, CardBody, DataTable, EmptyState, type Column } from '@/ui'
+import { Card, CardBody, DataTable, EmptyState, type Column } from '@/ui'
 import {
   TODAY,
   certificatesCollection,
@@ -34,7 +27,6 @@ interface SequenceRow {
   resets: string
 }
 
-/** The highest trailing number in a set of refs, so "next" is a real next. */
 function highest(refs: string[]): number {
   return refs.reduce((acc, ref) => {
     const match = /(\d+)\s*$/.exec(ref)
@@ -193,11 +185,6 @@ export default function Numbering() {
         title="Numbering and references"
         description="Every human-readable reference in the system comes from one of these sequences. The next value is computed from what has actually been issued, not stored in a counter that can drift."
       />
-
-      <Alert tone="info" className="mb-4" title="A reference is never reused">
-        Voiding an invoice does not release its number. The voided row keeps it, a credit note gets a new one, and the
-        sequence carries on — which is why a gap in the numbers is a question worth asking rather than a bug.
-      </Alert>
 
       <Card>
         <CardBody padding="none">

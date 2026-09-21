@@ -10,7 +10,6 @@ import { ScopeBar } from './components/ScopeBar'
 import { HeadlineStrip } from './components/report-kit'
 import { toCsv, downloadCsv } from './lib/csv'
 
-/** One report. The definition supplies its headline, body and CSV. */
 export default function ReportDetail() {
   const { key } = useParams<{ key: string }>()
   const units = useCollection(unitsCollection)

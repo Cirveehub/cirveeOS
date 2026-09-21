@@ -1,12 +1,3 @@
-/**
- * Course builder — `/learn/courses/:courseId/builder`.
- *
- * The centre pane: the course node editor. Everything here is data — level,
- * modes, price, outcomes, prerequisites and the certificate rules — because
- * the PRD's rule is that no threshold, rate or fee is ever typed into a
- * component.
- */
-
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Copy, Eye, Archive, Plus, Trash2 } from 'lucide-react'

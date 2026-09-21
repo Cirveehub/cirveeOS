@@ -1,13 +1,3 @@
-/**
- * Test run — §6.3's modal.
- *
- * Two things have to be unmistakable, before and after: a test run picks a real
- * seeded record, and it **writes nothing**. The banner says so before you run
- * it; afterwards the same panel shows the collection counts taken immediately
- * before and immediately after the dry run, so "nothing was written" is a
- * demonstrated fact rather than a claim.
- */
-
 import { useMemo, useState } from 'react'
 import { CheckCircle2, CircleSlash, FlaskConical, MinusCircle, Play, Timer } from 'lucide-react'
 

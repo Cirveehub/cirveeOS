@@ -1,9 +1,3 @@
-/**
- * The decision dialog. Approve, reject and return all pass through here, so
- * the consequence is always restated and the block is always enforced at the
- * call rather than by hiding a button.
- */
-
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { Alert, Button, Field, Modal, Textarea } from '@/ui'

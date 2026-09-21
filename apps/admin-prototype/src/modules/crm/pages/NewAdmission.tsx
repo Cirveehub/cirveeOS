@@ -1,26 +1,3 @@
-/**
- * New admission — §2.8. The wizard that turns a qualified lead into a student,
- * an invoice and a commission expectation **without retyping one identity
- * field**.
- *
- * Four steps, a progress rail on the left and a sticky summary on the right
- * carrying the running fee maths. One `save()` at the end does every write, in
- * `lib/writes.ts`'s `createAdmission`: the Admission, the Student relationship
- * on the Person that already exists, the Enrolment, the Invoice (held when a
- * discount needs approving), the Commission rows and the audit events.
- *
- * Three things this screen is careful about:
- *
- *  1. **No re-entry.** With `?leadId=`, step 1 is read-only. The Person is the
- *     one the lead already points at; nothing is duplicated.
- *  2. **The threshold is configuration.** The discount band comes from the
- *     active `discount_threshold` policy version, not a constant here. Over
- *     the threshold the wizard does not block — it changes the outcome, and
- *     says so in the words of the rule it just read.
- *  3. **Three independent pickers.** Referrer, lead owner and closer, each
- *     clearable, each evaluated separately by the commission preview.
- */
-
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
@@ -136,10 +113,8 @@ export default function NewAdmission() {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
 
-  /* Step 1 */
   const [personId, setPersonId] = useState<PersonId | null>(lead?.personId ?? null)
 
-  /* Step 2 */
   const [courseId, setCourseId] = useState<CourseId | ''>(lead?.courseInterestId ?? '')
   const [cohortId, setCohortId] = useState<CohortId | ''>('')
   const [mode, setMode] = useState<Mode>(lead?.mode ?? 'on_campus')
@@ -147,7 +122,6 @@ export default function NewAdmission() {
   const [unitId, setUnitId] = useState<UnitId | ''>(lead?.unitId ?? '')
   const [expectedStart, setExpectedStart] = useState<string>(addDaysIso(TODAY, 21))
 
-  /* Step 3 */
   const [quotedFee, setQuotedFee] = useState<number | null>(lead?.quotedValue ?? null)
   const [discountType, setDiscountType] = useState<DiscountType>('none')
   const [discountValue, setDiscountValue] = useState<number>(0)
@@ -155,7 +129,6 @@ export default function NewAdmission() {
   const [paymentPlan, setPaymentPlan] = useState<PaymentPlan>('full')
   const [instalments, setInstalments] = useState<Instalment[]>([])
 
-  /* Step 4 */
   const [referrerPersonId, setReferrerPersonId] = useState<PersonId | null>(
     lead?.referrerPersonId ?? null,
   )
@@ -168,11 +141,6 @@ export default function NewAdmission() {
   const course = courseId ? courses.find((c) => c.id === courseId) : undefined
   const cohort = cohortId ? cohorts.find((c) => c.id === cohortId) : undefined
 
-  /* The course's list price is the default quote, and the course's unit is the
-     default unit — both editable, neither invented in this component. */
-  /* Keyed on the id rather than the record, so a mutation elsewhere in the
-     store — `createAdmission` bumps the cohort's enrolled count — cannot
-     re-run these and quietly undo a hand edit. */
   useEffect(() => {
     if (!course) return
     setQuotedFee((current) => (current === null ? course.listPrice : current))
@@ -188,15 +156,6 @@ export default function NewAdmission() {
     [cohorts, courseId],
   )
 
-  /**
-   * Picking a cohort settles mode, branch, unit and the expected start.
-   *
-   * Deliberately keyed on `cohortId` alone, and it reads the record fresh
-   * rather than depending on it: `createAdmission` bumps the cohort's
-   * `enrolledCount`, which hands back a new record object, and depending on
-   * that object would re-run these unconditional setters and undo any hand
-   * edit made after the cohort was chosen.
-   */
   useEffect(() => {
     if (!cohortId) return
     const picked = cohortsCollection.find(cohortId)
@@ -206,8 +165,6 @@ export default function NewAdmission() {
     setUnitId(picked.unitId)
     setExpectedStart(picked.startDate)
   }, [cohortId])
-
-  /* ---- fee maths ------------------------------------------------------- */
 
   const fee = quotedFee ?? 0
   const discountAmount = computeDiscountAmount(fee, discountType, discountValue)
@@ -222,9 +179,6 @@ export default function NewAdmission() {
   const band = bandForDiscount(discountPercent)
   const needsApproval = band !== null && band.approverRoleId !== null
 
-  /* The instalment table is regenerated whenever the plan or the net fee
-     moves, and then hand-editable — the reconciliation below is what blocks
-     Next, not the regeneration. */
   useEffect(() => {
     const count = PLAN_INSTALMENT_COUNT[paymentPlan]
     const amounts = splitInstalmentAmounts(netFee, count)
@@ -241,8 +195,6 @@ export default function NewAdmission() {
   const allocated = instalments.reduce((acc, i) => acc + i.amount, 0)
   const balanced = allocated === netFee
 
-  /* ---- commission preview ---------------------------------------------- */
-
   const preview: CommissionPreview[] = useMemo(() => {
     if (!unitId || !branchId || !leadOwnerUserId) return []
     return previewAdmissionCommissions({
@@ -257,12 +209,6 @@ export default function NewAdmission() {
     })
   }, [unitId, branchId, fee, netFee, referrerPersonId, leadOwnerUserId, closerUserId])
 
-  /**
-   * A rule whose basis is the amount actually collected computes to zero on
-   * the day the admission is created, because nothing has been paid yet. That
-   * is correct and it is also useless on its own, so the preview runs a second
-   * evaluation at full payment and shows what each row becomes.
-   */
   const atFullPayment = useMemo(() => {
     if (!unitId || !branchId || !leadOwnerUserId) return new Map<string, Kobo>()
     const rows = previewAdmissionCommissions({
@@ -277,8 +223,6 @@ export default function NewAdmission() {
     })
     return new Map(rows.map((row) => [`${row.ruleId}-${row.beneficiaryPersonId}`, row.amount]))
   }, [unitId, branchId, fee, netFee, referrerPersonId, leadOwnerUserId, closerUserId])
-
-  /* ---- validation ------------------------------------------------------- */
 
   const errors = {
     person: personId ? undefined : 'Choose the person enrolling. Nobody is created here.',
@@ -309,8 +253,6 @@ export default function NewAdmission() {
     if (!stepValid[step]) return
     if (step < 4) setStep((step + 1) as Step)
   }
-
-  /* ---- save ------------------------------------------------------------- */
 
   const save = () => {
     setTouched({ 1: true, 2: true, 3: true, 4: true })
@@ -362,8 +304,6 @@ export default function NewAdmission() {
     }
   }
 
-  /* ---- render ----------------------------------------------------------- */
-
   const unitKey = businessUnitOf(unitId || null)
 
   return (
@@ -371,11 +311,10 @@ export default function NewAdmission() {
       title="New admission"
       description="Four steps. Identity the person already has is never re-entered."
       breadcrumbs={[
-        { label: 'CRM & admissions', to: '/crm' },
-        { label: 'Admissions', to: '/crm/admissions' },
+        { label: 'Admissions', to: '/crm' },
+        { label: 'Enrolled', to: '/crm/enrolled' },
         { label: 'New admission' },
       ]}
-      hideSectionNav
       actions={
         <Button variant="ghost" asChild leftIcon={<ArrowLeft size={16} aria-hidden="true" />}>
           <Link to={lead ? `/crm/leads/${lead.id}` : '/crm/admissions'}>
@@ -1040,10 +979,6 @@ export default function NewAdmission() {
     </CrmPage>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* Commission preview                                                         */
-/* -------------------------------------------------------------------------- */
 
 function CommissionPreviewCard({
   rows,

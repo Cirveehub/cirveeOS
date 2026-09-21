@@ -1,15 +1,3 @@
-/**
- * Student Learn view — `/learn/student-view/:enrollmentId`.
- *
- * What a learner sees, rendered inside the admin app so the founder can judge
- * the product rather than read about it. Deliberately different chrome, and a
- * persistent banner so nobody mistakes it for the real learner portal.
- *
- * The control that matters is the **format switcher**: five tabs, disabled and
- * explained where a format does not exist. That disabled state is the whole
- * argument for the coverage matrix.
- */
-
 import { useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
@@ -374,10 +362,6 @@ export default function StudentView() {
     </Screen>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* Player                                                                     */
-/* -------------------------------------------------------------------------- */
 
 function LessonPlayer({
   lesson,

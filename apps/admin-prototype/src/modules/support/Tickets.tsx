@@ -1,11 +1,3 @@
-/**
- * §13 — the ticket queue.
- *
- * Every action on this screen transacts. Replying appends to the thread and
- * stops the first-response clock; escalating and resolving move the status and
- * emit an audit event. The queue is 13 columns wide, so it opens on a curated
- * seven and puts the rest behind the shared `ColumnPicker`.
- */
 import { useMemo, useState } from 'react'
 import { Mail, MessageCircle, Monitor, Bot, Plus, Users } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -136,11 +128,6 @@ const CHANNEL_LABEL: Record<Channel, string> = {
 
 const OPEN_STATUSES: Array<Ticket['status']> = ['new', 'open', 'pending_customer', 'escalated', 'reopened']
 
-/**
- * Thirteen possible columns, seven shown. The default set answers "what is
- * this ticket, who owns it, and is the clock about to run out" — everything
- * else is opt-in.
- */
 const COLUMN_CATALOGUE: ColumnCatalogueEntry[] = [
   { key: 'ref', label: 'Ticket', defaultVisible: true, locked: true },
   { key: 'requester', label: 'Requester', defaultVisible: true },
@@ -163,8 +150,6 @@ export default function SupportTickets() {
   const personName = usePersonName()
   const userName = useUserName()
 
-  /* Seeded from the query string so a dashboard card can deep-link into a
-     filtered queue — ?sla=breached lands on the tickets that are late. */
   const initial = useQueryState()
   const [filters, setFilters] = useState<FilterValues>(() => ({
     status: initial.get('status'),
@@ -476,10 +461,6 @@ export default function SupportTickets() {
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Ticket drawer                                                              */
-/* -------------------------------------------------------------------------- */
-
 function TicketDrawer({
   ticket,
   onClose,
@@ -778,10 +759,6 @@ function TicketDrawer({
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Resolve / escalate / reopen                                                */
-/* -------------------------------------------------------------------------- */
-
 function ResolveModal({
   ticket,
   onClose,
@@ -973,10 +950,6 @@ function ReopenModal({
     </Modal>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* New ticket                                                                 */
-/* -------------------------------------------------------------------------- */
 
 function NewTicketModal({
   open,

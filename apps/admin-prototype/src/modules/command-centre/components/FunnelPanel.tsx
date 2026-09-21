@@ -1,11 +1,3 @@
-/**
- * The pipeline funnel (screen-spec §1.1, band 3).
- *
- * A bar chart would give this seven bars and no conversion figures; the
- * conversion between two stages is the number the founder actually reads, so
- * this is a dense list with the step-to-step percentage on the join.
- */
-
 import { ArrowDown } from 'lucide-react'
 import { Link } from 'react-router-dom'
 

@@ -57,12 +57,6 @@ const SCOPE_LABEL: Record<PermissionScope, string> = {
   organisation: 'Organisation',
 }
 
-/**
- * Eleven columns is more than anyone reads at once. The eight shown by default
- * answer the question this screen exists for — who is this account, what can it
- * reach, and is it safe — and the three that describe where someone sits in the
- * org chart are one click away rather than permanently in the way.
- */
 const COLUMN_CATALOGUE: ColumnCatalogueEntry[] = [
   { key: 'name', label: 'Name', defaultVisible: true, locked: true },
   { key: 'email', label: 'Email', defaultVisible: true },
@@ -77,7 +71,6 @@ const COLUMN_CATALOGUE: ColumnCatalogueEntry[] = [
   { key: 'actions', label: 'Actions', defaultVisible: true, locked: true },
 ]
 
-/** The widest view scope any of a user's roles grants — their effective reach. */
 function widestScope(user: User, roles: Role[]): PermissionScope {
   let widest: PermissionScope = 'none'
   for (const roleId of user.roleIds) {
@@ -267,7 +260,6 @@ export default function Users() {
   }
 
   const columns = visibleColumns.map((key) => allColumns[key]).filter(Boolean)
-  /** Scroll only when the visible columns genuinely need it, not always. */
   const tableWidth = columns.reduce<number>((sum, column) => {
     const declared = [column.width, column.minWidth].find((value) => typeof value === 'number')
     return sum + (declared ?? 160)

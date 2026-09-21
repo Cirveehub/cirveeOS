@@ -1,10 +1,3 @@
-/**
- * §14 — the visitor log.
- *
- * Signing a visitor in is done at the kiosk; this screen is the record, plus
- * the one action the desk needs — signing somebody out when they leave, which
- * is what turns "on site" into a number worth trusting in a fire drill.
- */
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { UserCheck } from 'lucide-react'

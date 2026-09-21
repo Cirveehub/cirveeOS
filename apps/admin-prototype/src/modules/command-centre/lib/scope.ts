@@ -1,12 +1,3 @@
-/**
- * The Command Centre's scope: a date range and a business unit, both held in
- * the query string so any view of Home is linkable and shareable.
- *
- * Per screen-spec §1.1 the date-range selector "rewrites `?from=&to=` and
- * re-derives every number from the store" — so nothing here caches a figure.
- * The scope is an input to the selectors, never a source of numbers.
- */
-
 import { useCallback, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
@@ -16,7 +7,6 @@ import type { BusinessUnit } from '@/app/module-registry'
 
 export type PresetKey = 'mtd' | 'last_month' | 'last_90' | 'ytd' | 'custom'
 
-/** Year-to-date runs from 1 January of the seed's year to seed-today. */
 const YEAR_START: ISODate = `${TODAY.slice(0, 4)}-01-01`
 
 const MONTH_START: ISODate = `${TODAY.slice(0, 7)}-01`
@@ -47,7 +37,6 @@ export const PRESET_OPTIONS = [
   { value: 'custom', label: 'Custom range' },
 ]
 
-/** Lowercase keys the `UnitTag` component and the chart palette use. */
 const TAG_KEY: Record<UnitCode, BusinessUnit> = {
   ACADEMY: 'academy',
   TEENS: 'teens',
@@ -64,13 +53,11 @@ export function unitTagKey(code: UnitCode): BusinessUnit {
 export interface Scope {
   preset: PresetKey
   range: DateRange
-  /** "1 – 20 Sep 2026", for the header and the exported brief. */
   rangeLabel: string
   unitId: UnitId | undefined
   setPreset: (key: PresetKey) => void
   setUnit: (unitId: string) => void
   setCustom: (edge: 'from' | 'to', value: string) => void
-  /** Serialised scope, for links that should carry it into another module. */
   query: string
 }
 

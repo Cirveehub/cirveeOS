@@ -1,10 +1,3 @@
-/**
- * Revenue by unit — stacked bars, six months, six units (screen-spec §1.1).
- *
- * Each bar segment is `collectedRevenue(month, unitId)`. Match a payment
- * anywhere in the app and the September stack grows.
- */
-
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
 import { TODAY, collectedRevenue } from '@/mocks'

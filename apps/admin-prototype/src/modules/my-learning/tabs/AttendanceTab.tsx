@@ -1,18 +1,3 @@
-/**
- * The Attendance tab of the student's course hub.
- *
- * Read-only, and framed as a record rather than a warning. The PRD's
- * non-negotiable on attendance is that a breach carries **no automatic
- * financial consequence** and that nothing is ever acted on without a human,
- * so the one piece of explanatory copy on this screen says exactly that
- * instead of leaving a learner to guess what a low number costs them.
- *
- * It is not silent about the stake, either: attendance is a real certificate
- * criterion for this course, and hiding that would be its own kind of
- * dishonesty. The threshold shown is the course's own configured rule, not a
- * number written into this screen.
- */
-
 import { useMemo } from 'react'
 
 import { formatDate, formatDateTime } from '@/lib/format'

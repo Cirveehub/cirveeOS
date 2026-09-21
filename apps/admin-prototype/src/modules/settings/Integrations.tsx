@@ -1,10 +1,3 @@
-/**
- * Integrations.
- *
- * The services themselves are a fixed registry — the prototype has no
- * connection to any of them. What each row *reports* is derived from the store,
- * so the traffic figures move when the data does rather than sitting still.
- */
 import { useMemo } from 'react'
 import { Plug } from 'lucide-react'
 

@@ -1,19 +1,9 @@
-/**
- * §14 — signage configuration.
- *
- * Honest about its state. There is no `Screen` or `Playlist` entity in the
- * data layer, so a configuration table here would be a component holding its
- * own constants — exactly the thing the review checklist forbids. What the
- * screens would show does exist, so the preview below is built from live seed
- * data rather than mocked copy, and the configuration itself says plainly that
- * it is not built.
- */
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { MonitorPlay } from 'lucide-react'
 
 import { formatDate, formatNumber } from '@/lib/format'
-import { Alert, Badge, Button, Card, CardBody, CardHeader, EmptyState } from '@/ui'
+import { Badge, Button, Card, CardBody, CardHeader, EmptyState } from '@/ui'
 import {
   TODAY,
   certificatesCollection,
@@ -40,7 +30,6 @@ export default function PhysicalSignage() {
     return person ? `${person.firstName} ${person.lastName}` : 'Unknown person'
   }
 
-  /** One slide per item type, built from the same store the dashboards read. */
   const slides = useMemo(() => {
     const recentGraduates = [...certificates]
       .filter((c) => c.status === 'issued' && c.issuedAt)
@@ -71,14 +60,6 @@ export default function PhysicalSignage() {
         <ErrorPanel what="Signage" onRetry={retry} />
       ) : (
         <div className="space-y-6">
-          <Alert tone="info" icon={MonitorPlay} title="Screen and playlist configuration is not built">
-            There is no screen, playlist or rotation entity in this prototype&apos;s data layer, so a
-            configuration table here would be numbers typed into a component rather than data — which the
-            review checklist rules out. The half that matters is below: the content is real, drawn live
-            from the same store as every dashboard, so a placement recorded in Outcomes reaches the wall
-            without anyone making a slide.
-          </Alert>
-
           <Card>
             <CardHeader
               title="Slide preview — graduate spotlights"

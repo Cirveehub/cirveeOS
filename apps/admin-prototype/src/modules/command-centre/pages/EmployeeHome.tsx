@@ -1,14 +1,3 @@
-/**
- * Employee Home — `/home/employee` (screen-spec §1.2).
- *
- * The same shell for someone who is not an executive. It proves Home is
- * role-aware without needing a second login, so the banner says plainly which
- * layout is on screen and how to get back.
- *
- * Everything here is scoped to the signed-in user — Adebayo Ogunlana, the
- * fixed Super Admin — through `CURRENT_USER_ID`.
- */
-
 import { useState } from 'react'
 import {
   CalendarPlus,
@@ -87,14 +76,6 @@ const PRIORITY_TONE = {
   low: 'neutral',
 } as const
 
-/**
- * Two of the four quick actions write real records — a leave request and an
- * activity both exist as entities and belong to the signed-in person, so there
- * was nothing to invent. The other two stay honest stubs: an expense claim is
- * a Finance record that has to resolve an approval chain before it means
- * anything, and there is no room-booking entity in the data layer at all — a
- * meeting room exists here only as a type of NFC reader.
- */
 const STUB_ACTIONS: Record<'expense' | 'room', { label: string; icon: LucideIcon; would: string }> = {
   expense: {
     label: 'Raise expense',
@@ -123,14 +104,12 @@ const ACTIVITY_TYPES: ActivityType[] = ['note', 'call', 'whatsapp', 'email', 'me
 
 const CALL_OUTCOMES: CallOutcome[] = ['connected', 'no_answer', 'busy', 'wrong_number']
 
-/** The seed's clock is fixed, so writes carry today's date and the real wall time. */
 function nowIso(): string {
   const now = new Date()
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${TODAY}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}+01:00`
 }
 
-/** Leave is counted in working days — a weekend inside a range is not leave. */
 function workingDays(from: string, to: string): number {
   const start = Date.parse(`${from}T00:00:00Z`)
   const end = Date.parse(`${to}T00:00:00Z`)
@@ -593,16 +572,6 @@ export default function EmployeeHome() {
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Request leave                                                              */
-/* -------------------------------------------------------------------------- */
-
-/**
- * A leave request is a request: it is inserted as `requested`, the entitlement
- * is not deducted, and `balanceAfter` records what the balance *would* become
- * if it is approved. Nothing here decides the outcome — an approver does, and
- * an approver is never the requester.
- */
 function RequestLeaveModal({
   open,
   onClose,
@@ -621,7 +590,6 @@ function RequestLeaveModal({
   const [touched, setTouched] = useState(false)
 
   const balance = employee?.leaveBalances.find((b) => b.type === type)
-  /** Unpaid leave is not drawn from an entitlement, so it never runs out. */
   const remaining = type === 'unpaid' ? Number.POSITIVE_INFINITY : (balance?.remaining ?? 0)
   const days = workingDays(fromDate, toDate)
 
@@ -647,8 +615,6 @@ function RequestLeaveModal({
     setTouched(true)
     if (!employee || days === 0 || balanceError || !reason.trim()) return
 
-    // One implementation, in `my-workspace/writes` — this used to be a second
-    // inline copy of the same insert-plus-raise, which is how the two drift.
     const result = requestLeave({ employee, userId, type, fromDate, toDate, reason })
     if (!result.ok) {
       toast.error(result.reason ?? 'That request could not be raised.')
@@ -751,16 +717,6 @@ function RequestLeaveModal({
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Log activity                                                               */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Activity is the human feed, not the audit log: it is authored, editable and
- * attached to a record. Logging from Home only offers leads this user owns,
- * because those are the records they can honestly claim to have touched, and
- * the entry shows up on that lead's profile without a reload.
- */
 function LogActivityModal({
   open,
   onClose,

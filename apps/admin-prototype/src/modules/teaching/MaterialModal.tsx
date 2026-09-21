@@ -1,17 +1,3 @@
-/**
- * Upload material — the legacy `UploadMaterialModal`'s two-step shape (details,
- * then "a file or a URL"), writing against Cirvee OS's real content model.
- *
- * The legacy step 1 asked for course, cohort and a title, because a material
- * there was a loose row attached to a cohort. Here a material is a
- * `ContentAsset` on a `Lesson` in one of five `ContentFormat`s, so step 1 asks
- * where it goes: an existing lesson, or a new one in a chosen module. Step 2 is
- * the legacy's dropzone-or-URL, unchanged in shape.
- *
- * Opening this from a dashed slot in the coverage table pre-fills both the
- * lesson and the format, which is the common case — a tutor filling a gap they
- * can see rather than deciding where a file belongs.
- */
 import { useEffect, useMemo, useState } from 'react'
 import { FileText, Link2, Upload } from 'lucide-react'
 

@@ -1,16 +1,3 @@
-/**
- * Lead profile — §2.4.
- *
- * Everything about one lead, and the launch point for the admission. Three
- * regions: a stage rail in the header, a left rail carrying the attribution
- * block and the immutable source, and tabbed content.
- *
- * The attribution block is the reason this screen exists in the shape it does.
- * Referrer, lead owner and closer are three separate rows holding three
- * separate people, each changed by its own audited action — nothing here
- * derives one from another.
- */
-
 import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
@@ -76,7 +63,7 @@ import type {
   UserId,
 } from '@/mocks/types'
 import { CrmPage } from '../components/CrmPage'
-import { AttributionBlock } from '../components/AttributionBlock'
+import { ThreePeople } from '../components/ThreePeople'
 import {
   ChangeReferrerModal,
   LossReasonModal,
@@ -205,8 +192,6 @@ export default function LeadProfile() {
     [relationships, lead],
   )
 
-  /* ---- loading, missing ------------------------------------------------ */
-
   if (loading) {
     return (
       <CrmPage
@@ -246,8 +231,6 @@ export default function LeadProfile() {
     )
   }
 
-  /* ---- derived ---------------------------------------------------------- */
-
   const stageIndex = OPEN_STAGES.indexOf(lead.stage)
   const isExit = EXIT_STAGES.includes(lead.stage)
   const nextStage: LeadStage | null =
@@ -261,8 +244,6 @@ export default function LeadProfile() {
     0,
     Math.round((Date.parse(`${TODAY}T09:00:00+01:00`) - Date.parse(lead.createdAt)) / 60_000),
   )
-
-  /* ---- actions ---------------------------------------------------------- */
 
   const advance = (to: LeadStage) => {
     if (EXIT_STAGES.includes(to)) {
@@ -401,18 +382,14 @@ export default function LeadProfile() {
       <div className="grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
         {/* ---- left rail ---- */}
         <div className="flex flex-col gap-4">
-          <AttributionBlock
+          <ThreePeople
             referrerPersonId={lead.referrerPersonId}
             ownerUserId={lead.ownerUserId}
             closerUserId={lead.closerUserId}
             onChangeReferrer={() => setReferrerOpen(true)}
             onReassignOwner={() => setReassignOpen(true)}
             onSetCloser={() => setCloserOpen(true)}
-            footnote={
-              lead.referralCode
-                ? `Arrived on referral code ${lead.referralCode}.`
-                : 'Commission is evaluated against each of these three fields separately.'
-            }
+            footer={lead.referralCode ? `Arrived on referral code ${lead.referralCode}.` : undefined}
           />
 
           <Card padding="none">
@@ -587,7 +564,6 @@ export default function LeadProfile() {
       <LossReasonModal
         open={lossOpen}
         onClose={() => setLossOpen(false)}
-        stage="lost"
         onConfirm={(reason: LossReason, note: string) => {
           changeStage(lead, 'lost', { reason, note })
           toast({
@@ -642,10 +618,6 @@ export default function LeadProfile() {
     </CrmPage>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* Activity                                                                   */
-/* -------------------------------------------------------------------------- */
 
 function ActivityTab({
   leadId,
@@ -813,10 +785,6 @@ function ActivityTab({
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Follow-ups                                                                 */
-/* -------------------------------------------------------------------------- */
-
 function FollowUpsTab({ rows }: { rows: FollowUp[] }) {
   const directory = useDirectory()
   const [completing, setCompleting] = useState<FollowUp | null>(null)
@@ -928,10 +896,6 @@ function FollowUpsTab({ rows }: { rows: FollowUp[] }) {
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Finance                                                                    */
-/* -------------------------------------------------------------------------- */
-
 function FinanceTab({ invoices }: { invoices: Invoice[] }) {
   const columns: Column<Invoice>[] = [
     { key: 'ref', header: 'Invoice', accessor: (row) => row.ref, minWidth: 140, sortable: true },
@@ -1008,10 +972,6 @@ function FinanceTab({ invoices }: { invoices: Invoice[] }) {
     </Card>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* Audit                                                                      */
-/* -------------------------------------------------------------------------- */
 
 function AuditTab({ rows }: { rows: AuditEvent[] }) {
   const columns: Column<AuditEvent>[] = [

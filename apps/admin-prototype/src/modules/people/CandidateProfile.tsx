@@ -1,14 +1,3 @@
-/**
- * Candidate profile — `/people/candidates/:id` (screen-spec §9).
- *
- * The stage rail across the top is the point of this screen, and the **Stage
- * history** tab is the proof behind it: the record carries one current stage,
- * but every move it has ever made is still on file in the audit log, in order,
- * with who moved it and why. A later move cannot overwrite an earlier one
- * because the trail is append-only — the same discipline the commission ledger
- * and the compensation history use.
- */
-
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, CalendarPlus, ClipboardList, FileSignature, History, Route, UserPlus } from 'lucide-react'
@@ -329,12 +318,6 @@ export default function CandidateProfile() {
               )
             })}
           </ol>
-          {closedOut && (
-            <Alert tone="warning" className="mt-4" title={`Closed out as ${STAGE_LABEL[candidate.stage]}`}>
-              Nothing was deleted. The application, its interviews and its scorecards all stay on file, which is what makes a
-              talent-pool candidate findable when the next opening is raised.
-            </Alert>
-          )}
         </CardBody>
       </Card>
 

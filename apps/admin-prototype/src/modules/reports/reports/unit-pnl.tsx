@@ -1,17 +1,3 @@
-/**
- * Unit P&L — the report that answers the most valuable unanswered question in
- * the business: which of the six units actually makes money.
- *
- * Every figure comes from `unitPnl(range)`. The table is the report; the
- * charts exist to make the ranking and the cost shape legible at a glance.
- *
- * Two bases are offered because they answer different questions. Accrual
- * (invoiced) says whether the unit is *earning*. Cash (collected) says
- * whether it is *funding itself*. The PRD forbids netting the two into one
- * number, so the toggle switches basis explicitly and the table carries both
- * columns either way.
- */
-
 import { Scale } from 'lucide-react'
 import { useState } from 'react'
 import {

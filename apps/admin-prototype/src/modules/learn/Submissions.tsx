@@ -1,11 +1,3 @@
-/**
- * Submissions & grading — `/learn/submissions`.
- *
- * Built as a queue, because grading is a batch activity. `j` / `k` move
- * through the queue without leaving the grading pane, `Enter` opens, and
- * submitting a grade advances to the next row automatically.
- */
-
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { CheckCircle2, Download, FileText, Send } from 'lucide-react'
@@ -110,7 +102,6 @@ export default function Submissions() {
     [params],
   )
 
-  /* j / k move the selection without leaving the grading pane. */
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const target = e.target as HTMLElement | null
@@ -298,10 +289,6 @@ export default function Submissions() {
     </Screen>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* Grading pane                                                               */
-/* -------------------------------------------------------------------------- */
 
 function GradingPane({ submission, onGraded }: { submission: Submission; onGraded: () => void }) {
   const assignment = useCollection(assignmentsCollection).find((a) => a.id === submission.assignmentId)
@@ -645,4 +632,3 @@ function GradingPane({ submission, onGraded }: { submission: Submission; onGrade
     </Card>
   )
 }
-

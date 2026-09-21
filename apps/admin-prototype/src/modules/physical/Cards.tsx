@@ -1,11 +1,3 @@
-/**
- * §14 — card management.
- *
- * Issuing and deactivating both write and both audit. The issue form shows the
- * holder's live access decision before the card is handed over, because a card
- * issued to somebody whose status already denies them is a card that will not
- * work — and the point of this module is that nobody has to remember that.
- */
 import { useMemo, useState } from 'react'
 import { CreditCard, Plus, ShieldAlert, ShieldCheck } from 'lucide-react'
 
@@ -307,12 +299,6 @@ export default function PhysicalCards() {
         </Alert>
       )}
 
-      <Alert tone="info" icon={ShieldCheck} title="Access follows status, automatically" className="mb-6">
-        A card is not an access list. When a person withdraws, exits or falls behind on payment, their
-        status changes and the reader reads the status — so the card stops working without anyone
-        revoking it. Deactivation here is for the physical card itself: lost, damaged or replaced.
-      </Alert>
-
       {error ? (
         <ErrorPanel what="Cards" onRetry={retry} />
       ) : (
@@ -420,10 +406,6 @@ export default function PhysicalCards() {
     </Screen>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* Issue                                                                      */
-/* -------------------------------------------------------------------------- */
 
 function IssueCardModal({
   open,
@@ -604,10 +586,6 @@ function IssueCardModal({
     </Modal>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* Deactivate                                                                 */
-/* -------------------------------------------------------------------------- */
 
 function DeactivateModal({
   card,

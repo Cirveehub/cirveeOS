@@ -1,13 +1,3 @@
-/**
- * Onboarding — `/people/onboarding` (screen-spec §9).
- *
- * Everyone who has resumed recently, and how far through the twelve-step
- * checklist they are. The checklist only exists for people with an employment
- * record, which is the point: an accepted offer does not put anybody on this
- * screen, because until somebody resumes there is nothing to issue a card for,
- * allocate an asset to, or grant access on.
- */
-
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CheckCircle2, ListChecks, UserCheck } from 'lucide-react'
@@ -51,7 +41,6 @@ import {
 } from './shared'
 import { createOnboardingChecklist, onboardingTasksFor, setTaskStatus, taskGroup } from './writes'
 
-/** How long somebody counts as onboarding when no checklist exists yet. */
 const RECENT_DAYS = 60
 
 interface Row {
@@ -115,7 +104,6 @@ export default function Onboarding() {
   const hasTask = (row: Row, fragment: string) =>
     row.tasks.find((t) => t.title.toLowerCase().includes(fragment))?.status === 'done'
 
-  /** The real thing "Card issued" should mean — not a task title, a live Physical-module record. */
   const activeCardFor = (employee: Employee) =>
     cards.find((c) => c.personId === employee.personId && c.holderType === 'employee' && c.status === 'active')
 
@@ -368,8 +356,6 @@ export default function Onboarding() {
                             onChange={(e) => {
                               const checkedOn = e.target.checked
                               setTaskStatus(task.id as string, checkedOn ? 'done' : 'open')
-                              // The NFC task's real completion is a Card record, not just a
-                              // status flip — issue one for real if this employee has none.
                               if (checkedOn && taskGroup(task) === 'NFC card' && !activeCardFor(open.employee)) {
                                 issueCard({
                                   personId: open.employee.personId,

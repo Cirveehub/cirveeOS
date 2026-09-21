@@ -8,17 +8,6 @@ import { Alert, Button, ProgressBar } from '@/ui'
 import { branchesCollection, peopleCollection, unitsCollection, usersCollection } from '@/mocks'
 import type { UnitCode } from '@/mocks'
 
-/* -------------------------------------------------------------------------- */
-/* Reference lookups                                                          */
-/* -------------------------------------------------------------------------- */
-
-/**
- * The store keys units by `UnitId` and carries a `UnitCode`; `UnitTag` keys off
- * the registry's lowercase `BusinessUnit`. This bridges the two.
- *
- * FLAG: belongs in `src/ui/UnitTag.tsx` — every module that renders a unit-
- * tagged row needs it, so this bridge is duplicated in four module folders.
- */
 const UNIT_KEY: Record<UnitCode, BusinessUnit> = {
   ACADEMY: 'academy',
   TEENS: 'teens',
@@ -56,10 +45,6 @@ export function userName(userId: string | null | undefined): string {
   return user ? personName(user.personId) : '—'
 }
 
-/* -------------------------------------------------------------------------- */
-/* Screen state                                                               */
-/* -------------------------------------------------------------------------- */
-
 const FORCE_ERROR_KEY = 'cirvee-os:force-error'
 
 function consumeForcedError(): boolean {
@@ -78,11 +63,6 @@ export interface ScreenState {
   retry: () => void
 }
 
-/**
- * The spec's §0.5 loading contract: a short delay on mount so the skeleton is
- * visible in a demo, and a failure path reachable from Settings → Demo controls
- * → "Force error on next load".
- */
 export function useScreenState(delayMs = 400): ScreenState {
   const [attempt, setAttempt] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -119,15 +99,6 @@ export function ScreenError({ state }: { state: ScreenState }) {
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Module navigation                                                          */
-/* -------------------------------------------------------------------------- */
-
-/**
- * `PageHeader` only renders its tab strip when `activeTab` is truthy, so the
- * dashboard's id cannot be the empty string — that is why the module's tab
- * strip never appeared on `/payroll` before this pass.
- */
 export const DASHBOARD_TAB = 'dashboard'
 
 export const PAYROLL_TABS: TabItem[] = [
@@ -143,10 +114,6 @@ export function useModuleNav() {
   return (id: string) => navigate(`/payroll/${id === DASHBOARD_TAB ? '' : id}`.replace(/\/$/, ''))
 }
 
-/* -------------------------------------------------------------------------- */
-/* Small layout helpers                                                       */
-/* -------------------------------------------------------------------------- */
-
 export function Page({ children }: { children: ReactNode }) {
   return <div className="px-8 py-8 pb-16">{children}</div>
 }
@@ -155,14 +122,9 @@ export function StatGrid({ children }: { children: ReactNode }) {
   return <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">{children}</div>
 }
 
-/** Matches `text-label-11` headings used above dense sub-lists. */
 export function Caption({ children }: { children: ReactNode }) {
   return <p className="text-body-13 text-text-secondary">{children}</p>
 }
-
-/* -------------------------------------------------------------------------- */
-/* Bar list — the stand-in for a chart component                              */
-/* -------------------------------------------------------------------------- */
 
 export interface BarRow {
   key: string
@@ -173,10 +135,6 @@ export interface BarRow {
   note?: ReactNode
 }
 
-/**
- * FLAG: the same component exists in four other module folders. It belongs in
- * `src/ui/` — the library has no chart primitive at all.
- */
 export function BarList({
   rows,
   max,

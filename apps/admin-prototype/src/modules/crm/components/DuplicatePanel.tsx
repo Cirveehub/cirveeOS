@@ -1,13 +1,3 @@
-/**
- * The duplicate panel.
- *
- * Fires on blur of email, phone or WhatsApp, **before any Person is written**.
- * On a likely match the user chooses: use the existing record, take the pair
- * to the merge queue, or create anyway with a reason that is audited. The PRD
- * treats this as the gate on the identity layer, and Flow 1 step 3 opens with
- * it.
- */
-
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CircleAlert, Spline } from 'lucide-react'
@@ -24,7 +14,6 @@ export interface DuplicatePanelProps {
   matches: DuplicateMatch[]
   onUseExisting: (person: Person) => void
   onMerge: (person: Person) => void
-  /** Called once the reviewer supplies a reason for overriding the check. */
   onCreateAnyway: (person: Person, reason: string) => void
 }
 

@@ -9,13 +9,6 @@ import { REPORTS } from './registry'
 import { useReportScope } from './lib/scope'
 import { ScopeBar } from './components/ScopeBar'
 
-/**
- * The report index.
- *
- * Each card shows the report's own three headline figures, computed from the
- * same definition the detail screen uses — so a card can never drift from the
- * report it opens. The scope bar applies to every card at once.
- */
 export default function ReportsIndex() {
   const units = useCollection(unitsCollection)
   const scope = useReportScope(units)

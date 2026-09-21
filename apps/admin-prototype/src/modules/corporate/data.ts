@@ -16,7 +16,6 @@ import {
 
 import { deriveParticipants, type Participant } from './participant-model'
 
-/** One hook so every corporate screen reads the same derived participant set. */
 export function useParticipants(): Participant[] {
   const clientOrgs = useCollection(clientOrgsCollection)
   const invoices = useCollection(invoicesCollection)
@@ -28,7 +27,6 @@ export function useParticipants(): Participant[] {
   const attendance = useCollection(studentAttendanceCollection)
   const certificates = useCollection(certificatesCollection)
 
-  // Referenced so the participant set re-derives when sessions change too.
   useCollection(classSessionsCollection)
 
   return useMemo(

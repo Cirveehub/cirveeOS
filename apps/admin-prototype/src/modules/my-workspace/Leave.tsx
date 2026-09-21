@@ -1,16 +1,3 @@
-/**
- * My leave — `/my-workspace/leave`.
- *
- * Balances, history, and the request form itself. The form used to be a modal
- * on one card of the employee dashboard, which meant requesting leave depended
- * on finding that card; it is a page now because asking for time off is a
- * task, not a widget.
- *
- * The balance shown is what is left *today*. A pending request does not move
- * it — the approval engine does that on approval — so the form says plainly
- * what the balance would become if the request is granted.
- */
-
 import { useMemo, useState } from 'react'
 import { CalendarOff, CalendarPlus } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -222,13 +209,6 @@ export default function MyLeave() {
           )}
         </CardBody>
       </Card>
-
-      {pending.length > 0 && (
-        <Alert tone="info" className="mt-6" title={`${pluralize(pending.length, 'request')} awaiting a decision`}>
-          You can withdraw a request while it is still pending. Once it is approved it belongs to the
-          roster, and unwinding it is a conversation with your manager rather than a button here.
-        </Alert>
-      )}
 
       <Card className="mt-6">
         <CardHeader title="Your requests" description="Everything you have ever asked for, decided or not." />

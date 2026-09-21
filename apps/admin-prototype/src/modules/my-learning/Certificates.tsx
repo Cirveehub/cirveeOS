@@ -1,28 +1,3 @@
-/**
- * Certificates — `/my-learning/certificates`.
- *
- * The other screen the legacy portal has and Cirvee OS never gave a learner.
- * Two things live here:
- *
- *  1. **Issued certificates** — the real `Certificate` record, with the public
- *     verification id an employer can check and the QR payload that produced
- *     it. Revoked certificates stay listed, labelled, because a verification
- *     id that quietly disappears is worse than one that says why.
- *  2. **What is left before you are certified** — the same live
- *     `certificateEligibility` computation the staff-facing queue runs, shown
- *     per criterion against the course's own configured rules (PRD §4.3),
- *     recomputed from progress, grades, attendance and the money every time
- *     this screen renders.
- *
- * The framing is the whole design decision. The staff screen is an approval
- * queue — who may I issue to. This is the same five rows read the other way
- * round: here is where you are, here is what is outstanding, and here is the
- * screen that fixes it. Where a criterion is unmet, the row links to the
- * place the learner can act — the assignment, the payment page, the content.
- * An eligibility panel that only tells you that you failed is a report card,
- * not a product.
- */
-
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Award, Check, Copy, QrCode, X } from 'lucide-react'
@@ -57,7 +32,6 @@ import {
 
 import { detailOf, Screen, studentToast, useStudent } from './common'
 
-/** Where a learner goes to move an unmet criterion. */
 const CRITERION_ACTION: Record<string, { label: string; to: string } | undefined> = {
   Attendance: { label: 'See your attendance', to: '/my-learning/course?tab=attendance' },
   'Content completion': { label: 'Open the course content', to: '/my-learning/course?tab=content' },
@@ -229,14 +203,7 @@ export default function Certificates() {
   )
 }
 
-/* -------------------------------------------------------------------------- */
-
 function EligibilityCard({ enrolment }: { enrolment: Enrollment }) {
-  /* `certificateEligibility` reads progress, submissions, attendance and
-     invoices directly rather than taking them as arguments, so this
-     subscribes to all four. Without them the card would render a snapshot and
-     the copy underneath — "this page moves the moment a grade, a payment or
-     an attendance record does" — would be a lie. */
   const certificates = useCollection(certificatesCollection)
   useCollection(submissionsCollection)
   useCollection(invoicesCollection)

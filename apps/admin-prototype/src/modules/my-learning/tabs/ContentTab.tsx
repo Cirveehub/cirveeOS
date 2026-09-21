@@ -1,19 +1,3 @@
-/**
- * The Content tab of the student's course hub.
- *
- * The legacy portal's Materials tab is a flat table of uploaded files with a
- * Type pill reading Video / Document / Link. Cirvee OS's content model is not
- * flat: a course is modules, a module is lessons, and a lesson carries up to
- * five parallel formats of the same teaching (PRD §4). Flattening that back
- * into a file list would throw away the one thing this product claims as its
- * differentiator, so this shows the real outline and puts the format switcher
- * where the learner chooses how to take the lesson.
- *
- * Completion ticks come from the learner's real `Progress` record, including
- * which format they used — so "you watched this one, you listened to that
- * one" is true rather than decorative.
- */
-
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Check, ClipboardList, FileQuestion, Link2, Presentation, Radio, Smartphone } from 'lucide-react'
@@ -76,10 +60,6 @@ export function ContentTab({ enrolment }: { enrolment: Enrollment }) {
     progress?.perLesson.find((p) => p.lessonId === lessonId)?.state ?? 'not_started'
 
   const firstPlayable = outline.flatMap((m) => m.lessons).find((l) => Object.keys(l.formats).length > 0)
-  // Resume across devices: pick up wherever `Progress.lastLessonId` says this
-  // learner left off, not always the first lesson — the same record
-  // `learn/StudentView.tsx`'s founder preview already reads, now acted on
-  // for real. Falls back to the first playable lesson when there is none.
   const resumedLesson = progress?.lastLessonId ? lessons.find((l) => l.id === progress.lastLessonId) : undefined
   const initialLesson = resumedLesson ?? firstPlayable
 
@@ -100,9 +80,6 @@ export function ContentTab({ enrolment }: { enrolment: Enrollment }) {
     setFormat(first)
   }
 
-  // Unlike `StudentView.tsx` (which only advances the resume point on
-  // completion), this fires on opening any lesson — resume needs to reflect
-  // where a student was reading or watching, not only what they finished.
   useEffect(() => {
     if (openLessonId) markLessonOpened(enrolment.id, openLessonId)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -305,10 +282,6 @@ export function ContentTab({ enrolment }: { enrolment: Enrollment }) {
   )
 }
 
-/**
- * A quiz, assignment or project lesson has no media by design. Saying so, and
- * pointing at where the work actually happens, beats an empty player.
- */
 function NonContentLesson({ lesson }: { lesson: Lesson }) {
   if (lesson.assignmentId) {
     return (
@@ -364,7 +337,6 @@ function NonContentLesson({ lesson }: { lesson: Lesson }) {
   )
 }
 
-/** Mirrors `learn/StudentView.tsx`'s own resume-banner label — same phrasing, same shape. */
 function lessonLabel(
   lessons: Lesson[],
   modules: Array<{ id: string; sequence: number }>,

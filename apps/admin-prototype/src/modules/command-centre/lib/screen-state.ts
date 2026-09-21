@@ -1,13 +1,3 @@
-/**
- * The four standard states (screen-spec §0.5), made reachable.
- *
- * Loading is a real 400ms first-mount delay so the skeleton is visible in a
- * demo rather than theoretical. Error and empty are driven by the store's demo
- * controls (`demo.forceError` / `demo.forceEmpty`, wired from Settings) and,
- * because Settings is another team's module, also by `?state=` on the URL so a
- * reviewer can reach every state from a link today.
- */
-
 import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
@@ -15,12 +5,10 @@ import { demo } from '@/mocks'
 
 export type ScreenStatus = 'loading' | 'error' | 'empty' | 'ready'
 
-/** First mount per scope, per tab — a demo should see the skeleton once. */
 const booted = new Set<string>()
 
 export interface ScreenState {
   status: ScreenStatus
-  /** Clears the forced error and re-runs the load. */
   retry: () => void
 }
 

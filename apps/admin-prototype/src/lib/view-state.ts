@@ -1,17 +1,3 @@
-/**
- * List-view state, lived in the query string.
- *
- * `?stage=qualified,new&owner=usr-0002&sort=-daysInStage&page=2` — so any
- * filtered view is linkable, a dashboard chart segment can deep-link into a
- * list, and two screens showing the same collection share one filter shape.
- *
- * Promoted from `modules/crm/lib/view-state.ts`, which built this with no
- * CRM-specific assumptions at all — every list screen in the app needs the
- * same query-string ergonomics, loading/error state and CSV export, and this
- * is the version every module should import going forward. CRM's own
- * `lib/view-state.ts` re-exports from here so existing imports keep working.
- */
-
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { demo } from '@/mocks'
@@ -92,7 +78,6 @@ export function useQueryState(): QueryState {
   )
 }
 
-/** `-daysInStage` ⇄ `{ key: 'daysInStage', direction: 'desc' }`. */
 export function parseSort(raw: string | undefined): SortState | null {
   if (!raw) return null
   return raw.startsWith('-')
@@ -105,20 +90,12 @@ export function serialiseSort(sort: SortState | null): string | undefined {
   return sort.direction === 'desc' ? `-${sort.key}` : sort.key
 }
 
-/* -------------------------------------------------------------------------- */
-/* Loading and error states                                                   */
-/* -------------------------------------------------------------------------- */
-
 export interface ModuleLoadState {
   loading: boolean
   error: string | null
   retry: () => void
 }
 
-/**
- * The spec's standard first-mount delay so the skeleton is actually visible
- * in a demo, plus the forced-error hook from Settings → Demo controls.
- */
 export function useScreenLoad(scope: string): ModuleLoadState {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -144,18 +121,10 @@ export function useScreenLoad(scope: string): ModuleLoadState {
   return { loading, error, retry }
 }
 
-/* -------------------------------------------------------------------------- */
-/* Paging                                                                     */
-/* -------------------------------------------------------------------------- */
-
 export function paginate<T>(rows: T[], page: number, pageSize: number): T[] {
   const start = (Math.max(1, page) - 1) * pageSize
   return rows.slice(start, start + pageSize)
 }
-
-/* -------------------------------------------------------------------------- */
-/* CSV export                                                                 */
-/* -------------------------------------------------------------------------- */
 
 export function downloadCsv(filename: string, headers: string[], rows: string[][]): void {
   const escape = (value: string) => `"${value.replace(/"/g, '""')}"`

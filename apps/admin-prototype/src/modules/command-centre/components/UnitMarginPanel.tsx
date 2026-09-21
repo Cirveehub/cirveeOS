@@ -1,9 +1,3 @@
-/**
- * Which unit is actually making money — the question the founder cannot
- * answer today. The full answer is the Unit P&L report; this is the headline
- * of it, on the screen the laptop opens on.
- */
-
 import { Link } from 'react-router-dom'
 
 import { unitPnl } from '@/mocks'

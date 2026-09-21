@@ -1,16 +1,3 @@
-/**
- * §6.6 — the exception queue.
- *
- * When an action fails, the retry policy runs first. What survives the retries
- * lands here, where a human can see it. That is the whole point: a failure a
- * person never sees is the same as a failure that was ignored.
- *
- * A bulk retry does not magically empty the queue. Some failures are data
- * problems — "recipient has no WhatsApp number on record" cannot be fixed by
- * trying again — so those come back Open with one more attempt on the clock,
- * and the queue tells the truth about it.
- */
-
 import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { CheckCircle2, EyeOff, RefreshCw, UserPlus } from 'lucide-react'
@@ -47,12 +34,6 @@ import { assignException, ignoreException, isPermanentFailure, markRetrying, set
 
 const RETRY_SETTLE_MS = 900
 
-/**
- * Thirteen columns, opened at seven. The default set answers "what failed, for
- * whom, how long ago and who owns it"; the diagnostic detail — the node, the
- * attempt count, the exact timestamps — is one click away and lives in
- * `?cols=`, so a fuller view is still a link.
- */
 const COLUMN_CATALOGUE: ColumnCatalogueEntry[] = [
   { key: 'id', label: 'Exception ID', defaultVisible: true, locked: true },
   { key: 'automation', label: 'Automation', defaultVisible: true },

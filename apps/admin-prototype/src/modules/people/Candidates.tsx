@@ -1,12 +1,3 @@
-/**
- * Candidates — `/people/candidates` (screen-spec §9).
- *
- * The pipeline as a list. Every candidate is attached to a job opening, so a
- * candidate cannot exist without an approved reason for the role to exist —
- * that link is what stops the pipeline filling with speculative applications
- * nobody has budget for.
- */
-
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, UserPlus } from 'lucide-react'

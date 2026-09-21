@@ -65,7 +65,6 @@ export default function CommandPalette({
     return entries
       .map((e) => {
         const label = e.label.toLowerCase()
-        // Exact prefix beats word-start beats substring beats summary hit.
         let score = -1
         if (label.startsWith(q)) score = 0
         else if (label.split(/[\s›]+/).some((w) => w.startsWith(q))) score = 1

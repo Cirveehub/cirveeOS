@@ -32,7 +32,6 @@ const SCOPE_RANK: Record<PermissionScope, number> = {
   organisation: 5,
 }
 
-/** How much of the matrix a role actually grants, 0–100. The breadth score. */
 function breadth(role: Role): number {
   const cells = Object.values(role.permissions).flatMap((actions) => ACTIONS.map((a) => actions[a]))
   if (cells.length === 0) return 0

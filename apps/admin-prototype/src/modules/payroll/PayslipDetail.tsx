@@ -1,10 +1,3 @@
-/**
- * A rendered payslip.
- *
- * Earnings, adjustments, deductions, net and year-to-date — and **every
- * adjustment line names the event that produced it**, because a payslip that
- * cannot explain a number is how pay disputes start.
- */
 import { useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
@@ -12,7 +5,6 @@ import { ArrowLeft, Download, Receipt } from 'lucide-react'
 
 import { formatDate, formatDateTime, formatNaira } from '@/lib/format'
 import {
-  Alert,
   Badge,
   Button,
   Card,
@@ -310,12 +302,6 @@ export default function PayslipDetail() {
             <KeyValue label="Net">{formatNaira(payslip.ytdNet)}</KeyValue>
           </KeyValueList>
         </section>
-
-        <Alert tone="info" className="mt-6" title="Every adjustment above links to the event that produced it">
-          Nothing on this payslip is an unexplained number. If a figure is disputed, the source event, the policy version and
-          the formula are all one click away — and a correction is raised as a new adjustment in the next period, never as an
-          edit to this one.
-        </Alert>
 
         <Caption>
           Viewed {payslip.viewedAt ? formatDateTime(payslip.viewedAt) : 'never'} · downloaded{' '}

@@ -1,16 +1,3 @@
-/**
- * The module's three creation flows.
- *
- * All three are single modals rather than wizards, following
- * `referral/Referrers.tsx`'s `NewReferrerModal`: each creates one self-contained
- * record with no step that depends on a decision made in an earlier step.
- *
- * The decision modal is the exception worth reading. A decision is never
- * edited; when one replaces another, this writes a *new* decision and links the
- * predecessor forward as superseded or reversed, exactly as
- * `referral/Ledger.tsx` handles a correction.
- */
-
 import { useMemo, useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 
@@ -52,10 +39,6 @@ import {
   type LogMeetingResult,
 } from './writes'
 
-/* -------------------------------------------------------------------------- */
-/* Shared option builders                                                     */
-/* -------------------------------------------------------------------------- */
-
 function useUserOptions(): Array<{ value: string; label: string }> {
   const users = useCollection(usersCollection)
   const userName = useUserName()
@@ -68,10 +51,6 @@ function useUserOptions(): Array<{ value: string; label: string }> {
     [users, userName],
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* Log a meeting                                                              */
-/* -------------------------------------------------------------------------- */
 
 interface AgendaDraft {
   key: number
@@ -108,7 +87,6 @@ export function NewMeetingModal({
   ])
   const [touched, setTouched] = useState(false)
 
-  /* Attendance is stored against people; the picker lists the users who hold accounts. */
   const attendeeOptions = useMemo(() => {
     const names = new Map(people.map((p) => [p.id as string, `${p.firstName} ${p.lastName}`]))
     return users
@@ -354,10 +332,6 @@ export function NewMeetingModal({
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Add an action item                                                         */
-/* -------------------------------------------------------------------------- */
-
 const ACTION_STATUSES: ActionItemStatus[] = ['open', 'in_progress', 'blocked']
 
 export function NewActionModal({
@@ -369,7 +343,6 @@ export function NewActionModal({
   open: boolean
   onClose: () => void
   onCreated: (title: string) => void
-  /** Pre-selected when the modal is opened from a meeting. */
   meetingId?: MeetingId
 }) {
   const meetings = useCollection(meetingsCollection)
@@ -500,10 +473,6 @@ export function NewActionModal({
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Log a decision                                                             */
-/* -------------------------------------------------------------------------- */
-
 export function NewDecisionModal({
   open,
   onClose,
@@ -515,7 +484,6 @@ export function NewDecisionModal({
   onClose: () => void
   onCreated: (decision: Decision) => void
   meetingId?: MeetingId
-  /** Opened from an existing decision, to record what replaced it. */
   replacing?: Decision | null
 }) {
   const meetings = useCollection(meetingsCollection)
@@ -755,9 +723,6 @@ export function NewDecisionModal({
   )
 }
 
-/* -------------------------------------------------------------------------- */
-
-/** Dates hang off the seed's fixed clock, never `Date.now()`. */
 function addDays(from: string, days: number): string {
   const date = new Date(`${from.slice(0, 10)}T00:00:00Z`)
   date.setUTCDate(date.getUTCDate() + days)

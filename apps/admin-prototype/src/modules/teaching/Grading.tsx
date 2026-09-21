@@ -1,23 +1,3 @@
-/**
- * Grading — the legacy `Submission.tsx`: back link, one card, one table
- * (student, submitted at, status, grade, action), and a small modal with two
- * fields. No rubric builder, no bulk tools, no second page.
- *
- * Three things Cirvee OS's data makes better without adding a screen:
- *
- *  1. **The cohort, not just the submissions.** The legacy table listed only
- *     rows that existed, so a tutor could not tell who had not handed in. The
- *     enrolment list is the source here, and a student with nothing against
- *     this assignment appears as "Not submitted".
- *  2. **The assignment's own rules are shown**, because they are real fields:
- *     due date, maximum, accepted formats, and what the late policy does. The
- *     penalty is stated as applied by the policy rather than by the tutor.
- *  3. **Rubric-aware grading.** The modal is the legacy's two fields when the
- *     assignment has no rubric — which is every assignment created in this
- *     module. A seeded assignment that publishes rubric rows gets one compact
- *     score box per criterion, feeding `Submission.rubricScores`, and the
- *     total is the sum rather than a number typed twice.
- */
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, FileCheck2, FileText } from 'lucide-react'
@@ -85,8 +65,6 @@ export default function Grading() {
   const rows = useMemo<GradeRow[]>(() => {
     if (!assignment) return []
 
-    /* Scope to one cohort when we know which, otherwise every enrolment on the
-       course — a course-wide assignment opened without a cohort in the URL. */
     const relevant = enrolments.filter((e) =>
       cohortId ? e.cohortId === cohortId : e.courseId === assignment.courseId,
     )
@@ -338,10 +316,6 @@ export default function Grading() {
     </Page>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* The grading modal                                                          */
-/* -------------------------------------------------------------------------- */
 
 function GradeModal({
   submission,

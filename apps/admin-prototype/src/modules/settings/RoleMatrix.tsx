@@ -1,13 +1,3 @@
-/**
- * Role and permission matrix editor — the one Settings screen built to depth.
- *
- * Rows are `resource` keys grouped by module; columns are the seven actions;
- * every cell is a **scope selector**, not a checkbox, because `own · team ·
- * department · branch · organisation` is the model and a checkbox cannot say
- * which of them applies. The cells are tinted by breadth so an over-permissioned
- * role is visible before a single label is read — and every cell still carries
- * the scope word, so the colour is never the only carrier.
- */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
@@ -81,13 +71,8 @@ import type { AuditEvent, PermissionAction, PermissionScope, Role } from '@/mock
 
 import { DashboardSkeleton, ErrorPanel, ModuleHeader, Screen, useModuleData, useUserName } from './parts'
 
-/* -------------------------------------------------------------------------- */
-/* The model                                                                  */
-/* -------------------------------------------------------------------------- */
-
 const ACTIONS: PermissionAction[] = ['view', 'create', 'edit', 'approve', 'assign', 'export', 'manage']
 
-/** Ordered by breadth. The order is the heat map. */
 const SCOPES: PermissionScope[] = ['none', 'own', 'team', 'department', 'branch', 'organisation']
 
 const SCOPE_LABEL: Record<PermissionScope, string> = {
@@ -99,7 +84,6 @@ const SCOPE_LABEL: Record<PermissionScope, string> = {
   organisation: 'Organisation',
 }
 
-/** The short form the cell shows. `none` is a dash, per the spec. */
 const SCOPE_SHORT: Record<PermissionScope, string> = {
   none: '—',
   own: 'Own',
@@ -118,10 +102,6 @@ const SCOPE_RANK: Record<PermissionScope, number> = {
   organisation: 5,
 }
 
-/**
- * The breadth ramp. Each entry is a complete tinted triple — fill, ink and
- * line go together and are never mixed with a `*-text` ink.
- */
 const SCOPE_TINT: Record<PermissionScope, { shell: string; ink: string }> = {
   none: { shell: 'bg-surface-sunken border-border', ink: 'text-text-secondary' },
   own: { shell: 'bg-success-fill border-success-line', ink: 'text-success-ink' },
@@ -201,10 +181,6 @@ function diffDraft(role: Role, draft: Draft): Change[] {
   return changes
 }
 
-/* -------------------------------------------------------------------------- */
-/* Record volumes — so the impact preview quotes a real number                */
-/* -------------------------------------------------------------------------- */
-
 interface Volume {
   count: number
   noun: string
@@ -273,10 +249,6 @@ function useResourceVolumes(): Record<string, Volume> {
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Screen                                                                     */
-/* -------------------------------------------------------------------------- */
-
 export default function RoleMatrix() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
@@ -299,7 +271,6 @@ export default function RoleMatrix() {
   const [testRoleId, setTestRoleId] = useState('')
   const [testResource, setTestResource] = useState('crm.lead')
 
-  /* A new role means a fresh draft. Nothing carries across. */
   useEffect(() => {
     setDraft(role ? cloneDraft(role) : null)
     setLastChange(null)
@@ -309,7 +280,6 @@ export default function RoleMatrix() {
   const changes = useMemo(() => (role && draft ? diffDraft(role, draft) : []), [role, draft])
   const dirty = changes.length > 0
 
-  /* The unsaved-changes guard, for the one exit the module does not own. */
   useEffect(() => {
     if (!dirty) return
     const onBeforeUnload = (event: BeforeUnloadEvent) => event.preventDefault()
@@ -381,7 +351,6 @@ export default function RoleMatrix() {
     if (!role || !draft) return
     const at = new Date().toISOString()
     rolesCollection.update(role.id, { permissions: draft, updatedAt: at, updatedBy: CURRENT_USER_ID })
-    /* Every changed scope is an audit row. The Audit log screen shows them. */
     for (const change of changes) {
       auditEventsCollection.insert({
         id: `aud-role-${role.id}-${change.resource}-${change.action}-${Date.now()}` as AuditEvent['id'],
@@ -460,8 +429,6 @@ export default function RoleMatrix() {
   }
 
   const holders = (roleId: string) => users.filter((u) => u.roleIds.includes(roleId as Role['id'])).length
-
-  /* ------------------------------------------------------------------ */
 
   const header = (
     <ModuleHeader
@@ -758,15 +725,10 @@ export default function RoleMatrix() {
           </Card>
 
           {readOnly && (
-            <Alert tone="info" icon={Lock} title="Super Admin is read-only, and everything is at organisation scope">
-              Someone has to be able to repair a locked-out system. Narrowing this role is how an organisation loses access to
-              its own configuration, so the matrix below is shown but not editable.
+            <Alert tone="info" icon={Lock} title="Super Admin is read-only">
+              This role cannot be edited.
             </Alert>
           )}
-
-          <Alert tone="warning" icon={ShieldCheck} title="This matrix configures the server">
-            Hiding a button is not security. Every scope here is evaluated where the data is read, not where it is drawn.
-          </Alert>
 
           {dirty && (
             <Alert

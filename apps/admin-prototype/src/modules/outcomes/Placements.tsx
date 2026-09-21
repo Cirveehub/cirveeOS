@@ -1,11 +1,3 @@
-/**
- * Placements — the subset of outcome records that name an employer.
- *
- * The salary band is derived from the figure the graduate volunteered, and
- * every row that carries one is labelled self-reported. A placement with no
- * consent on file reads "Not granted" here and may not be published, however
- * good it looks.
- */
 import { useMemo, useState } from 'react'
 import { BriefcaseBusiness, Info, Plus } from 'lucide-react'
 
@@ -61,7 +53,6 @@ import {
 
 const PAGE_SIZE = 25
 
-/** Bands, not figures — a volunteered salary is never shown to the naira. */
 const SALARY_BANDS: ReadonlyArray<{ id: string; label: string; min: number; max: number }> = [
   { id: 'under_150k', label: `Under ${formatNaira(ngn(150_000), { compact: true })}`, min: 0, max: ngn(150_000) },
   {
@@ -411,16 +402,6 @@ export default function Placements() {
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Record a placement                                                         */
-/* -------------------------------------------------------------------------- */
-
-/**
- * The income fields are gated behind an explicit "the graduate volunteered a
- * figure" switch, and the panel says in plain words that nothing here is
- * verified. There is deliberately no "verified income" control — verification
- * on this form covers the employer and the role, never the money.
- */
 function RecordPlacementModal({
   open,
   onClose,

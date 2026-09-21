@@ -1,15 +1,3 @@
-/**
- * The four things Academy operations can now actually do: enrol a student,
- * assign or replace a tutor, schedule a class, and take a register.
- *
- * Each is a single self-contained modal over one call into `writes.ts` — none
- * of them has sequencing that would justify a wizard. The PRD rules they
- * exist to demonstrate live in `writes.ts`, not here; these only have to make
- * the rule legible while someone is using it, which is why the tutor dialog
- * shows the outgoing assignment's delivered-session count before it ends it
- * and the register dialog labels a changed state as an override.
- */
-
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { CalendarClock, GraduationCap, Repeat, UserPlus } from 'lucide-react'
 
@@ -57,10 +45,6 @@ import {
   type AttendanceEntry,
 } from './writes'
 
-/* -------------------------------------------------------------------------- */
-/* Shared pieces                                                              */
-/* -------------------------------------------------------------------------- */
-
 function useError(): [string | null, (e: unknown) => void, () => void] {
   const [error, setError] = useState<string | null>(null)
   return [
@@ -79,7 +63,6 @@ function Failure({ message }: { message: string | null }) {
   )
 }
 
-/** Everyone who has ever held a tutor assignment, plus anyone with the relationship. */
 function useTutorRoster(): Array<{ personId: string; name: string }> {
   const assignments = useCollection(tutorAssignmentsCollection)
   const relationships = useCollection(relationshipsCollection)
@@ -94,15 +77,6 @@ function useTutorRoster(): Array<{ personId: string; name: string }> {
   }, [assignments, relationships])
 }
 
-/* -------------------------------------------------------------------------- */
-/* Enrol a student                                                            */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Academy's enrolments come from confirmed admissions, so the admission path
- * is the default and the direct path is deliberately the harder one: it needs
- * a typed reason, which lands in the audit trail beside the enrolment.
- */
 export function EnrolStudentModal({
   cohort,
   open,
@@ -133,7 +107,6 @@ export function EnrolStudentModal({
     setReason('')
     setTouched(false)
     clearError()
-    // `waiting` is recomputed from the cohort; resetting on open is the point.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, cohort.id])
 
@@ -293,10 +266,6 @@ export function EnrolStudentModal({
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Assign, replace or end a tutor                                             */
-/* -------------------------------------------------------------------------- */
-
 export type TutorDialogMode = 'assign' | 'replace' | 'end'
 
 export function TutorAssignmentModal({
@@ -309,7 +278,6 @@ export function TutorAssignmentModal({
 }: {
   cohort: Cohort
   mode: TutorDialogMode
-  /** The assignment being replaced or ended. */
   assignment: TutorAssignment | null
   open: boolean
   onClose: () => void
@@ -490,17 +458,12 @@ export function TutorAssignmentModal({
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Schedule a class session                                                   */
-/* -------------------------------------------------------------------------- */
-
 export function ScheduleSessionModal({
   cohort: fixedCohort,
   open,
   onClose,
   onScheduled,
 }: {
-  /** Null on the timetable, where the cohort is chosen inside the dialog. */
   cohort: Cohort | null
   open: boolean
   onClose: () => void
@@ -684,10 +647,6 @@ export function ScheduleSessionModal({
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Take a register / override attendance                                      */
-/* -------------------------------------------------------------------------- */
-
 const STATES: Array<{ value: StudentAttendanceState; label: string }> = [
   { value: 'present', label: 'Present' },
   { value: 'late', label: 'Late' },
@@ -695,11 +654,6 @@ const STATES: Array<{ value: StudentAttendanceState; label: string }> = [
   { value: 'excused', label: 'Excused' },
 ]
 
-/**
- * The register. A student with no row yet is simply recorded; changing a state
- * that already exists is an override, so the row opens a required reason field
- * the moment it is touched and stays open until it is filled.
- */
 export function AttendanceModal({
   session,
   open,
@@ -791,11 +745,6 @@ export function AttendanceModal({
       <div className="flex flex-col gap-4">
         <Failure message={error} />
 
-        <Alert tone="info" title="Attendance is a teaching signal, not a billing one">
-          Nothing here changes what a student owes. Changing a state the system already recorded is an override and
-          needs a reason, which is kept with the record and written to the audit log.
-        </Alert>
-
         {roster.length === 0 ? (
           <p className="text-body-13 text-text-secondary">
             Nobody is enrolled on this cohort, so there is no register to take.
@@ -862,10 +811,6 @@ export function AttendanceModal({
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Small shared trigger, so every screen opens these the same way             */
-/* -------------------------------------------------------------------------- */
-
 export function ActionButton({
   kind,
   onClick,
@@ -894,14 +839,12 @@ export function ActionButton({
   )
 }
 
-/** Sessions of a cohort, newest first — the register picker's source. */
 export function sessionsOf(cohortId: string): ClassSession[] {
   return classSessionsCollection
     .where((s) => s.cohortId === cohortId)
     .sort((a, b) => b.date.localeCompare(a.date))
 }
 
-/** A cohort's course title, for dialog copy. */
 export function courseTitleOf(cohort: Cohort): string {
   return coursesCollection.find(cohort.courseId)?.title ?? cohort.courseId
 }

@@ -1,12 +1,3 @@
-/**
- * Policies — the configuration surface for everything the PRD says must never
- * be hard-coded.
- *
- * Every policy is a **version**, effective-dated. Changing a rule adds a
- * version and end-dates the previous one; it never rewrites what already
- * happened. A commission computed in March keeps March's rule, and an
- * attendance record from June keeps June's grace period.
- */
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Lock, ScrollText } from 'lucide-react'
@@ -72,12 +63,10 @@ const KIND_NOTE: Record<PolicyKind, string> = {
   sla: 'First-response and resolution targets, against which every clock on every dashboard is measured.',
 }
 
-/** A readable rendering of a config value, without inventing a format. */
 function renderValue(key: string, value: unknown): string {
   if (value === null || value === undefined) return 'Not set'
   if (typeof value === 'boolean') return value ? 'Enabled' : 'Disabled'
   if (typeof value === 'number') {
-    /* Money keys in the seed are kobo. Everything else is a plain count. */
     return /above|amount|minimum|cap|payout/i.test(key) ? formatNaira(value) : formatNumber(value)
   }
   if (Array.isArray(value)) return value.map((item) => renderValue(key, item)).join(' · ')
@@ -128,7 +117,6 @@ export default function Policies() {
     ? (byKind.get(open.kind) ?? []).find((p) => p.version === open.version - 1) ?? null
     : null
 
-  /** The one policy the whole system is judged on. Locked, and visibly so. */
   const attendance = (byKind.get('attendance') ?? []).find((p) => p.status === 'active') ?? null
   const financialConsequence = Boolean(attendance?.config.financialConsequenceEnabled)
 
@@ -265,12 +253,11 @@ export default function Policies() {
           </Badge>
         </div>
         <Alert tone="warning" className="mt-4" title="Requires employment-law review before enabling">
-          Two incidents in 2025 produced deductions from reader faults that had to be reversed by hand. An attendance breach
-          notifies a manager and can open a performance record; it does not touch pay. Decision DEC-0009 in the{' '}
+          See{' '}
           <Link to="/meetings/decisions" className="underline">
             decision log
           </Link>{' '}
-          records why.
+          DEC-0009.
         </Alert>
       </Card>
 

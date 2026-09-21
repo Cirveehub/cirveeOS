@@ -1,15 +1,3 @@
-/**
- * The attention rail (screen-spec §1.1, band 2 right).
- *
- * Three lists of five: students the academy should call, payments finance has
- * not matched, and leads sales has left standing. Each is the top of a longer
- * queue, so each carries a "View all" into the module that owns it.
- *
- * The empty states here say what the absence means. "No unmatched payments"
- * is good news; "No stalled leads" is good news; "No flagged students" is only
- * good news if the flags are actually running.
- */
-
 import { AlertTriangle, Banknote, Clock, type LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'

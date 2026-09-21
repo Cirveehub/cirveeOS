@@ -1,13 +1,3 @@
-/**
- * Exit cases — `/people/exits` (screen-spec §9).
- *
- * The department clearance matrix is the part worth building properly: an exit
- * is not one approval but five departments each confirming there is nothing
- * outstanding, and the case cannot close while any of them is unsigned. Access
- * revocation carries its own timestamp because "we think IT did it" is exactly
- * the gap this screen exists to close.
- */
-
 import { useMemo, useState } from 'react'
 import { Check, DoorOpen, Lock, Minus, X } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -228,11 +218,6 @@ export default function Exits() {
       />
 
       <ScreenError state={state} />
-
-      <Alert tone="info" className="mb-6" title="An exit is never a deletion">
-        The employment record stays, end-dated. Its compensation history, payslips and commission all stay attached, which is
-        what lets a final settlement be reconstructed months later and a rehire keep their prior service.
-      </Alert>
 
       <Card>
         <CardBody padding="none">

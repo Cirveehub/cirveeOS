@@ -31,12 +31,6 @@ import { FINANCE_TABS, Page, ScreenError, branchName, personName, unitKey, useMo
 const STATUSES = ['current', 'overdue', 'in_credit', 'settled', 'written_off'] as const
 const PAGE_SIZE = 25
 
-/**
- * Sixteen columns was the second-widest table in the app. The eight shown by
- * default answer "who is this, and do they owe us anything"; the other eight
- * — the fee's provenance, the credits, the branch — are one click away and
- * stay in the URL, so a curated view is still a link.
- */
 const COLUMN_CATALOGUE: ColumnCatalogueEntry[] = [
   { key: 'student', label: 'Student', defaultVisible: true, locked: true },
   { key: 'ref', label: 'Account reference', defaultVisible: true },
@@ -68,7 +62,6 @@ export default function Accounts() {
   const [page, setPage] = useState(1)
   const { visible, defaultKeys, setVisible } = useColumnVisibility(COLUMN_CATALOGUE)
 
-  /** Course and next instalment are read off the account's invoices, not stored twice. */
   const derived = useMemo(() => {
     const map = new Map<string, { course: string; nextDue: string | null }>()
     for (const account of accounts) {
@@ -170,7 +163,6 @@ export default function Accounts() {
   )
 
   const columns = visible.map((key) => allColumns[key]).filter(Boolean)
-  /** Scroll sideways only when the chosen columns genuinely need it. */
   const tableWidth = columns.reduce((sum, column) => {
     const declared = typeof column.width === 'number' ? column.width : typeof column.minWidth === 'number' ? column.minWidth : undefined
     return sum + (declared ?? 140)

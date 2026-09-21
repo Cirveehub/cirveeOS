@@ -1,16 +1,3 @@
-/**
- * Corporate participants, derived.
- *
- * There is no participant table in the store, and there should not be: a
- * corporate participant *is* an enrolment that a client organisation paid for.
- * The link is the invoice — one organisation invoice allocates across many
- * participant enrolments, one line per seat — which is exactly the PRD rule
- * this module has to make visible.
- *
- * Pre- and post-assessment come from the participant's first and latest graded
- * submission. The seed carries no dedicated assessment instrument, so the
- * columns are labelled for what they actually are.
- */
 import type {
   ClientOrg,
   Cohort,

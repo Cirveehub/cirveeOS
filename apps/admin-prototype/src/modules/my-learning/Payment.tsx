@@ -1,21 +1,3 @@
-/**
- * Payment — `/my-learning/payment`.
- *
- * A screen the legacy portal has and Cirvee OS never did: the learner's own
- * money, read straight from the same `Invoice` and `Payment` records Finance
- * works from, scoped to their `personId`. Nothing here is a copy of a number
- * held elsewhere — the balance on this page is the balance the ledger has,
- * and the certificate screen's financial-clearance criterion reads the same
- * invoices.
- *
- * The density is the legacy's, not the admin Finance dashboard's: three
- * cards, one concern each — where you stand, what you were invoiced, what you
- * have paid. No ageing buckets, no collection rate, no unit P&L. A learner
- * checking whether they owe anything is not running an operation.
- *
- * Money is kobo throughout, rendered by `MoneyCell`/`formatNaira`.
- */
-
 import { useMemo } from 'react'
 import { CreditCard, Download } from 'lucide-react'
 

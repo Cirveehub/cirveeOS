@@ -41,7 +41,6 @@ import { describeRoute, holderOfRole, markRouteEdited, routeInForce, stepsFromBa
 
 type Qualifiers = NonNullable<ApprovalBand['qualifiers']>
 
-/** Sets one optional row qualifier without widening the branded id types. */
 function withQualifier(band: ApprovalBand, key: keyof Qualifiers, value: string): Qualifiers {
   const next: Record<string, unknown> = { ...band.qualifiers }
   if (value) next[key] = value

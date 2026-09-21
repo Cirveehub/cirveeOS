@@ -1,21 +1,3 @@
-/**
- * Academy dashboard — `/academy`.
- *
- * This used to be eight stat cards in one flat grid followed by four
- * un-deferred sections. Every number was real and none of them was ranked, so
- * the screen answered no question in particular.
- *
- * Now it opens on one headline per theme plus the one rail that matters
- * whatever you came for — the cohorts whose attendance has fallen through the
- * floor — and each theme keeps its full card band and its chart behind a
- * named tab. Nothing was deleted; it is just not all shown at once. The tab
- * lives in the query string, so a view is a link like every other piece of
- * state in this app.
- *
- * The module's own nav is the `line` tab strip in `PageHeader`; these section
- * tabs are `pill`, so the two strips are never mistaken for each other.
- */
-
 import { useMemo } from 'react'
 import { AlertTriangle, CalendarDays, GraduationCap, Layers, Presentation, TicketPercent, UserCheck, Users } from 'lucide-react'
 
@@ -85,8 +67,6 @@ export default function AcademyDashboard() {
   const attendance = useCollection(studentAttendanceCollection)
 
   const courseTitle = (id: string) => courses.find((c) => c.id === id)?.title ?? id
-
-  /* ---- One band per theme, each computing only its own slice ------------ */
 
   const activeCohorts = useMemo(
     () => cohorts.filter((c) => c.status === 'running' || c.status === 'open'),
@@ -187,7 +167,6 @@ export default function AcademyDashboard() {
 
   const maxEnrolment = Math.max(1, ...enrolmentBand.rows.map((c) => c.count))
 
-  /** Eight weeks from the Monday of the current week. */
   const weeks = useMemo(() => {
     const start = new Date(`${TODAY}T00:00:00Z`)
     const offset = (start.getUTCDay() + 6) % 7
@@ -607,7 +586,6 @@ export default function AcademyDashboard() {
   )
 }
 
-/** One theme's takeaway in a sentence, so the Overview says what it means. */
 function Answer({ label, text }: { label: string; text: string }) {
   return (
     <div className="rounded-xl border border-border bg-surface p-4">

@@ -1,19 +1,3 @@
-/**
- * The multi-format content viewer — shared by `teaching` and `my-learning`.
- *
- * Both legacy apps use exactly one detail page whose body branches by format
- * inside one consistent header/back/download shell, rather than a separate
- * route per format. Cirvee OS's real content model (`ContentFormat` =
- * video/audio/podcast/pdf/transcript, PRD §4) is richer than either legacy
- * app's flat video/document/link split, so this branches on the real five
- * formats rather than reducing to the legacy's three.
- *
- * There is no real media in this prototype — per the seed's own convention,
- * a format is represented by a convincing player shell and real metadata
- * (duration, size, quality), never a fabricated file. This component is
- * that shell, built once so `teaching`'s tutor preview and `my-learning`'s
- * real student view render identically.
- */
 import { useState } from 'react'
 import { Download, FileText, Headphones, Mic, Play, Video } from 'lucide-react'
 
@@ -51,15 +35,12 @@ function formatBytes(bytes: number): string {
 
 export interface MaterialViewerProps {
   lesson: Lesson
-  /** Which format is currently open — defaults to the first one the lesson has. */
   format?: ContentFormat
   onFormatChange?: (format: ContentFormat) => void
-  /** The resolved asset for `format`, or undefined if the lesson has no such format. */
   asset: ContentAsset | undefined
   className?: string
 }
 
-/** The five format tabs, disabled where the lesson genuinely has no such format. */
 export function FormatSwitcher({
   lesson,
   active,

@@ -1,18 +1,3 @@
-/**
- * Consumer Home — the landing page for Student, Parent / Guardian, Corporate
- * Client and Sponsor.
- *
- * None of these people work here. They came to answer one of a handful of
- * questions — am I passing, is my child attending, has my invoice cleared —
- * and the executive dashboard and the staff task queue both answer questions
- * they never asked. This page asks first "which of you are you" and then
- * shows the one thing each of those four actually wants: the child's week,
- * the learner's course, the organisation's cohort, the programme's outcomes.
- *
- * Everything on it is scoped to the signed-in person through `personId` —
- * nothing here reads organisation-wide totals, because none of these roles
- * are entitled to them.
- */
 import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import {
@@ -122,10 +107,6 @@ function consumerDescription(roleId: string): string {
   }
 }
 
-/* -------------------------------------------------------------------------- */
-/* Student                                                                    */
-/* -------------------------------------------------------------------------- */
-
 function StudentBody({ personId }: { personId: PersonId }) {
   const enrolments = enrollmentsCollection.where(
     (e) => e.personId === personId && e.status !== 'withdrawn',
@@ -231,10 +212,6 @@ function StudentBody({ personId }: { personId: PersonId }) {
     </div>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* Parent / Guardian                                                          */
-/* -------------------------------------------------------------------------- */
 
 function ParentBody({ guardianPersonId }: { guardianPersonId: PersonId }) {
   const guardianRel = relationshipsCollection
@@ -345,10 +322,6 @@ function ParentBody({ guardianPersonId }: { guardianPersonId: PersonId }) {
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Corporate client                                                           */
-/* -------------------------------------------------------------------------- */
-
 function CorporateClientBody({ contactPersonId }: { contactPersonId: PersonId }) {
   const rel = relationshipsCollection
     .all()
@@ -422,10 +395,6 @@ function CorporateClientBody({ contactPersonId }: { contactPersonId: PersonId })
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Sponsor                                                                    */
-/* -------------------------------------------------------------------------- */
-
 const PLACED_OUTCOMES = new Set(['full_time', 'contract', 'freelance', 'self_employed'])
 
 function SponsorBody({ sponsorPersonId }: { sponsorPersonId: PersonId }) {
@@ -485,10 +454,6 @@ function SponsorBody({ sponsorPersonId }: { sponsorPersonId: PersonId }) {
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Shared bits                                                                */
-/* -------------------------------------------------------------------------- */
-
 function Fact({
   label,
   value,
@@ -513,13 +478,6 @@ function Fact({
   )
 }
 
-/**
- * A real destination is a `Link`; anything else says plainly what is missing.
- * None of the four stubs below can be made real without something the
- * prototype does not have — a messaging backend, or a consumer-facing billing
- * and showcase screen. The Finance module's invoice list is not that screen:
- * it shows every invoice in the business, which is not a student's to see.
- */
 function QuickLink({
   to,
   label,

@@ -1,16 +1,3 @@
-/**
- * My tasks — `/my-workspace/tasks`.
- *
- * The same `tasksCollection` the Work & approvals module runs on, filtered to
- * the one person and reduced to the one question an assignee has: what is on
- * me, and what have I finished. No assigning, no reprioritising, no department
- * view — those are a manager's concerns and they already have a screen.
- *
- * Status changes go through `setTaskStatus`, the write the admin Tasks screen
- * uses, so a task closed here is closed everywhere rather than in a second
- * parallel notion of "done".
- */
-
 import { useMemo, useState } from 'react'
 import { CheckCircle2, ClipboardList } from 'lucide-react'
 import toast from 'react-hot-toast'

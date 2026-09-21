@@ -1,19 +1,9 @@
-/**
- * One of the PRD's four executive questions, and the cards that answer it.
- *
- * The grouping is the point. Twelve stat cards in an undifferentiated grid is
- * a wall of numbers; the same twelve under "Are we making money?", "Are we
- * growing?", "Are students succeeding?" and "Is the organisation
- * functioning?" is a briefing.
- */
-
 import type { ReactNode } from 'react'
 
 import { cn } from '@/lib/cn'
 
 export interface StatBandProps {
   question: string
-  /** The one-line answer, read off the cards below it. */
   answer: ReactNode
   children: ReactNode
   className?: string

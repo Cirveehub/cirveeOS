@@ -1,12 +1,3 @@
-/**
- * The Daily Executive Brief as its own surface — `/home/brief`.
- *
- * The brief is a panel on Home; this is the same panel with the evidence
- * underneath it, for the ten minutes before a management meeting. The
- * payments table is the receipt behind line one: if the brief says
- * ₦1,840,000 from seven payments, seven rows have to be here.
- */
-
 import { RotateCcw } from 'lucide-react'
 import { Link } from 'react-router-dom'
 

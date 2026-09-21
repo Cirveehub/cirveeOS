@@ -1,11 +1,3 @@
-/**
- * Cirvee Learn — shared scaffolding.
- *
- * Everything here is module-local plumbing: the screen chrome, the four
- * standard states, and the multi-format vocabulary that every Learn screen
- * speaks. No new visual primitives — the rendering all comes from `@/ui`.
- */
-
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { NavLink, useSearchParams } from 'react-router-dom'
 import toast, { Toaster } from 'react-hot-toast'
@@ -40,17 +32,11 @@ import {
   type PersonId,
 } from '@/mocks'
 
-/* -------------------------------------------------------------------------- */
-/* The five formats                                                           */
-/* -------------------------------------------------------------------------- */
-
 export interface FormatMeta {
   format: ContentFormat
   label: string
-  /** The single letter used in the outline tree's V A P D T pills. */
   letter: string
   icon: LucideIcon
-  /** What a learner loses when this one is missing. */
   missingConsequence: string
 }
 
@@ -98,10 +84,6 @@ export function formatMeta(format: ContentFormat): FormatMeta {
   return FORMATS.find((f) => f.format === format) ?? FORMATS[0]
 }
 
-/* -------------------------------------------------------------------------- */
-/* Small formatters                                                           */
-/* -------------------------------------------------------------------------- */
-
 export function formatBytes(bytes: number): string {
   if (bytes <= 0) return '—'
   if (bytes >= 1_000_000_000) return `${(bytes / 1_000_000_000).toFixed(1)} GB`
@@ -132,7 +114,6 @@ export function personName(id: PersonId | string | null | undefined): string {
   return p ? `${p.firstName} ${p.lastName}` : String(id)
 }
 
-/** Resolves a `UserId` through the user's Person record. */
 export function userName(id: string | null | undefined): string {
   if (!id) return 'System'
   const user = usersCollection.find(id)
@@ -140,10 +121,6 @@ export function userName(id: string | null | undefined): string {
   return personName(id)
 }
 
-/**
- * `UnitTag` speaks the shell's lowercase `BusinessUnit`; the data layer stores
- * a `UnitId`. One lookup, in one place.
- */
 export function unitTagOf(unitId: string | null | undefined): ShellBusinessUnit | null {
   if (!unitId) return null
   const code = unitsCollection.find(unitId)?.code
@@ -159,16 +136,8 @@ export function median(values: number[]): number {
   return sorted.length % 2 ? sorted[mid] : Math.round((sorted[mid - 1] + sorted[mid]) / 2)
 }
 
-/* -------------------------------------------------------------------------- */
-/* The four standard states                                                   */
-/* -------------------------------------------------------------------------- */
-
 const alreadyMounted = new Set<string>()
 
-/**
- * 400ms on first mount of a screen, so the skeleton is actually visible in a
- * demo rather than a flash. Revisiting the same screen is instant.
- */
 export function useScreenLoading(key: string): boolean {
   const [loading, setLoading] = useState(() => !alreadyMounted.has(key))
   useEffect(() => {
@@ -182,11 +151,6 @@ export function useScreenLoading(key: string): boolean {
   return loading
 }
 
-/**
- * The error state, reachable two ways: Settings → Demo controls →
- * "Force error on next load" (`demo.forceError('learn')`), or `?error=1` on
- * any Learn URL so the state is demonstrable before Settings is built.
- */
 export function useScreenError(scope = 'learn'): { errored: boolean; retry: () => void } {
   const [params, setParams] = useSearchParams()
   const [dismissed, setDismissed] = useState(false)
@@ -221,10 +185,6 @@ export function ScreenError({ what, onRetry }: { what: string; onRetry: () => vo
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Screen chrome                                                              */
-/* -------------------------------------------------------------------------- */
-
 interface LearnNavItem {
   label: string
   to: string
@@ -242,10 +202,6 @@ export const LEARN_NAV: LearnNavItem[] = [
   { label: 'Certificates', to: '/learn/certificates' },
 ]
 
-/**
- * Every Learn screen sits in this. It carries the module's secondary nav and
- * the toast host, so a screen file is only its own content.
- */
 export function Screen({
   children,
   nav = true,
@@ -313,15 +269,6 @@ function LearnSubnav() {
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Toasts                                                                     */
-/* -------------------------------------------------------------------------- */
-
-/**
- * NOTE FOR REVIEW: the design system has no Toast. This is a thin, token-only
- * shell over `react-hot-toast` (already a dependency) so Learn can honour the
- * spec's success-toast rule. It belongs in `src/ui/` and the kitchen sink.
- */
 function LearnToaster() {
   return (
     <Toaster
@@ -383,15 +330,6 @@ function ToastShell({
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Multi-format display pieces                                                */
-/* -------------------------------------------------------------------------- */
-
-/**
- * The five tiny pills — filled where the lesson has that format, hollow where
- * it does not. Incompleteness is visible without clicking, which is the whole
- * point of the outline tree.
- */
 export function FormatPills({
   formats,
   size = 'sm',
@@ -436,7 +374,6 @@ export function FormatPills({
   )
 }
 
-/** A coverage cell: `9/14` with a fill bar, toned by how bad the gap is. */
 export function CoverageCell({
   have,
   total,
@@ -489,7 +426,6 @@ export function CoverageCell({
   )
 }
 
-/** Pass / fail with the actual value beside the threshold. */
 export function CriterionRow({
   criterion,
   required,
@@ -554,7 +490,6 @@ export function statusTone(status: string): BadgeTone {
   }
 }
 
-/** A stable, readable simulated upload: queued → uploading → processing → done. */
 export function useSimulatedUpload() {
   const [progress, setProgress] = useState<number | null>(null)
   const [phase, setPhase] = useState<'idle' | 'uploading' | 'processing'>('idle')
@@ -593,7 +528,6 @@ export function useSimulatedUpload() {
   return { progress, phase, start, busy: phase !== 'idle' }
 }
 
-/** `2026-09-20T14:43:00+01:00` for a write that happened now. */
 export function nowIso(): string {
   const d = new Date()
   const pad = (n: number) => String(n).padStart(2, '0')

@@ -1,11 +1,3 @@
-/**
- * A horizontal bar row that doubles as a filter link.
- *
- * Every chart on the CRM dashboard is a way into `/crm/leads`, per §2.1, so
- * the bar and its label are one link rather than a chart with a legend nobody
- * can click.
- */
-
 import { Link } from 'react-router-dom'
 import { ProgressBar, type ProgressTone } from '@/ui'
 import { formatNumber, formatPercent } from '@/lib/format'
@@ -14,7 +6,6 @@ export interface BarRow {
   key: string
   label: string
   value: number
-  /** Second figure shown to the right — conversion, usually. */
   secondary?: number | null
   secondaryLabel?: string
   tone?: ProgressTone
@@ -23,7 +14,6 @@ export interface BarRow {
 
 export interface BarListProps {
   rows: BarRow[]
-  /** Denominator for the bar width. Defaults to the largest row. */
   max?: number
   emptyMessage: string
 }

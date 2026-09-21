@@ -1,20 +1,3 @@
-/**
- * Every write the customer experience module performs.
- *
- * The ticket queue used to render and filter without transacting. It now
- * transacts, under three rules:
- *
- *  1. **The conversation is the record.** A reply, an internal note, an
- *     escalation and a resolution all append to `messages`; nothing in the
- *     thread is ever edited or removed, so reopening a ticket leaves the
- *     original resolution readable rather than overwriting it.
- *  2. **`firstResponseAt` is written once.** It is the SLA's reported metric,
- *     so a second reply must not reset the clock.
- *  3. **Status changes emit an `AuditEvent`** — actor, timestamp, field,
- *     before and after — which is a different record from the `Activity` feed
- *     entry the same action writes.
- */
-
 import {
   TODAY,
   CURRENT_USER_ID,
@@ -39,15 +22,6 @@ import {
   type UserId,
 } from '@/mocks/types'
 
-/* -------------------------------------------------------------------------- */
-/* The clock                                                                  */
-/* -------------------------------------------------------------------------- */
-
-/**
- * The prototype's now. The date is always the seed's fixed TODAY so relative
- * dates never rot; only the time of day comes from the wall clock, which is
- * what makes a reply land at a plausible hour during a demo.
- */
 export function nowIso(): string {
   const d = new Date()
   const pad2 = (n: number) => String(n).padStart(2, '0')
@@ -57,10 +31,6 @@ export function nowIso(): string {
 export function hoursBetween(from: string, to: string): number {
   return (Date.parse(to) - Date.parse(from)) / 3_600_000
 }
-
-/* -------------------------------------------------------------------------- */
-/* Names                                                                      */
-/* -------------------------------------------------------------------------- */
 
 function personName(id: string | null | undefined): string {
   if (!id) return 'Unknown person'
@@ -74,10 +44,6 @@ function userName(id: string | null | undefined): string {
   if (!user) return 'Unknown user'
   return personName(user.personId) || user.email
 }
-
-/* -------------------------------------------------------------------------- */
-/* Audit — append-only, never updated or removed                              */
-/* -------------------------------------------------------------------------- */
 
 let auditSequence = 0
 
@@ -114,7 +80,6 @@ export function emitAudit(input: {
   })
 }
 
-/** The activity feed, which is a separate record from the audit log. */
 function logActivity(args: { ticket: Ticket; body: string; system?: boolean; at: string }): Activity {
   return activitiesCollection.insert({
     id: asActivityId(`act-cx-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`),
@@ -131,16 +96,6 @@ function logActivity(args: { ticket: Ticket; body: string; system?: boolean; at:
   })
 }
 
-/* -------------------------------------------------------------------------- */
-/* SLA                                                                        */
-/* -------------------------------------------------------------------------- */
-
-/**
- * The SLA state is derived from the policy's first-response target and the
- * ticket's own clock — not typed into a component and not frozen at seed time.
- * Replying to a breaching ticket has to visibly move it back inside target,
- * or the queue is decoration.
- */
 export const FIRST_RESPONSE_TARGET_HOURS: Record<Ticket['priority'], number> = {
   urgent: 2,
   high: 4,
@@ -159,10 +114,6 @@ export function deriveSlaState(ticket: Ticket, asOf: string = nowIso()): Ticket[
   if (elapsed > target * 0.75) return 'due_soon'
   return 'within'
 }
-
-/* -------------------------------------------------------------------------- */
-/* References                                                                 */
-/* -------------------------------------------------------------------------- */
 
 export function nextTicketRef(): string {
   const year = TODAY.slice(0, 4)
@@ -199,15 +150,6 @@ function actingPersonId(): PersonId | null {
   return usersCollection.find(CURRENT_USER_ID)?.personId ?? null
 }
 
-/* -------------------------------------------------------------------------- */
-/* Transitions                                                                */
-/* -------------------------------------------------------------------------- */
-
-/**
- * A reply. It appends to the thread, stops the first-response clock the first
- * time only, and moves a new ticket to open — the three things that made the
- * disabled button worth wiring.
- */
 export function replyToTicket(ticket: Ticket, body: string, channel: Channel): void {
   const at = nowIso()
   const isFirstResponse = ticket.firstResponseAt === null
@@ -260,7 +202,6 @@ export function replyToTicket(ticket: Ticket, body: string, channel: Channel): v
   }
 }
 
-/** An internal note never touches the first-response clock — nobody was told. */
 export function addInternalNote(ticket: Ticket, body: string): void {
   const at = nowIso()
   ticketsCollection.update(ticket.id, {
@@ -359,10 +300,6 @@ export function resolveTicket(ticket: Ticket, resolution: string, notifyOn: Chan
   logActivity({ ticket, body: `Resolved. ${resolution}`, system: true, at })
 }
 
-/**
- * Reopening keeps the previous resolution in the thread rather than erasing
- * it — a resolution that did not hold is the most useful thing on the record.
- */
 export function reopenTicket(ticket: Ticket, reason: string): void {
   const at = nowIso()
   ticketsCollection.update(ticket.id, {
@@ -409,10 +346,6 @@ export function assignTicket(ticket: Ticket, toUserId: UserId): void {
   })
   logActivity({ ticket, body: `Assigned to ${userName(toUserId)}.`, system: true, at })
 }
-
-/* -------------------------------------------------------------------------- */
-/* Creation                                                                   */
-/* -------------------------------------------------------------------------- */
 
 export interface NewTicketInput {
   subject: string

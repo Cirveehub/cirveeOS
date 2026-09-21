@@ -15,17 +15,6 @@ import {
 } from '@/mocks'
 import type { CandidateStage, UnitCode } from '@/mocks'
 
-/* -------------------------------------------------------------------------- */
-/* Reference lookups                                                          */
-/* -------------------------------------------------------------------------- */
-
-/**
- * The store keys units by `UnitId` and carries a `UnitCode`; `UnitTag` keys off
- * the registry's lowercase `BusinessUnit`. This bridges the two.
- *
- * FLAG: belongs in `src/ui/UnitTag.tsx` — every module that renders a unit-
- * tagged row needs it, so this bridge is duplicated in four module folders.
- */
 const UNIT_KEY: Record<UnitCode, BusinessUnit> = {
   ACADEMY: 'academy',
   TEENS: 'teens',
@@ -76,11 +65,6 @@ export function userRoleName(userId: string | null | undefined): string {
   return rolesCollection.find(roleId)?.name ?? 'No role assigned'
 }
 
-/* -------------------------------------------------------------------------- */
-/* The hiring pipeline, as one shared vocabulary                              */
-/* -------------------------------------------------------------------------- */
-
-/** The forward pipeline, in order. Progress is measured against this list. */
 export const PIPELINE_STAGES: CandidateStage[] = [
   'applied',
   'screening',
@@ -92,7 +76,6 @@ export const PIPELINE_STAGES: CandidateStage[] = [
   'hired',
 ]
 
-/** Ways out of the pipeline. None of them is a deletion. */
 export const EXIT_STAGES: CandidateStage[] = ['rejected', 'withdrawn', 'talent_pool', 'no_show']
 
 export const ALL_STAGES: CandidateStage[] = [...PIPELINE_STAGES, ...EXIT_STAGES]
@@ -192,7 +175,15 @@ export const ATTENDANCE_SOURCE_LABEL: Record<string, string> = {
   manual: 'Manual',
 }
 
-/** The PRD's own §6 sequence — `advanceExitCase` in `writes.ts` walks this list. */
+export const CONSEQUENCE_LABEL: Record<string, string> = {
+  none: 'No financial impact',
+  notify_employee: 'Employee notified',
+  notify_manager: 'Manager notified',
+  warning_record: 'Warning recorded',
+  escalate_performance: 'Escalated to performance',
+  propose_adjustment: 'Payroll adjustment proposed',
+}
+
 export const EXIT_STAGE_ORDER = [
   'notice_review',
   'handover',
@@ -223,10 +214,6 @@ export const EXIT_STAGE_LABEL: Record<string, string> = {
   closed: 'Closed',
 }
 
-/* -------------------------------------------------------------------------- */
-/* Screen state                                                               */
-/* -------------------------------------------------------------------------- */
-
 const FORCE_ERROR_KEY = 'cirvee-os:force-error'
 
 function consumeForcedError(): boolean {
@@ -245,11 +232,6 @@ export interface ScreenState {
   retry: () => void
 }
 
-/**
- * The spec's §0.5 loading contract: a short delay on mount so the skeleton is
- * visible in a demo, and a failure path reachable from Settings → Demo controls
- * → "Force error on next load".
- */
 export function useScreenState(delayMs = 400): ScreenState {
   const [attempt, setAttempt] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -286,28 +268,8 @@ export function ScreenError({ state }: { state: ScreenState }) {
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Module navigation                                                          */
-/* -------------------------------------------------------------------------- */
-
-/**
- * `PageHeader` only renders its tab strip when `activeTab` is truthy, so the
- * dashboard's id cannot be the empty string — that is why the module's tab
- * strip never appeared before this pass. `useModuleNav` maps the id back to
- * the module-relative route.
- */
 export const DASHBOARD_TAB = 'dashboard'
 
-/**
- * Dashboard, Hiring, Workforce, Time and leave and Exit cases are each their
- * own real sidebar row now (`expandSubnavInSidebar` on `index.tsx`) — eleven
- * flat tabs were one screen's worth too many for a single row, and a tab was
- * never where a founder looks for a page. Hiring/Workforce/Time and leave
- * still cover more than one screen each, so `PEOPLE_GROUP_CHILDREN` holds
- * what each expands to, and every screen inside one renders `PeopleGroupTabs`
- * as its own second-row navigation between siblings. `exits` and the
- * dashboard are one screen each and need no second row at all.
- */
 export type PeopleGroup = 'hiring' | 'workforce' | 'time'
 
 export const PEOPLE_GROUP_CHILDREN: Record<PeopleGroup, TabItem[]> = {
@@ -333,11 +295,6 @@ export function useModuleNav() {
   return (id: string) => navigate(`/people/${id === DASHBOARD_TAB ? '' : id}`.replace(/\/$/, ''))
 }
 
-/**
- * The second tab row for a multi-screen group — same `Tabs` primitive and
- * styling `Dashboard.tsx` already uses for its own internal content switcher,
- * just wired to a real route instead of a `?view=` query param.
- */
 export function PeopleGroupTabs({ group, active }: { group: PeopleGroup; active: string }) {
   const navigate = useModuleNav()
   return (
@@ -352,10 +309,6 @@ export function PeopleGroupTabs({ group, active }: { group: PeopleGroup; active:
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Small layout helpers                                                       */
-/* -------------------------------------------------------------------------- */
-
 export function Page({ children }: { children: ReactNode }) {
   return <div className="px-8 py-8 pb-16">{children}</div>
 }
@@ -364,14 +317,9 @@ export function StatGrid({ children }: { children: ReactNode }) {
   return <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">{children}</div>
 }
 
-/** Matches `text-label-11` headings used above dense sub-lists. */
 export function Caption({ children }: { children: ReactNode }) {
   return <p className="text-body-13 text-text-secondary">{children}</p>
 }
-
-/* -------------------------------------------------------------------------- */
-/* Bar list — the stand-in for a chart component                              */
-/* -------------------------------------------------------------------------- */
 
 export interface BarRow {
   key: string
@@ -382,10 +330,6 @@ export interface BarRow {
   note?: ReactNode
 }
 
-/**
- * FLAG: the same component exists in five other module folders. It belongs in
- * `src/ui/` — the library has no chart primitive at all.
- */
 export function BarList({
   rows,
   max,

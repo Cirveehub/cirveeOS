@@ -1,13 +1,6 @@
-/**
- * Adjustment review.
- *
- * Every adjustment names three things: the **source event** that produced it,
- * the **policy version** it was computed under, and the **formula** — never a
- * bare number. An adjustment that cannot answer all three is not reviewable.
- */
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Lock, ShieldCheck, SlidersHorizontal } from 'lucide-react'
+import { Lock, SlidersHorizontal } from 'lucide-react'
 
 import { formatDate, formatDateTime, formatNaira, formatNumber } from '@/lib/format'
 import {
@@ -77,7 +70,6 @@ const STATUSES: Array<PayrollAdjustment['status']> = [
   'voided',
 ]
 
-/** Where a source event can be opened, by the type the adjustment records. */
 const SOURCE_LINK: Record<string, string> = {
   Commission: '/referral/commissions',
   AttendanceEvent: '/people/attendance',
@@ -121,9 +113,7 @@ export default function Adjustments() {
   const filtered = Boolean(search) || Object.values(filters).some(Boolean)
   const open = openId ? adjustments.find((a) => a.id === openId) ?? null : null
 
-  /* The counts that carry the argument. All derived. */
   const attendanceApplied = adjustments.filter((a) => a.type === 'attendance' && a.status === 'applied').length
-  const attendanceVoided = adjustments.filter((a) => a.type === 'attendance' && a.status === 'voided').length
   const awaitingReview = adjustments.filter((a) => a.status === 'proposed' || a.status === 'disputed').length
   const credits = adjustments.filter((a) => a.amount > 0).reduce((acc, a) => acc + a.amount, 0)
   const debits = adjustments.filter((a) => a.amount < 0).reduce((acc, a) => acc + a.amount, 0)
@@ -290,17 +280,6 @@ export default function Adjustments() {
         />
       </StatGrid>
 
-      <Alert tone="info" icon={ShieldCheck} className="mt-6 mb-4" title="Attendance breaches default to no financial consequence">
-        {attendanceVoided > 0
-          ? `The engine proposed ${formatNumber(attendanceVoided)} attendance adjustment and voided it automatically when the underlying record was corrected. Net effect: nothing. That row is kept — a voided adjustment is evidence, not noise.`
-          : 'No attendance adjustment has been proposed on any period in the store.'}{' '}
-        Enabling a deduction would take a new{' '}
-        <Link to="/settings/policies" className="underline">
-          attendance policy version
-        </Link>{' '}
-        and an employment-law review.
-      </Alert>
-
       <Card>
         <CardBody padding="none">
           <TableToolbar>
@@ -420,10 +399,6 @@ export default function Adjustments() {
               </KeyValue>
             </KeyValueList>
 
-            <Alert tone="info" title="A correction is a new adjustment, never an edit">
-              If this figure is wrong, the fix is another adjustment that names this one as its source. The row stays exactly
-              as it is, so the payslip it produced can still be explained.
-            </Alert>
           </div>
         )}
       </Drawer>

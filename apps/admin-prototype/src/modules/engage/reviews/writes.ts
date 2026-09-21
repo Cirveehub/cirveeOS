@@ -1,18 +1,3 @@
-/**
- * Every write the reputation module performs.
- *
- * One rule governs this whole file, and it is not a style preference:
- *
- * **Nothing here may offer a reward, a discount or an incentive in exchange
- * for a review.** Google's policy forbids it and breaching it risks the
- * listing. A review request is therefore not free-form — it can only be
- * created against a real, named event that already went well, drawn from the
- * collections below by `triggerEvents()`. There is no code path that sends a
- * request without a source event, and no field anywhere that carries an
- * offer. See `REVIEW_COMPLIANCE_NOTE` in `parts.tsx`, rendered wherever a
- * request can be sent.
- */
-
 import {
   TODAY,
   CURRENT_USER_ID,
@@ -47,10 +32,6 @@ import {
   type UserId,
 } from '@/mocks/types'
 
-/* -------------------------------------------------------------------------- */
-/* The clock                                                                  */
-/* -------------------------------------------------------------------------- */
-
 export function nowIso(): string {
   const d = new Date()
   const pad2 = (n: number) => String(n).padStart(2, '0')
@@ -73,10 +54,6 @@ function userName(id: string | null | undefined): string {
   if (!user) return 'Unknown user'
   return personName(user.personId) || user.email
 }
-
-/* -------------------------------------------------------------------------- */
-/* Audit                                                                      */
-/* -------------------------------------------------------------------------- */
 
 let auditSequence = 0
 
@@ -113,22 +90,14 @@ export function emitAudit(input: {
   })
 }
 
-/* -------------------------------------------------------------------------- */
-/* Trigger events — the only things a request may be sent against             */
-/* -------------------------------------------------------------------------- */
-
 export interface TriggerEvent {
-  /** Stable key for the select — the trigger moment plus the event's own id. */
   key: string
   triggerMoment: ReviewTriggerMoment
   personId: PersonId
   personName: string
-  /** The entity type, as it is written on the request row. */
   sourceEventType: string
   sourceEventId: string
-  /** What happened, in one line, for the person choosing. */
   summary: string
-  /** When the event happened — the request is only well timed if this is recent. */
   occurredAt: string
   branchId: BranchId | null
   cohortId: CohortId | null
@@ -148,12 +117,6 @@ function branchForPerson(personId: PersonId, cohortId: CohortId | null): BranchI
   return DEFAULT_BRANCH()
 }
 
-/**
- * Every event that would justify asking for a review, gathered from the
- * collections that actually hold them. A moment that cannot be named here is
- * not a moment to ask on — which is the whole reason this function exists
- * rather than a free-text "who do you want to ask" box.
- */
 export function triggerEvents(options: { excludeAlreadyRequested?: boolean } = {}): TriggerEvent[] {
   const exclude = options.excludeAlreadyRequested ?? true
   const already = new Set(
@@ -162,7 +125,6 @@ export function triggerEvents(options: { excludeAlreadyRequested?: boolean } = {
 
   const events: TriggerEvent[] = []
 
-  /* Certificate issued. */
   for (const certificate of certificatesCollection.all()) {
     if (certificate.status !== 'issued' || !certificate.issuedAt) continue
     events.push({
@@ -180,7 +142,6 @@ export function triggerEvents(options: { excludeAlreadyRequested?: boolean } = {
     })
   }
 
-  /* Strong grade returned — graded, passed, and at or above 80. */
   for (const submission of submissionsCollection.all()) {
     if (submission.status !== 'graded' || !submission.gradedAt) continue
     if (submission.passed !== true || (submission.totalScore ?? 0) < 80) continue
@@ -199,7 +160,6 @@ export function triggerEvents(options: { excludeAlreadyRequested?: boolean } = {
     })
   }
 
-  /* Placement confirmed. */
   for (const record of outcomeRecordsCollection.all()) {
     if (!record.placementDate || record.outcomeType === 'not_yet_placed') continue
     events.push({
@@ -217,7 +177,6 @@ export function triggerEvents(options: { excludeAlreadyRequested?: boolean } = {
     })
   }
 
-  /* Corporate engagement completed — the client's primary contact is the person. */
   for (const deal of corporateDealsCollection.all()) {
     if (deal.stage !== 'completed') continue
     const org = clientOrgsCollection.find(deal.organisationId)
@@ -242,7 +201,6 @@ export function triggerEvents(options: { excludeAlreadyRequested?: boolean } = {
     .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))
 }
 
-/** Days between the event and the seeded today — a request stales quickly. */
 export function daysSince(isoDateTime: string): number {
   return Math.max(
     0,
@@ -253,10 +211,6 @@ export function daysSince(isoDateTime: string): number {
   )
 }
 
-/**
- * Sends the ask. The request records the event it hangs off and nothing else —
- * there is no offer, no reward and no field to put one in.
- */
 export function sendReviewRequest(event: TriggerEvent, channel: Channel): ReviewRequest {
   const at = nowIso()
   const request: ReviewRequest = {
@@ -290,10 +244,6 @@ export function sendReviewRequest(event: TriggerEvent, channel: Channel): Review
   return request
 }
 
-/* -------------------------------------------------------------------------- */
-/* Testimonials                                                               */
-/* -------------------------------------------------------------------------- */
-
 export interface NewTestimonialInput {
   personId: PersonId
   courseId: CourseId
@@ -305,11 +255,6 @@ export interface NewTestimonialInput {
   tags: string[]
 }
 
-/**
- * A testimonial without consent is captured, not publishable. It is stored as
- * `new` and the consent flag governs everything downstream — approving it
- * later still cannot publish it.
- */
 export function createTestimonial(input: NewTestimonialInput): Testimonial {
   const at = nowIso()
   const testimonial: Testimonial = {
@@ -383,19 +328,10 @@ export function setTestimonialStatus(
   })
 }
 
-/* -------------------------------------------------------------------------- */
-/* Proof assets                                                               */
-/* -------------------------------------------------------------------------- */
-
 export function canApproveProof(asset: ProofAsset): boolean {
   return asset.consentStatus === 'granted' && (asset.status === 'drafted' || asset.status === 'in_production')
 }
 
-/**
- * Approval is the gate before anything goes out. Consent is checked here, not
- * only in the UI — an asset whose subject has not agreed cannot be approved by
- * any route.
- */
 export function approveProofAsset(asset: ProofAsset, channel: string, assigneeUserId: UserId | null): boolean {
   if (!canApproveProof(asset)) return false
   const at = nowIso()
@@ -437,7 +373,6 @@ export function startProofProduction(asset: ProofAsset, assigneeUserId: UserId):
   })
 }
 
-/** Discarded, never removed — the row stays so the engine's output is auditable. */
 export function discardProofAsset(asset: ProofAsset, reason: string): void {
   const at = nowIso()
   proofAssetsCollection.update(asset.id, {

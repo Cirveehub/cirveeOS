@@ -1,13 +1,3 @@
-/**
- * Engage's write path.
- *
- * Two entities are created here — a `Segment` and a `Campaign` — and both are
- * plain inserts rather than corrections, so the never-mutate rule does not bite
- * the way it does in Finance. What matters instead is the module's own hard
- * rule: a segment's `memberCount` is resolved from Person records at the moment
- * it is saved, never typed in, because there is no contact list to type it from.
- */
-
 import {
   CURRENT_USER_ID,
   TODAY,
@@ -70,10 +60,6 @@ export function emitEngageAudit(input: {
   })
 }
 
-/* -------------------------------------------------------------------------- */
-/* Segments                                                                   */
-/* -------------------------------------------------------------------------- */
-
 export interface SegmentInput {
   name: string
   description: string
@@ -81,11 +67,6 @@ export interface SegmentInput {
   rules: DraftRule[]
 }
 
-/**
- * The member count is resolved, not supplied. That is the whole point: if this
- * function accepted a number, the prototype would be quietly demonstrating the
- * separate contact list the PRD forbids.
- */
 export function createSegment(input: SegmentInput): Segment {
   const at = engageNow()
   const members = resolveMembers(input.operator, input.rules)
@@ -116,10 +97,6 @@ export function createSegment(input: SegmentInput): Segment {
   return segment
 }
 
-/* -------------------------------------------------------------------------- */
-/* Campaigns                                                                  */
-/* -------------------------------------------------------------------------- */
-
 export interface CampaignInput {
   name: string
   objective: string
@@ -128,9 +105,9 @@ export interface CampaignInput {
   templateId: string
   unitId: string
   budget: number | null
-  /** `null` means send as soon as it is started. */
   scheduledAt: string | null
   status: CampaignStatus
+  utm?: Partial<Campaign['utm']>
 }
 
 const EMPTY_STATS: Campaign['stats'] = {
@@ -145,11 +122,21 @@ const EMPTY_STATS: Campaign['stats'] = {
   revenueAttributed: 0 as Kobo,
 }
 
-function utmFor(name: string, channel: Channel): Campaign['utm'] {
+export function derivedUtm(name: string, channel: Channel): Campaign['utm'] {
   return {
     source: channel,
     medium: 'campaign',
     campaign: name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
+  }
+}
+
+function utmFor(input: CampaignInput): Campaign['utm'] {
+  const base = derivedUtm(input.name, input.channel)
+  const override = input.utm ?? {}
+  return {
+    source: override.source?.trim() || base.source,
+    medium: override.medium?.trim() || base.medium,
+    campaign: override.campaign?.trim() || base.campaign,
   }
 }
 
@@ -169,13 +156,12 @@ export function createCampaign(input: CampaignInput): Campaign {
     budget: input.budget === null ? null : (input.budget as Kobo),
     scheduledAt: input.scheduledAt,
     status: input.status,
-    utm: utmFor(input.name, input.channel),
+    utm: utmFor(input),
     stats: { ...EMPTY_STATS },
     ...stamp(at),
   }
   campaignsCollection.insert(campaign)
 
-  /* A segment knows which campaigns use it — keep that link honest. */
   if (segment) {
     segmentsCollection.update(segment.id, {
       usedByCampaignIds: [...segment.usedByCampaignIds, campaign.id],
@@ -214,7 +200,7 @@ export function updateCampaign(id: string, input: CampaignInput): Campaign | und
     budget: input.budget === null ? null : (input.budget as Kobo),
     scheduledAt: input.scheduledAt,
     status: input.status,
-    utm: utmFor(input.name, input.channel),
+    utm: utmFor(input),
     updatedAt: at,
     updatedBy: CURRENT_USER_ID,
   })

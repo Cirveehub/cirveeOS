@@ -1,11 +1,3 @@
-/**
- * Employers who have hired Cirvee graduates.
- *
- * "Graduates hired" is counted live from the outcome records rather than read
- * off the employer row, so recording a placement anywhere in the prototype
- * moves this table. The stored figure is shown beside it when the two differ —
- * a disagreement is worth seeing, not hiding.
- */
 import { useMemo, useState } from 'react'
 import { Building2, Handshake, Plus } from 'lucide-react'
 
@@ -69,7 +61,6 @@ const PARTNERSHIP_TONE: Record<Employer['partnershipStatus'], 'neutral' | 'info'
 
 const SIZE_OPTIONS = ['1 to 10', '11 to 50', '51 to 200', '201 to 1,000', 'Over 1,000']
 
-/** Eleven possible columns, six shown. */
 const COLUMN_CATALOGUE: ColumnCatalogueEntry[] = [
   { key: 'name', label: 'Employer', defaultVisible: true, locked: true },
   { key: 'industry', label: 'Industry', defaultVisible: true },
@@ -102,7 +93,6 @@ export default function Employers() {
 
   const { visible, defaultKeys, setVisible } = useColumnVisibility(COLUMN_CATALOGUE)
 
-  /** Live placements per employer, keyed by employer id. */
   const placementsByEmployer = useMemo(() => {
     const map = new Map<string, OutcomeRecord[]>()
     for (const record of outcomes) {
@@ -448,10 +438,6 @@ export default function Employers() {
     </Screen>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* New employer                                                               */
-/* -------------------------------------------------------------------------- */
 
 function NewEmployerModal({
   open,

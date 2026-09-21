@@ -1,16 +1,5 @@
 import { formatNaira } from '@/lib/format'
 
-/**
- * FLAG: `DualLineChart` is the one component here that `@/ui` does not provide
- * and that a module legitimately needs — the PRD forbids ever blending
- * collected and invoiced revenue into a single figure, so the finance
- * dashboard has to draw two independent series. It belongs in `src/ui/` (and
- * the kitchen sink) alongside `StatCard`'s private sparkline.
- *
- * It is built on role tokens only: every stroke and fill inherits
- * `currentColor` from a wrapper carrying a token class.
- */
-
 export interface DualLinePoint {
   label: string
   collected: number
@@ -124,21 +113,12 @@ export function DualLineChart({ points }: { points: DualLinePoint[] }) {
   )
 }
 
-/* -------------------------------------------------------------------------- */
-
 export interface CompositionSegment {
   label: string
   value: number
-  /** Semantic ramp step. Role tokens carry no chart hues. */
   className: string
 }
 
-/**
- * FLAG: `StackedCompositionBar` is the second chart primitive `@/ui` lacks. It
- * renders one bar split into named segments — cost, payroll, margin — and
- * mirrors the numbers into a screen-reader list so the bar itself stays
- * decorative.
- */
 export function StackedCompositionBar({
   segments,
   total,

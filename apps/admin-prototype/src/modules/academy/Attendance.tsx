@@ -140,12 +140,6 @@ export default function Attendance() {
 
       <ScreenError state={state} />
 
-      <Alert tone="info" icon={ShieldCheck} title="Attendance here is a teaching signal, not a billing one" className="mb-6">
-        A student's attendance never changes what they owe, and a tutor cannot see their balance. Repeated absence raises an
-        advisory flag for the advisor to act on. Correcting what the system captured is an override: it needs a reason,
-        and it is written to the audit log with the previous state beside the new one.
-      </Alert>
-
       {notice && (
         <Alert tone="success" title="Attendance overridden" className="mb-6" onDismiss={() => setNotice(null)}>
           {notice}
@@ -247,20 +241,6 @@ export default function Attendance() {
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Override                                                                   */
-/* -------------------------------------------------------------------------- */
-
-/**
- * One row, one correction. The reason is not optional and not a toast — it is
- * stored on the record and emitted as an audit event naming the previous state
- * and the new one, which is the PRD's non-negotiable for attendance.
- *
- * FLAG — the ideal shape here is the never-mutate one used for money: a new
- * row superseding the original. `StudentAttendance` has no field to point at
- * the row it corrects, so the audit event carries the before/after pair
- * instead. Adding `supersedesAttendanceId` belongs in `src/mocks/types.ts`.
- */
 function OverrideModal({
   record,
   onClose,
@@ -274,8 +254,6 @@ function OverrideModal({
   const [reason, setReason] = useState('')
   const [touched, setTouched] = useState(false)
 
-  // Open on what the record actually says, so changing it is a deliberate act
-  // rather than a pre-selected default somebody saves without reading.
   useEffect(() => {
     if (!record) return
     setState(record.state)

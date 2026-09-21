@@ -1,11 +1,3 @@
-/**
- * The action register.
- *
- * Two things make this screen worth having: every item names the meeting it was
- * raised in and links back to it, and every item carries the number of agendas
- * it has rolled through. An item that has been carried forward five times is
- * not a task — it is a decision nobody is taking.
- */
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'

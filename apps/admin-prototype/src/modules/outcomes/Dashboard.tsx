@@ -1,20 +1,3 @@
-/**
- * Outcomes dashboard.
- *
- * Every figure on this screen is derived from `outcomeRecordsCollection`, so a
- * checkpoint answered on the follow-up queue moves the response rate here.
- * Nothing is a constant.
- *
- * Two PRD rules are visible rather than implied: an outcome record is opened
- * automatically at certification with follow-ups at 3, 6 and 12 months, and
- * income change is shown only where the graduate volunteered it — always
- * labelled self-reported.
- *
- * It used to open on ten stat cards and six chart panels in one scroll. The
- * five numbers anyone quotes are now the Overview; the mix, the segments and
- * the time-and-income detail each get a tab, with the tab in the query string
- * so a view is a link. Each band computes only its own slice.
- */
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -32,7 +15,6 @@ import {
 
 import { formatNaira, formatNumber, formatPercent } from '@/lib/format'
 import {
-  Alert,
   Badge,
   Card,
   CardBody,
@@ -82,11 +64,6 @@ function timeToPlacement(record: OutcomeRecord): number | null {
   return monthsBetween(record.graduatedAt, record.placementDate)
 }
 
-/* -------------------------------------------------------------------------- */
-/* Bands — one function per theme                                             */
-/* -------------------------------------------------------------------------- */
-
-/** The five numbers anyone quotes. Reused by the other bands for context. */
 function headlineBand(records: OutcomeRecord[]) {
   const total = records.length
   const placed = records.filter(isPlaced)
@@ -176,8 +153,6 @@ function timingBand(records: OutcomeRecord[]) {
   }
 }
 
-/* -------------------------------------------------------------------------- */
-
 export default function Dashboard() {
   const navigate = useNavigate()
   const query = useQueryState()
@@ -257,12 +232,6 @@ export default function Dashboard() {
       />
 
       <TabPanel id="outcomes-overview" tabId="overview" active={tab === 'overview'} className="space-y-6">
-        <Alert tone="info" icon={Info} title="Every graduate is tracked, not just the ones who answer">
-          An outcome record is opened automatically when a certificate is issued, and three follow-ups
-          are scheduled with it — at 3, 6 and 12 months. A graduate who never replies stays in the
-          denominator, which is why the placement rate below is honest rather than flattering.
-        </Alert>
-
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
           <StatCard
             label="Graduates tracked"

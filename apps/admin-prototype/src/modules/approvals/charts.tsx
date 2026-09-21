@@ -1,26 +1,14 @@
-/**
- * Two small chart forms this module needs and `@/ui` does not yet carry:
- * a stacked horizontal bar row and a bucket bar column. Both are built from
- * role tokens only, both keep text in text ink rather than the series colour,
- * and both put a 2px surface gap between adjacent fills.
- *
- * These belong in `src/ui/` once a second module needs them — flagged in the
- * handover rather than left as a silent module-local component library.
- */
-
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/cn'
 
 export interface Series {
   key: string
   label: string
-  /** Role-token background class. Status series only — never an arbitrary hue. */
   className: string
 }
 
 export interface StackedRow {
   label: string
-  /** Value per series key. */
   values: Record<string, number>
   total: number
   href?: string
@@ -90,7 +78,6 @@ export function StackedBars({
 export interface Bucket {
   label: string
   value: number
-  /** Marks a bucket as the problem one. Status ink, with a visible label. */
   alarming?: boolean
 }
 

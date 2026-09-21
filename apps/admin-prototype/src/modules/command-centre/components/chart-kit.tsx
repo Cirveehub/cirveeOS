@@ -1,23 +1,9 @@
-/**
- * The chart frame.
- *
- * `@/ui` has no chart primitive, so the shared pieces live here: the palette,
- * the axis styling and the tooltip. Everything resolves to a design-system CSS
- * variable rather than a literal colour, which is also what gives the charts a
- * dark theme for free — `--color-accent` is a different purple under
- * `[data-theme="dark"]`, and the bars follow it.
- *
- * If a second module needs charts, this file is the thing to lift into
- * `src/ui/` and into the kitchen sink.
- */
-
 import type { ReactNode } from 'react'
 
 import { Card, CardHeader } from '@/ui'
 import { cn } from '@/lib/cn'
 import type { BusinessUnit } from '@/app/module-registry'
 
-/** Matches `UNIT_META`'s dot colours, so a unit is the same colour everywhere. */
 export const UNIT_COLOUR: Record<BusinessUnit, string> = {
   academy: 'var(--color-accent)',
   teens: 'var(--color-teal-700)',
@@ -27,7 +13,6 @@ export const UNIT_COLOUR: Record<BusinessUnit, string> = {
   tcf: 'var(--color-ui-500)',
 }
 
-/** Three branches, three tones that stay apart in both themes. */
 export const BRANCH_COLOUR = [
   'var(--color-accent)',
   'var(--color-info-600)',
@@ -43,7 +28,6 @@ export interface ChartCardProps {
   title: string
   description?: string
   actions?: ReactNode
-  /** Rendered under the chart — a legend, a caption, a total. */
   footer?: ReactNode
   height?: number
   children: ReactNode
@@ -103,9 +87,7 @@ export interface ChartTooltipProps {
   active?: boolean
   payload?: readonly TooltipDatum[]
   label?: string | number
-  /** Turns a raw series value into display text — `formatNaira`, usually. */
   format?: (value: number) => string
-  /** Appended under the rows — a total, a conversion note. */
   caption?: string
 }
 

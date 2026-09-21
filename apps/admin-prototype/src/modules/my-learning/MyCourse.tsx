@@ -1,19 +1,3 @@
-/**
- * My course — `/my-learning/course`.
- *
- * The legacy portal drills from a course list into a cohort detail page with
- * a purple hero and a tab strip. A learner on one cohort would be clicking
- * through a one-row table to get there, so this resolves straight to their
- * enrolment and renders the hub itself; the course list only appears, as a
- * switcher, when somebody genuinely holds more than one enrolment.
- *
- * The hero and the tab strip come from `_learning-shared/CohortHub`, which
- * the Tutor module uses for the same page at the other end of the room. The
- * tabs below are student-scoped: read the content, see your own marks, see
- * your own attendance, see when the next class is. Nothing on this screen
- * creates or grades anything.
- */
-
 import { useMemo } from 'react'
 
 import { useQueryState } from '@/lib/view-state'

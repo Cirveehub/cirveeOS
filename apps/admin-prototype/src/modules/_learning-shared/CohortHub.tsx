@@ -1,19 +1,3 @@
-/**
- * The cohort hub shell — shared by `teaching` (Tutor) and `my-learning`
- * (Student), because both legacy apps this pass is modelled on independently
- * arrived at the exact same shape for "the page you land on after picking a
- * class": a hero banner naming the cohort and its facilitator, then a tab
- * strip bundling roster/attendance/materials/assignments/timetable behind
- * one page rather than five separate routes.
- *
- * This component is chrome only — it does not know what a roster or a
- * gradebook looks like. Each caller supplies its own tab content, so the
- * tutor's "Assignments" tab (create, grade) and the student's (submit, view
- * feedback) can differ completely while sharing the same hero and tab-strip
- * shell. That split is why this lives outside either module's own folder —
- * two sibling modules sharing one presentational shell is the deliberate
- * exception to "a module owns its own folder," not a breach of it.
- */
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Users } from 'lucide-react'
@@ -27,7 +11,6 @@ import type { Cohort, Course } from '@/mocks'
 export interface CohortHubTab {
   id: string
   label: string
-  /** Shown as a count pill on the tab, e.g. pending submissions. */
   badge?: number
   content: ReactNode
 }
@@ -35,12 +18,10 @@ export interface CohortHubTab {
 export interface CohortHubProps {
   cohort: Cohort
   course: Course
-  /** "Facilitator" card on the banner — the tutor's name, from the caller's own lookup. */
   facilitatorName?: string
   tabs: CohortHubTab[]
   backTo: string
   backLabel: string
-  /** Defaults to the first tab. */
   defaultTab?: string
 }
 

@@ -1,14 +1,3 @@
-/**
- * The automation module's vocabulary.
- *
- * Everything the screens need to turn a stored `AutomationNode` into something
- * a human reads: trigger names, operator lists, the plain-English rendering of
- * a condition group, the idempotency key preview, and the version lookups that
- * keep a historical run pointing at the definition it actually executed.
- *
- * No screen types a label inline. If a word appears twice, it lives here.
- */
-
 import {
   automationExceptionsCollection,
   automationRunsCollection,
@@ -38,13 +27,8 @@ import type {
 } from '@/mocks/types'
 import type { BadgeTone } from '@/ui'
 
-/* -------------------------------------------------------------------------- */
-/* Triggers                                                                   */
-/* -------------------------------------------------------------------------- */
-
 export interface TriggerMeta {
   label: string
-  /** The "Runs when" sentence the builder shows under the trigger picker. */
   runsWhen: string
   category: 'Sales' | 'Money' | 'Academy' | 'People' | 'Physical' | 'Schedule'
 }
@@ -171,17 +155,10 @@ export function triggerLabel(t: AutomationTriggerType): string {
   return TRIGGERS[t]?.label ?? t
 }
 
-/* -------------------------------------------------------------------------- */
-/* Actions                                                                    */
-/* -------------------------------------------------------------------------- */
-
 export interface ActionMeta {
   label: string
-  /** What the node card says before the inspector has been filled in. */
   blurb: string
-  /** Modules this action reaches into — drives the "modules touched" chips. */
   module: string
-  /** Not executable in a frontend-only prototype. */
   disabled?: boolean
 }
 
@@ -261,10 +238,6 @@ export const ACTION_ORDER: AutomationActionType[] = [
   'webhook',
 ]
 
-/* -------------------------------------------------------------------------- */
-/* Node kinds                                                                 */
-/* -------------------------------------------------------------------------- */
-
 export type NodeKind = AutomationNode['kind']
 
 export const NODE_LABEL: Record<NodeKind, string> = {
@@ -276,11 +249,6 @@ export const NODE_LABEL: Record<NodeKind, string> = {
   stop: 'Stop condition',
 }
 
-/**
- * The canvas colour language, expressed only in role and semantic tokens.
- * `*-fill` / `*-ink` / `*-line` travel as a set — never a `*-fill` with a
- * `*-text`, which reads in light and vanishes in dark.
- */
 export const NODE_STYLE: Record<NodeKind, { chip: string; rail: string; tone: BadgeTone }> = {
   trigger: { chip: 'bg-accent-subtle text-accent', rail: 'bg-accent', tone: 'accent' },
   condition: { chip: 'bg-warning-fill text-warning-ink', rail: 'bg-warning-500', tone: 'warning' },
@@ -289,10 +257,6 @@ export const NODE_STYLE: Record<NodeKind, { chip: string; rail: string; tone: Ba
   action: { chip: 'bg-success-fill text-success-ink', rail: 'bg-success-600', tone: 'success' },
   stop: { chip: 'bg-danger-fill text-danger-ink', rail: 'bg-danger-600', tone: 'danger' },
 }
-
-/* -------------------------------------------------------------------------- */
-/* Statuses                                                                   */
-/* -------------------------------------------------------------------------- */
 
 export const AUTOMATION_STATUS_LABEL: Record<AutomationStatus, string> = {
   draft: 'Draft',
@@ -355,15 +319,10 @@ export const EXCEPTION_STATUS_TONE: Record<AutomationExceptionStatus, BadgeTone>
   ignored: 'neutral',
 }
 
-/** `MessageDeliveryFailed` → `Message delivery failed`. */
 export function errorClassLabel(cls: string): string {
   const spaced = cls.replace(/([a-z])([A-Z])/g, '$1 $2')
   return spaced.charAt(0).toUpperCase() + spaced.slice(1).toLowerCase()
 }
-
-/* -------------------------------------------------------------------------- */
-/* Condition fields and operators                                             */
-/* -------------------------------------------------------------------------- */
 
 export type FieldType = 'text' | 'number' | 'money' | 'enum' | 'boolean' | 'date' | 'reference'
 
@@ -454,7 +413,6 @@ export function fieldLabel(path: string): string {
 export interface OperatorMeta {
   op: string
   label: string
-  /** `none` hides the value input entirely. */
   arity: 'one' | 'many' | 'two' | 'none'
 }
 
@@ -533,10 +491,6 @@ export function operatorArity(op: string): OperatorMeta['arity'] {
   return all.find((o) => o.op === op)?.arity ?? 'one'
 }
 
-/* -------------------------------------------------------------------------- */
-/* Condition groups, rendered as English                                      */
-/* -------------------------------------------------------------------------- */
-
 export type ConditionRule = { field: string; op: string; value: unknown }
 
 export function isGroup(r: ConditionRule | ConditionGroup): r is ConditionGroup {
@@ -560,7 +514,6 @@ export function ruleText(rule: ConditionRule): string {
   return `${head} ${valueText(rule.value, meta)}`
 }
 
-/** "Invoice business unit is Academy AND admission status is not Withdrawn". */
 export function groupText(group: ConditionGroup): string {
   if (!group.rules.length) return 'No conditions — every trigger passes'
   const joiner = group.operator === 'and' ? ' AND ' : ' OR '
@@ -576,10 +529,6 @@ export function countRules(group: ConditionGroup): number {
 export function emptyGroup(operator: 'and' | 'or' = 'and'): ConditionGroup {
   return { operator, rules: [] }
 }
-
-/* -------------------------------------------------------------------------- */
-/* Node summaries                                                             */
-/* -------------------------------------------------------------------------- */
 
 export function templateName(id: unknown): string {
   if (typeof id !== 'string') return 'no template selected'
@@ -611,7 +560,6 @@ function param(node: Extract<AutomationNode, { kind: 'action' }>, key: string): 
   return node.params[key]
 }
 
-/** Regenerates the sentence under an action card from its current parameters. */
 export function actionSummary(node: Extract<AutomationNode, { kind: 'action' }>): string {
   switch (node.actionType) {
     case 'send_message': {
@@ -692,11 +640,6 @@ export function nodeSummary(node: AutomationNode): string {
   }
 }
 
-/* -------------------------------------------------------------------------- */
-/* Node graph helpers                                                         */
-/* -------------------------------------------------------------------------- */
-
-/** Ids that live inside a branch lane, so the canvas does not render them twice. */
 export function laneChildIds(nodes: AutomationNode[]): Set<string> {
   const ids = new Set<string>()
   for (const n of nodes) {
@@ -705,7 +648,6 @@ export function laneChildIds(nodes: AutomationNode[]): Set<string> {
   return ids
 }
 
-/** The top-level stack: everything that is not nested inside a branch lane. */
 export function topLevelNodes(nodes: AutomationNode[]): AutomationNode[] {
   const nested = laneChildIds(nodes)
   return nodes.filter((n) => !nested.has(n.id))
@@ -738,7 +680,6 @@ export function modulesFor(nodes: AutomationNode[]): string[] {
   return [...set].sort()
 }
 
-/** `n7` → `n8`. Never reuses an id, so a deleted node's id stays retired. */
 export function nextNodeId(nodes: AutomationNode[]): string {
   let max = 0
   for (const n of nodes) {
@@ -747,10 +688,6 @@ export function nextNodeId(nodes: AutomationNode[]): string {
   }
   return `n${max + 1}`
 }
-
-/* -------------------------------------------------------------------------- */
-/* Builder validation                                                         */
-/* -------------------------------------------------------------------------- */
 
 export interface Issue {
   id: string
@@ -787,7 +724,6 @@ export function validate(name: string, nodes: AutomationNode[]): Issue[] {
       issues.push({ id: `rcp-${n.id}`, severity: 'error', nodeId: n.id, message: 'Send message needs a recipient.' })
   }
 
-  // Anything after a stop node on the top-level stack never runs.
   const top = topLevelNodes(nodes)
   const stopAt = top.findIndex((n) => n.kind === 'stop')
   if (stopAt >= 0 && stopAt < top.length - 1)
@@ -800,10 +736,6 @@ export function validate(name: string, nodes: AutomationNode[]): Issue[] {
   return issues
 }
 
-/* -------------------------------------------------------------------------- */
-/* Reliability — the idempotency guard, made concrete                         */
-/* -------------------------------------------------------------------------- */
-
 export const IDEMPOTENCY_FIELDS: Array<{ path: string; label: string; sample: string }> = [
   { path: 'person.id', label: 'Person', sample: 'per_0142' },
   { path: 'invoice.id', label: 'Invoice', sample: 'inv_0933' },
@@ -814,11 +746,6 @@ export const IDEMPOTENCY_FIELDS: Array<{ path: string; label: string; sample: st
   { path: 'run.date', label: 'Run date', sample: '2026-09-20' },
 ]
 
-/**
- * The preview under the key builder: `tuition-paid:per_0142:inv_0933`.
- * Two triggers producing the same key are the same run, and the second is
- * refused rather than executed.
- */
 export function idempotencyPreview(key: string, fields: string[]): string {
   const slug = key.trim() ? key.trim() : 'automation-key'
   if (!fields.length) return `${slug}:<no fields — every trigger would run again>`
@@ -838,10 +765,6 @@ export function retrySentence(r: Automation['reliability']): string {
   return `${attempts} with ${backoff}, then: ${ON_FAILURE_LABEL[r.onFailure].toLowerCase()}.`
 }
 
-/* -------------------------------------------------------------------------- */
-/* Versions — a run always resolves to the definition that executed it        */
-/* -------------------------------------------------------------------------- */
-
 export function versionsOf(automationKey: string): Automation[] {
   return automationsCollection
     .where((a) => a.automationKey === automationKey)
@@ -852,11 +775,6 @@ export function latestVersion(automationKey: string): Automation | undefined {
   return versionsOf(automationKey)[0]
 }
 
-/**
- * The automation a run executed. Falls back to the recorded id, so a run whose
- * version row was superseded still resolves — historical runs are never
- * rewritten to point at a newer definition.
- */
 export function automationForRun(run: AutomationRun): Automation | undefined {
   const byVersion = automationsCollection.where(
     (a) => a.automationKey === run.automationKey && a.version === run.automationVersion,
@@ -864,7 +782,6 @@ export function automationForRun(run: AutomationRun): Automation | undefined {
   return byVersion ?? automationsCollection.find(run.automationId)
 }
 
-/** Non-null when the definition has moved on since this run executed. */
 export function versionDrift(run: AutomationRun): { current: number } | null {
   const current = latestVersion(run.automationKey)
   if (!current || current.version <= run.automationVersion) return null
@@ -875,10 +792,6 @@ export function automationName(id: string): string {
   return automationsCollection.find(id)?.name ?? 'Unknown automation'
 }
 
-/* -------------------------------------------------------------------------- */
-/* Runs and exceptions, derived                                               */
-/* -------------------------------------------------------------------------- */
-
 export function runsFor(automationId: string): AutomationRun[] {
   return automationRunsCollection.where((r) => r.automationId === automationId)
 }
@@ -887,7 +800,6 @@ export function openExceptionsFor(automationId: string): AutomationException[] {
   return automationExceptionsCollection.where((e) => e.automationId === automationId && e.status === 'open')
 }
 
-/** Only the ~160 most recent runs carry a step trace; the rest keep a summary. */
 export function hasTrace(run: AutomationRun): boolean {
   return run.steps.length > 0
 }
@@ -897,10 +809,6 @@ export function runDuration(run: AutomationRun): string {
   if (run.durationMs < 1000) return `${run.durationMs} ms`
   return `${(run.durationMs / 1000).toFixed(1)} s`
 }
-
-/* -------------------------------------------------------------------------- */
-/* Names                                                                      */
-/* -------------------------------------------------------------------------- */
 
 export function personName(id: PersonId | string | null | undefined): string {
   if (!id) return 'Unassigned'
@@ -928,10 +836,6 @@ export function cohortCode(id: string | null | undefined): string {
   if (!id) return '—'
   return cohortsCollection.find(id)?.code ?? String(id)
 }
-
-/* -------------------------------------------------------------------------- */
-/* Misc                                                                       */
-/* -------------------------------------------------------------------------- */
 
 export function slugify(input: string): string {
   return input

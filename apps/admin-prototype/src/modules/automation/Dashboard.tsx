@@ -1,25 +1,3 @@
-/**
- * §6.1 — the automation dashboard.
- *
- * Every number here is derived from the collections through `automationHealth`
- * and the run rows themselves. None is a constant, so pausing an automation,
- * firing a trigger or clearing an exception moves the figure on this screen
- * immediately.
- *
- * The density pass changed how many of them are visible at once. The screen
- * used to render ten stat cards and five chart panels in one flat scroll —
- * over the checklist's threshold twice over — so it now opens on an
- * **Overview** tab carrying the four numbers that answer "is automation
- * carrying the load", with the fleet, the run volume and the reliability
- * picture each behind their own tab. Nothing was deleted; the tab lives in the
- * query string, so any of the four is a link.
- *
- * The stat that matters most is still the least obvious one: **idempotency
- * collisions prevented**, on the Reliability tab. It counts the runs the
- * duplicate guard refused — work that would otherwise have happened twice, in
- * money and in messages.
- */
-
 import { useNavigate } from 'react-router-dom'
 import { Activity, AlertTriangle, LayoutGrid, Plus, ShieldCheck, Workflow } from 'lucide-react'
 

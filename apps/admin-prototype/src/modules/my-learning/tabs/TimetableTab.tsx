@@ -1,13 +1,3 @@
-/**
- * The Timetable tab of the student's course hub.
- *
- * The legacy portal shows a weekly schedule derived from a recurring pattern
- * — day, type, time. Cirvee OS timetables actual `ClassSession` rows with a
- * topic, a room, a tutor and a status, so this lists the real sessions: what
- * is next, what it is about, and — the thing a recurring pattern can never
- * say — which one has been cancelled or rescheduled.
- */
-
 import { useMemo } from 'react'
 
 import { cn } from '@/lib/cn'

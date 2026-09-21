@@ -1,23 +1,3 @@
-/**
- * §5.10 — the procurement register.
- *
- * This route used to render the requester's own approval inbox, which answered
- * a different question entirely. What procurement actually needs is a stage
- * tracker following the PRD's flow — Request → Approval → Quote and vendor →
- * Purchase → Payment → Asset or expense record — with the preconditions of
- * each hop enforced rather than described.
- *
- * Two things make the screen worth having. The phase strip at the top is the
- * flow itself, with live counts and committed value per phase, so "where does
- * our money sit right now" is answered before any row is read. And the drawer
- * advances a request one stage at a time through `procurement-flow.ts`, which
- * refuses the hop and says why when the data behind it is missing — an order
- * with no vendor, a closure with no asset or expense record behind it.
- *
- * Nothing is deleted. A request that does not proceed is rejected with a
- * reason, and rejection is terminal and visible.
- */
-
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
@@ -174,7 +154,6 @@ export default function Procurement() {
     [requests],
   )
 
-  /** The approval behind a request: the explicit link first, then the engine's own back-reference. */
   const approvalFor = useMemo(() => {
     const byId = new Map(approvals.map((a) => [a.id as string, a]))
     const byEntity = new Map(
@@ -234,8 +213,6 @@ export default function Procurement() {
   }, [requests, q, phaseFilter, stage, category, unit, branch])
 
   const filtersActive = Boolean(q || phaseFilter || stage || category || unit || branch)
-
-  /* ---- writes ---------------------------------------------------------- */
 
   const stamp = atTime(TODAY, 10, 0)
   const actor = currentActingUser()
@@ -393,8 +370,6 @@ export default function Procurement() {
     })
     toast.success(`${request.ref} rejected. The row stays on the register with the reason.`)
   }
-
-  /* ---- columns --------------------------------------------------------- */
 
   const allColumns: Record<string, Column<ProcurementRequest>> = {
     ref: {
@@ -554,8 +529,6 @@ export default function Procurement() {
   }
 
   const columns = visible.map((key) => allColumns[key]).filter(Boolean)
-
-  /* ---- drawer ---------------------------------------------------------- */
 
   const drawerApproval = open ? approvalFor(open) : null
   const drawerCheck = open ? canAdvance(open, drawerApproval?.status ?? null) : null
@@ -949,10 +922,6 @@ export default function Procurement() {
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Quote                                                                      */
-/* -------------------------------------------------------------------------- */
-
 function QuoteModal({
   request,
   onClose,
@@ -1038,10 +1007,6 @@ function QuoteModal({
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Small helpers                                                              */
-/* -------------------------------------------------------------------------- */
-
 const STAGE_ORDER_INDEX: Record<ProcurementStage, number> = {
   requested: 0,
   approved: 1,
@@ -1062,7 +1027,6 @@ const PHASE_ICON: Record<string, LucideIcon> = {
   record: Boxes,
 }
 
-/** Dates derive from the seed's fixed clock, never `Date.now()`. */
 function addBusinessDays(from: string, days: number): string {
   const date = new Date(`${from}T00:00:00Z`)
   date.setUTCDate(date.getUTCDate() + days)

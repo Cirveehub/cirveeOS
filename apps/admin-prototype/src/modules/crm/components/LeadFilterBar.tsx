@@ -1,59 +1,67 @@
-/**
- * The lead filter bar, shared by the list and the pipeline board.
- *
- * Every control writes straight to the query string, so the view a growth
- * head is looking at is a URL they can paste into a WhatsApp group.
- */
-
 import { useMemo, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { Badge, Button, Checkbox, FilterBar, Input, Popover, type FilterDef } from '@/ui'
-import type { PersonId } from '@/mocks/types'
+import type { LeadStage, PersonId } from '@/mocks/types'
 import {
   ALL_SOURCES,
-  ALL_STAGES,
+  RAW_STAGES_OF,
+  SIMPLE_OUTCOMES,
+  SIMPLE_PIPELINE,
+  SIMPLE_STAGE_LABEL,
   SOURCE_LABELS,
-  STAGE_LABELS,
   useDirectory,
+  type SimpleStage,
 } from '../lib/lookups'
 import { CREATED_RANGES, NEXT_ACTION_OPTIONS, SAVED_VIEWS } from '../lib/lead-filters'
 import type { QueryState } from '../lib/view-state'
 import { PersonPicker } from './Pickers'
 
+const ALL_SIMPLE: SimpleStage[] = [...SIMPLE_PIPELINE, ...SIMPLE_OUTCOMES]
+
 export interface LeadFilterBarProps {
   query: QueryState
+  hideOwner?: boolean
 }
 
-export function LeadFilterBar({ query }: LeadFilterBarProps) {
-  const { courseOptions, branchOptions, unitOptions, staffOptions } = useDirectory()
+export function LeadFilterBar({ query, hideOwner = false }: LeadFilterBarProps) {
+  const { courseOptions, branchOptions, staffOptions } = useDirectory()
 
   const filters: FilterDef[] = useMemo(
     () => [
       { key: 'course', label: 'Course', options: courseOptions },
       { key: 'branch', label: 'Branch', options: branchOptions },
-      { key: 'unit', label: 'Unit', options: unitOptions },
       {
         key: 'created',
-        label: 'Created',
+        label: 'Came in',
         options: CREATED_RANGES.map((r) => ({ value: r.value, label: r.label })),
         placeholder: 'Any time',
       },
       {
         key: 'next',
-        label: 'Next action',
+        label: 'Next step',
         options: NEXT_ACTION_OPTIONS,
-        placeholder: 'Any next action',
+        placeholder: 'Any',
       },
     ],
-    [courseOptions, branchOptions, unitOptions],
+    [courseOptions, branchOptions],
   )
 
   const activeView = query.get('view')
+  const rawStages = query.getList('stage') as LeadStage[]
+  const selectedSimple = ALL_SIMPLE.filter((s) => RAW_STAGES_OF[s].every((raw) => rawStages.includes(raw)))
+
+  const toggleSimple = (stage: SimpleStage) => {
+    const raws = RAW_STAGES_OF[stage]
+    const on = raws.every((raw) => rawStages.includes(raw))
+    const next = on
+      ? rawStages.filter((raw) => !raws.includes(raw))
+      : [...new Set([...rawStages, ...raws])]
+    query.setList('stage', next)
+  }
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-label-10 text-text-muted">Saved views</span>
         {SAVED_VIEWS.map((view) => {
           const active = activeView === view.key
           return (
@@ -63,12 +71,9 @@ export function LeadFilterBar({ query }: LeadFilterBarProps) {
               variant={active ? 'primary' : 'secondary'}
               title={view.description}
               onClick={() => {
-                if (active) {
-                  query.clear()
-                  return
-                }
-                query.clear()
-                query.setMany({ ...view.params, view: view.key })
+                const scope = query.get('scope')
+                query.clear(['layout'])
+                if (!active) query.setMany({ ...view.params, view: view.key, scope })
               }}
             >
               {view.label}
@@ -80,26 +85,29 @@ export function LeadFilterBar({ query }: LeadFilterBarProps) {
       <FilterBar
         search={query.get('q') ?? ''}
         onSearchChange={(value) => query.set('q', value || undefined)}
-        searchPlaceholder="Search name, phone, email or reference"
+        searchPlaceholder="Search name, phone or email"
         filters={filters}
         values={Object.fromEntries(filters.map((f) => [f.key, query.get(f.key)]))}
         onFilterChange={(key, value) => query.set(key, value)}
-        onClearAll={() => query.clear()}
+        onClearAll={() => query.clear(['layout', 'scope'])}
       >
         <MultiSelectFilter
           label="Stage"
-          selected={query.getList('stage')}
-          options={ALL_STAGES.map((s) => ({ value: s, label: STAGE_LABELS[s] }))}
-          onChange={(values) => query.setList('stage', values)}
+          selected={selectedSimple}
+          options={ALL_SIMPLE.map((s) => ({ value: s, label: SIMPLE_STAGE_LABEL[s] }))}
+          onChange={(values) => query.setList('stage', values.flatMap((v) => RAW_STAGES_OF[v as SimpleStage]))}
+          onToggle={(value) => toggleSimple(value as SimpleStage)}
         />
+        {!hideOwner && (
+          <MultiSelectFilter
+            label="Handled by"
+            selected={query.getList('owner')}
+            options={staffOptions}
+            onChange={(values) => query.setList('owner', values)}
+          />
+        )}
         <MultiSelectFilter
-          label="Owner"
-          selected={query.getList('owner')}
-          options={[{ value: 'me', label: 'Me (Adebayo Ogunlana)' }, ...staffOptions]}
-          onChange={(values) => query.setList('owner', values)}
-        />
-        <MultiSelectFilter
-          label="Source"
+          label="Came via"
           selected={query.getList('source')}
           options={ALL_SOURCES.map((s) => ({ value: s, label: SOURCE_LABELS[s] }))}
           onChange={(values) => query.setList('source', values)}
@@ -107,7 +115,7 @@ export function LeadFilterBar({ query }: LeadFilterBarProps) {
 
         <div className="w-52">
           <PersonPicker
-            label="Referrer"
+            label="Referred by"
             value={(query.get('referrer') as PersonId | undefined) ?? null}
             onChange={(value) => query.set('referrer', value ?? undefined)}
             relationship="referrer"
@@ -115,7 +123,7 @@ export function LeadFilterBar({ query }: LeadFilterBarProps) {
         </div>
 
         <label className="flex items-center gap-1.5 text-body-13 text-text-secondary">
-          Days in stage over
+          Waiting more than
           <Input
             type="number"
             min={0}
@@ -123,29 +131,31 @@ export function LeadFilterBar({ query }: LeadFilterBarProps) {
             containerClassName="w-20"
             value={query.get('days') ?? ''}
             onChange={(event) => query.set('days', event.target.value || undefined)}
-            aria-label="Minimum days in stage"
+            aria-label="Waiting more than this many days"
           />
+          days
         </label>
       </FilterBar>
     </div>
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Multi-select                                                               */
-/* -------------------------------------------------------------------------- */
-
 export interface MultiSelectFilterProps {
   label: string
   options: Array<{ value: string; label: string }>
   selected: string[]
   onChange: (values: string[]) => void
+  onToggle?: (value: string) => void
 }
 
-export function MultiSelectFilter({ label, options, selected, onChange }: MultiSelectFilterProps) {
+export function MultiSelectFilter({ label, options, selected, onChange, onToggle }: MultiSelectFilterProps) {
   const [open, setOpen] = useState(false)
 
   const toggle = (value: string) => {
+    if (onToggle) {
+      onToggle(value)
+      return
+    }
     onChange(selected.includes(value) ? selected.filter((v) => v !== value) : [...selected, value])
   }
 

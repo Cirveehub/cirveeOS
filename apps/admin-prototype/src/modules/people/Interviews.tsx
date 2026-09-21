@@ -1,12 +1,3 @@
-/**
- * Interviews — `/people/interviews` (screen-spec §9).
- *
- * Scheduling is a one-shot act with no sequencing, so it is a single modal.
- * The scorecard is the screen that matters: a structured set of competency
- * scores plus one recommendation, submitted once, which is what lets two
- * candidates be compared on something other than who interviewed last.
- */
-
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CalendarPlus, ClipboardList, Video } from 'lucide-react'

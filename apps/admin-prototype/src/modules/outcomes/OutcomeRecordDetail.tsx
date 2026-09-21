@@ -1,14 +1,3 @@
-/**
- * One graduate's outcome record.
- *
- * Three PRD rules are load-bearing on this screen:
- *   1. the record was opened automatically at certification, with checkpoints
- *      already scheduled at 3, 6 and 12 months;
- *   2. income change is shown only where the graduate volunteered it, and is
- *      labelled self-reported wherever it appears;
- *   3. consent is required and recorded before the record is used publicly —
- *      so the consent panel is stated at the top, not buried.
- */
 import { useMemo } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, CalendarClock, CheckCircle2, FileBadge, ShieldCheck, ShieldOff } from 'lucide-react'

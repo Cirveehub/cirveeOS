@@ -1,19 +1,3 @@
-/**
- * The tutor's home.
- *
- * Legacy shape, exactly: three stacked sections and nothing else — a four-tile
- * stat row, an upcoming-classes table, an activity list. The legacy portal's
- * Dashboard.tsx is literally `<QuickStats /><UpcomingClasses /><Announcements />`,
- * and the restraint is the point: a tutor has ten minutes before a class.
- *
- * What is different is underneath. Every number here is computed live from the
- * real collections — the tutor's active assignments, the sessions on those
- * cohorts, the submissions awaiting grading on those cohorts' assignments —
- * rather than read from a stats endpoint. The third card is "recent activity"
- * instead of "announcements" because Cirvee OS has no announcement entity and
- * inventing one would be worse than showing the real events a tutor cares
- * about: work arriving, registers taken, students flagged for attention.
- */
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import {
@@ -93,8 +77,6 @@ export default function Dashboard() {
     [sessions, myCohortIds],
   )
 
-  /* An assignment reaches this tutor either because it is pinned to one of
-     their cohorts or because it is course-wide on a course they teach. */
   const myAssignmentIds = useMemo(() => {
     const courseIds = new Set(myCohorts.map((c) => c.courseId))
     return new Set(

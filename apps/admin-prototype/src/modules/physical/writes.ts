@@ -1,20 +1,3 @@
-/**
- * Every write the physical layer performs, plus the rule that makes the whole
- * module worth having.
- *
- * **Access derives from status.** `accessDecision()` reads the person's live
- * relationships, enrolment and balance and returns what the reader would do
- * right now. Nobody revokes a card when a student withdraws or stops paying —
- * the card simply stops opening the door, because the rule reads the status
- * rather than a separately maintained access list. The issue screen shows that
- * decision before a card is handed over, so a card is never issued to someone
- * it will not work for.
- *
- * Card issue and deactivation are both audited, per the PRD's audited-actions
- * list. A lost card is never removed — it is deactivated with a reason and the
- * replacement points back at it.
- */
-
 import { formatNaira } from '@/lib/format'
 import {
   TODAY,
@@ -59,10 +42,6 @@ import {
   type Visitor,
 } from '@/mocks/types'
 
-/* -------------------------------------------------------------------------- */
-/* The clock                                                                  */
-/* -------------------------------------------------------------------------- */
-
 export function nowIso(): string {
   const d = new Date()
   const pad2 = (n: number) => String(n).padStart(2, '0')
@@ -85,10 +64,6 @@ function userName(id: string | null | undefined): string {
   if (!user) return 'Unknown user'
   return personName(user.personId) || user.email
 }
-
-/* -------------------------------------------------------------------------- */
-/* Audit                                                                      */
-/* -------------------------------------------------------------------------- */
 
 let auditSequence = 0
 
@@ -125,16 +100,9 @@ export function emitAudit(input: {
   })
 }
 
-/* -------------------------------------------------------------------------- */
-/* Access derives from status                                                 */
-/* -------------------------------------------------------------------------- */
-
 export interface AccessDecision {
-  /** What a reader would do for this person right now. */
   granted: boolean
-  /** The status the decision is read from, in plain words. */
   standing: string
-  /** Why a reader would deny, matching the tap log's denial reasons. */
   denialReason:
     | 'card_deactivated'
     | 'outside_access_hours'
@@ -142,15 +110,9 @@ export interface AccessDecision {
     | 'unpaid_balance'
     | 'not_authorised_for_area'
     | null
-  /** Worth saying at the desk even when access is granted. */
   notes: string[]
 }
 
-/**
- * The rule, in one function. It reads relationships, enrolment and balance —
- * never a stored "has access" flag, because that flag is exactly the thing
- * nobody remembers to turn off.
- */
 export function accessDecision(personId: PersonId): AccessDecision {
   const notes: string[] = []
 
@@ -216,10 +178,6 @@ export function accessDecision(personId: PersonId): AccessDecision {
   }
 }
 
-/* -------------------------------------------------------------------------- */
-/* Cards                                                                      */
-/* -------------------------------------------------------------------------- */
-
 export function nextCardRef(): { id: string; cardId: string } {
   const numbers = cardsCollection
     .all()
@@ -230,7 +188,6 @@ export function nextCardRef(): { id: string; cardId: string } {
   return { id: `crd-ui-${padded}-${Date.now().toString(36)}`, cardId: `CRD-${padded}` }
 }
 
-/** A plausible 14-character hex UID, derived from the card reference. */
 export function suggestUid(cardRef: string): string {
   let hash = 2166136261
   for (let i = 0; i < cardRef.length; i++) {
@@ -262,15 +219,9 @@ export interface IssueCardInput {
   branchId: BranchId
   accessProfile: string
   uid: string
-  /** Set when this card replaces a lost or damaged one. */
   replacesCardId: CardId | null
 }
 
-/**
- * Issuing is audited, and so is the deactivation of the card being replaced.
- * The two events are what makes "instant deactivation plus replacement, both
- * logged" visible on the card list rather than a claim in a slide.
- */
 export function issueCard(input: IssueCardInput): Card {
   const at = nowIso()
   const ref = nextCardRef()
@@ -316,7 +267,6 @@ export function issueCard(input: IssueCardInput): Card {
   return card
 }
 
-/** Never removed. A deactivated card keeps its history and its tap log. */
 export function deactivateCard(
   card: Card,
   reason: string,
@@ -341,10 +291,6 @@ export function deactivateCard(
   })
 }
 
-/* -------------------------------------------------------------------------- */
-/* Kiosk — a walk-in enquiry becomes a real lead                              */
-/* -------------------------------------------------------------------------- */
-
 export interface KioskEnquiryInput {
   firstName: string
   lastName: string
@@ -359,19 +305,11 @@ export interface KioskEnquiryInput {
 export interface KioskEnquiryResult {
   lead: Lead
   person: Person
-  /** True when the phone or email matched somebody already on file. */
   matchedExistingPerson: boolean
   ownerUserId: UserId
   routingRule: string
 }
 
-/**
- * The same shape `crm/pages/NewLead.tsx` writes, reduced to what a walk-in
- * gives you at the desk. A phone or email that matches an existing person
- * reuses that record rather than creating a second one — the cheap version of
- * the wizard's duplicate check, and the difference between a demo that looks
- * real and one that quietly grows two Chiamakas.
- */
 export function findPersonByContact(phone: string, email: string): Person | null {
   const normalisedPhone = phone.replace(/\D/g, '').slice(-10)
   const normalisedEmail = email.trim().toLowerCase()
@@ -400,12 +338,6 @@ function nextLeadRef(): string {
   return `${prefix}${String(next).padStart(4, '0')}`
 }
 
-/**
- * Routing is a real rule, not a constant: the lead goes to whoever is carrying
- * the fewest live leads, and the rule is named in the ownership history so the
- * profile can say why.
- */
-/** Stages that no longer count as pipeline weight when routing. */
 const CLOSED_STAGES: LeadStage[] = ['enrolled', 'not_interested', 'lost', 'invalid', 'unresponsive']
 
 function routeOwner(): { ownerUserId: UserId; rule: string } {
@@ -489,7 +421,6 @@ export function createKioskEnquiry(input: KioskEnquiryInput): KioskEnquiryResult
     stageEnteredAt: at,
     daysInStage: 0,
     quotedValue: null,
-    /* The three attribution fields stay independent — a walk-in has no referrer. */
     referrerPersonId: null,
     ownerUserId,
     closerUserId: null,
@@ -572,23 +503,13 @@ export function createKioskEnquiry(input: KioskEnquiryInput): KioskEnquiryResult
   return { lead, person, matchedExistingPerson: existing !== null, ownerUserId, routingRule: rule }
 }
 
-/* -------------------------------------------------------------------------- */
-/* Kiosk — check-in and visitor sign-in                                       */
-/* -------------------------------------------------------------------------- */
-
 export interface KioskTapResult {
   card: Card | null
   decision: AccessDecision | null
-  /** What the reader did, once the card and the status are both considered. */
   result: 'granted' | 'denied'
   message: string
 }
 
-/**
- * A tap at the kiosk. The card must exist and be active, and the holder's
- * status must allow it — two separate checks, which is why a deactivated card
- * and a withdrawn student produce different denial reasons.
- */
 export function recordKioskTap(cardRef: string, readerId: ReaderId | null): KioskTapResult {
   const normalised = cardRef.trim().toUpperCase()
   const card =
@@ -610,8 +531,6 @@ export function recordKioskTap(cardRef: string, readerId: ReaderId | null): Kios
   const granted = !cardBlocked && decision.granted
   const denialReason = cardBlocked ? 'card_deactivated' : decision.denialReason
 
-  /* The tap is only logged against a real reader — a phantom reader id would
-     poison the tap log, which is the one place attendance is reconstructed from. */
   const reader =
     (readerId ? readersCollection.find(readerId) : null) ??
     readersCollection.all().find((r) => r.type === 'kiosk') ??

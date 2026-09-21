@@ -1,12 +1,3 @@
-/**
- * Module & lesson editor — `/learn/courses/:courseId/modules/:moduleId/lessons/:lessonId`.
- *
- * The screen that makes multi-format real. Five format slots per lesson; the
- * Missing state is the most important empty state in the module, so it is
- * designed rather than left to look broken. There is no real media anywhere —
- * every player is a shell with honest metadata.
- */
-
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
@@ -337,10 +328,6 @@ function LessonPane({ courseId, lessonId }: { courseId: string; lessonId: string
     </div>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* Content tab — the five format slots                                        */
-/* -------------------------------------------------------------------------- */
 
 function ContentTab({
   lesson,
@@ -897,10 +884,6 @@ function TranscriptFields({ asset, onPatch }: { asset: ContentAsset; onPatch: (d
 
   return (
     <div className="space-y-3">
-      <Alert tone="info" title="Transcripts are what make the library searchable">
-        Everything typed here is indexed by the content library's full-text search. A lesson with no
-        transcript cannot be found by what was said in it.
-      </Alert>
       <Field label="Transcript" id={`transcript-${asset.id}`} hint={`${body.length} characters`}>
         <Textarea
           id={`transcript-${asset.id}`}
@@ -981,10 +964,6 @@ function PlayerShell({
     </div>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* Other tabs                                                                 */
-/* -------------------------------------------------------------------------- */
 
 function ResourcesTab({ lesson, onPatch }: { lesson: Lesson; onPatch: (d: Partial<Lesson>) => void }) {
   const [label, setLabel] = useState('')
@@ -1339,8 +1318,6 @@ function AuditTab({ lessonId }: { lessonId: string }) {
     </Card>
   )
 }
-
-/* -------------------------------------------------------------------------- */
 
 function countFormats(lesson: Lesson): number {
   return FORMATS.filter((f) => lesson.formats[f.format] !== undefined).length

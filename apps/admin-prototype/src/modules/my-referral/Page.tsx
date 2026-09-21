@@ -1,18 +1,3 @@
-/**
- * My referral — `/my-referral`.
- *
- * The one page every persona in the app gets: your link, who you've
- * referred, and what you've earned. Built on the same `ReferrerProfile` /
- * `Referral` / `Commission` records the admin `referral` module already
- * manages — see `common.tsx` for why the numbers here are computed exactly
- * the way `ReferrerProfile.tsx` computes them for the staff-facing version
- * of this same data.
- *
- * Deliberately one page, no tabs. This is a personal utility, not a
- * mini-app — the density everything else in the sidebar restructure was
- * built around.
- */
-
 import { useState } from 'react'
 import { Check, Copy, Gift, Landmark, ShieldCheck, Users } from 'lucide-react'
 
@@ -36,7 +21,7 @@ import {
 import type { Commission, Referral } from '@/mocks'
 
 import { STATE_LABEL, courseTitle, personName } from '../referral/lib'
-import { StateBadge } from '../referral/parts'
+import { SimpleStateBadge } from '../referral/parts'
 import { referralToast, referrerTypeForPersona, Screen, useMyReferral } from './common'
 import { generateMyReferralCode, updateMyPayoutDetails } from './writes'
 
@@ -198,7 +183,7 @@ const commissionColumns: Array<Column<Commission>> = [
     key: 'state',
     header: 'Status',
     align: 'right',
-    cell: (row) => <StateBadge state={row.state} />,
+    cell: (row) => <SimpleStateBadge commission={row} />,
     sortValue: (row) => STATE_LABEL[row.state],
     width: 130,
   },

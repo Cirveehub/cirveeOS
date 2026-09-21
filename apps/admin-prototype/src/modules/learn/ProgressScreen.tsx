@@ -1,11 +1,3 @@
-/**
- * Progress — `/learn/progress`.
- *
- * A list that finds the learner in trouble, and a matrix that finds the stuck
- * cohort. Attention flags are advisory: they create a task for an advisor and
- * never act on their own, which the screen says out loud.
- */
-
 import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Download, Flag, Grid3x3, MessageSquare, Rows3, Users } from 'lucide-react'
@@ -163,11 +155,6 @@ export default function ProgressScreen() {
 
   const hasFilters = Boolean(search || course || cohortFilter || flagFilter)
 
-  /**
-   * Exports exactly what is on screen, not the whole collection — an export
-   * that ignores the filters is how a spreadsheet ends up contradicting the
-   * screen it came from.
-   */
   function exportCsv() {
     downloadCsv(
       `cirvee-learn-progress-${new Date().toISOString().slice(0, 10)}.csv`,
@@ -501,10 +488,6 @@ export default function ProgressScreen() {
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Matrix                                                                     */
-/* -------------------------------------------------------------------------- */
-
 function ProgressMatrix({
   rows,
   lessons,
@@ -610,10 +593,6 @@ function ProgressMatrix({
     </div>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* Flag for attention                                                         */
-/* -------------------------------------------------------------------------- */
 
 function FlagModal({ row, onClose }: { row: ProgressRow | null; onClose: () => void }) {
   const [flag, setFlag] = useState<AttentionFlag>('low_lms_activity')

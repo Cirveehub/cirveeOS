@@ -1,11 +1,3 @@
-/**
- * §14 — the tap log.
- *
- * Two columns carry the module's argument. **Synced at** differs from the tap
- * time on a buffered row, which is how attendance survives a dropped network.
- * **Denial reason** shows that almost every denial is an operational fact —
- * an unpaid balance, a withdrawn enrolment — not an intrusion attempt.
- */
 import { useMemo, useState } from 'react'
 import { DoorOpen } from 'lucide-react'
 
@@ -74,7 +66,6 @@ export default function PhysicalTaps() {
   const { visible, defaultKeys, setVisible } = useColumnVisibility(COLUMN_CATALOGUE)
 
   const [search, setSearch] = useState('')
-  /* Seeded from the query string — the dashboard links here with ?result=denied. */
   const initial = useQueryState()
   const [filters, setFilters] = useState<FilterValues>(() => ({
     result: initial.get('result'),

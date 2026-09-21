@@ -1,26 +1,3 @@
-/**
- * Executive Home — `/home` (screen-spec §1.1).
- *
- * The landing point, and the screen that has to make the case in ten seconds
- * that nine apps became one. It used to make that case by showing everything
- * at once — sixteen stat cards across four un-deferred bands plus six more
- * chart panels, all in one scroll, with no `Tabs` anywhere in the module. An
- * information-density audit flagged this as the single worst offender in the
- * app: ~22 individual widgets on the first screen anyone sees.
- *
- * The fix keeps every one of those numbers — nothing here was cut — and
- * changes how many are visible without a click. **Overview** (the tab this
- * page opens on) shows one headline card per PRD question plus the brief and
- * the attention rail: the "ten-second read." Each question then gets its own
- * tab with the full stat band and its charts, for whoever wants to go deeper
- * on exactly one of the four questions rather than all of them at once.
- *
- * Every figure is still a selector call against the live store. Complete
- * Flow 1 in CRM and Finance and the collected-revenue card here moves on its
- * own, because the collections this page subscribes to are the same objects
- * those screens wrote to.
- */
-
 import { Banknote, LayoutGrid, RotateCcw, TrendingUp, Users2, Workflow } from 'lucide-react'
 
 import { LAST_90D } from '@/mocks'
@@ -55,11 +32,6 @@ const HOME_TABS: TabItem[] = [
   { id: 'organisation', label: 'Organisation', icon: Workflow },
 ]
 
-/**
- * The spec's empty state: "shows 'No data for this period' per card rather
- * than a whole-page empty", because a founder who has just reset the demo
- * still needs to see the shape of the screen.
- */
 function NoDataBand({ question }: { question: string }) {
   return (
     <section className="space-y-3" aria-label={question}>

@@ -1,24 +1,3 @@
-/**
- * Every write Academy operations performs.
- *
- * The module was read-only before this pass, which meant the two rules the PRD
- * is most insistent about had nowhere to be demonstrated:
- *
- *  1. **A tutor is never reassigned in place.** Replacing one ends the
- *     outgoing assignment with a date and a reason and starts a new record.
- *     The sessions the outgoing tutor delivered stay on their row, which is
- *     what makes delivery credit and pay reconcilable months later.
- *  2. **An attendance override needs a reason and an audit event.** Changing
- *     what the system recorded is a human decision, so it is captured as one —
- *     actor, timestamp, previous state, new state, reason.
- *
- * Enrolment is the seam this module shares with Cirvee Learn: the `Enrollment`
- * written here is the same record the Learn module reads for progress,
- * grading and certificate eligibility. It is also the record an admission
- * produces — so the modal that calls `enrolFromAdmission` prefers a confirmed
- * admission and only falls back to a direct enrolment with a stated reason.
- */
-
 import {
   TODAY,
   CURRENT_USER_ID,
@@ -56,11 +35,6 @@ import {
 
 import { personName, userName } from './shared'
 
-/* -------------------------------------------------------------------------- */
-/* The clock and the audit trail                                              */
-/* -------------------------------------------------------------------------- */
-
-/** The seed's fixed date, the wall clock's time — so relative dates never rot. */
 export function nowIso(): string {
   const d = new Date()
   const pad = (n: number) => String(n).padStart(2, '0')
@@ -84,7 +58,6 @@ export interface AuditInput {
   source?: AuditSource
 }
 
-/** Append-only. There is no update or delete path for an audit event. */
 export function emitAudit(input: AuditInput): AuditEvent {
   auditSequence += 1
   const user = usersCollection.find(CURRENT_USER_ID)
@@ -108,16 +81,6 @@ export function emitAudit(input: AuditInput): AuditEvent {
   })
 }
 
-/* -------------------------------------------------------------------------- */
-/* Enrolment                                                                  */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Admissions against this cohort that have been paid for or approved but have
- * not produced an enrolment yet. This is the list the enrol dialog should
- * prefer — an enrolment with no admission behind it has no fee, no invoice and
- * nothing for finance to reconcile against.
- */
 export function admissionsAwaitingEnrolment(cohortId: string): Admission[] {
   return admissionsCollection
     .where(
@@ -133,10 +96,8 @@ export function admissionsAwaitingEnrolment(cohortId: string): Admission[] {
 export interface EnrolInput {
   cohortId: string
   personId: PersonId
-  /** Null only on the direct path, which then requires `reason`. */
   admissionId: string | null
   advisorUserId: UserId | null
-  /** Required when `admissionId` is null — why this bypassed admissions. */
   reason: string | null
 }
 
@@ -145,12 +106,6 @@ export interface EnrolResult {
   cohort: Cohort
 }
 
-/**
- * One enrolment, the Student relationship that goes with it, the cohort's seat
- * count, and — when it came from one — the admission is marked enrolled.
- * `seats` is not a hard cap here: over-enrolling is an operational decision
- * the cohort profile shows rather than a write this function refuses.
- */
 export function enrolStudent(input: EnrolInput): EnrolResult {
   const at = nowIso()
   const cohort = cohortsCollection.find(input.cohortId)
@@ -172,9 +127,6 @@ export function enrolStudent(input: EnrolInput): EnrolResult {
     personId: input.personId,
     cohortId: cohort.id,
     courseId: cohort.courseId,
-    // The type requires an admission id. A direct enrolment points at the
-    // cohort instead, which is visibly not an admission reference — better
-    // than inventing a fake one that finance would later try to reconcile.
     admissionId: (admission?.id ?? cohort.id) as Enrollment['admissionId'],
     unitId: cohort.unitId,
     enrolledAt: TODAY,
@@ -192,7 +144,6 @@ export function enrolStudent(input: EnrolInput): EnrolResult {
       updatedBy: CURRENT_USER_ID,
     }) ?? cohort
 
-  /* Identity gains a Student relationship rather than a second Person. */
   const existingRelationship = relationshipsCollection
     .all()
     .find((r) => r.personId === input.personId && r.type === 'student' && r.status === 'active')
@@ -239,15 +190,10 @@ export function enrolStudent(input: EnrolInput): EnrolResult {
     after: admission ? `active — from admission ${admission.ref}` : `active — direct enrolment: ${input.reason?.trim()}`,
   })
 
-  /* Every future session is now expecting one more person. */
   recountExpectedAttendance(cohort.id)
 
   return { enrolment, cohort: updatedCohort }
 }
-
-/* -------------------------------------------------------------------------- */
-/* Tutor assignments                                                          */
-/* -------------------------------------------------------------------------- */
 
 export interface AssignTutorInput {
   cohortId: string
@@ -288,11 +234,9 @@ export function assignTutor(input: AssignTutorInput): TutorAssignment {
 }
 
 export interface ReplaceTutorInput {
-  /** The assignment being wound up. */
   assignmentId: string
   incomingTutorPersonId: PersonId
   role: TutorAssignment['role']
-  /** The outgoing assignment's last day; the incoming one starts here too. */
   effectiveDate: string
   reason: string
 }
@@ -302,12 +246,6 @@ export interface ReplaceTutorResult {
   started: TutorAssignment
 }
 
-/**
- * The never-reassign-in-place rule, implemented literally. The outgoing row
- * keeps its `sessionsDelivered` and gains an end date, a reason and a pointer
- * to whoever took over; the incoming tutor gets a new row starting the same
- * day. Nothing about the outgoing tutor's delivery history moves.
- */
 export function replaceTutor(input: ReplaceTutorInput): ReplaceTutorResult {
   const at = nowIso()
   const outgoing = tutorAssignmentsCollection.find(input.assignmentId)
@@ -374,10 +312,6 @@ export function endTutorAssignment(assignmentId: string, reason: string, effecti
   return updated
 }
 
-/* -------------------------------------------------------------------------- */
-/* Class sessions                                                             */
-/* -------------------------------------------------------------------------- */
-
 export interface ScheduleSessionInput {
   cohortId: string
   topic: string
@@ -389,7 +323,6 @@ export interface ScheduleSessionInput {
   tutorPersonId: PersonId
 }
 
-/** Who a session on this cohort should be expecting. */
 export function expectedFor(cohortId: string): number {
   return enrollmentsCollection.count((e) => e.cohortId === cohortId && e.status === 'active')
 }
@@ -455,7 +388,6 @@ export function cancelSession(sessionId: string, reason: string): ClassSession |
   return updated
 }
 
-/** New enrolments change how many people every future session is expecting. */
 function recountExpectedAttendance(cohortId: string): void {
   const expected = expectedFor(cohortId)
   classSessionsCollection
@@ -465,15 +397,10 @@ function recountExpectedAttendance(cohortId: string): void {
     })
 }
 
-/* -------------------------------------------------------------------------- */
-/* Attendance                                                                 */
-/* -------------------------------------------------------------------------- */
-
 export interface AttendanceEntry {
   enrollmentId: string
   personId: PersonId
   state: StudentAttendanceState
-  /** Required when an existing record's state is being changed. */
   overrideReason?: string
 }
 
@@ -482,17 +409,6 @@ export interface AttendanceResult {
   overridden: number
 }
 
-/**
- * Logging a register. A student with no record yet gets one; a student whose
- * recorded state changes is an **override** and needs a reason, which is
- * written to the record and emitted as an audit event naming both states.
- *
- * FLAG — `StudentAttendance` has no `supersedesAttendanceId`, so an override
- * updates the row and relies on the audit event for the before/after pair,
- * rather than the never-mutate shape used for money. Making attendance
- * corrections append-only the way a credit note is needs that one extra field
- * in `src/mocks/types.ts`, which this module does not own.
- */
 export function recordAttendance(
   sessionId: string,
   entries: AttendanceEntry[],
@@ -574,7 +490,6 @@ export function recordAttendance(
   return { created, overridden }
 }
 
-/** A single row's state changed from the attendance list. Same rule, one row. */
 export function overrideAttendance(
   attendanceId: string,
   state: StudentAttendanceState,
@@ -588,11 +503,6 @@ export function overrideAttendance(
   return studentAttendanceCollection.find(attendanceId)
 }
 
-/**
- * A session's present count and its cohort's attendance rate are both derived
- * from the rows, so they are recomputed rather than incremented — an override
- * has to be able to move a number down.
- */
 export function refreshAttendanceCounts(sessionId: string): void {
   const session = classSessionsCollection.find(sessionId)
   if (!session) return
@@ -602,7 +512,6 @@ export function refreshAttendanceCounts(sessionId: string): void {
 
   classSessionsCollection.update(session.id, {
     presentCount: present,
-    // A register that has been taken means the session happened.
     status: session.status === 'scheduled' && rows.length > 0 ? 'delivered' : session.status,
   })
 
@@ -619,7 +528,6 @@ export function refreshAttendanceCounts(sessionId: string): void {
     })
   }
 
-  /* Delivered sessions are what a tutor is credited for. */
   const delivered = classSessionsCollection.count(
     (s) => s.cohortId === session.cohortId && s.status === 'delivered' && s.tutorPersonId === session.tutorPersonId,
   )

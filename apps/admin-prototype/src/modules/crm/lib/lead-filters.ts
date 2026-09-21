@@ -1,15 +1,7 @@
-/**
- * Lead filtering, shared by `/crm/leads` and `/crm/pipeline`.
- *
- * Both screens read the same query string, so switching between the list and
- * the board keeps the filters — and a filtered board is as linkable as a
- * filtered list.
- */
-
 import { useMemo } from 'react'
 import { TODAY, leadsCollection, peopleCollection, useCollection } from '@/mocks'
 import type { Lead, LeadSource, LeadStage, Person } from '@/mocks/types'
-import { CLOSED_STAGES } from './lookups'
+import { OPEN_RAW_STAGES, isOpenStage } from './lookups'
 import type { QueryState } from './view-state'
 
 export const FILTER_KEYS = [
@@ -25,6 +17,7 @@ export const FILTER_KEYS = [
   'days',
   'next',
   'view',
+  'closed',
 ] as const
 
 export interface SavedView {
@@ -34,37 +27,38 @@ export interface SavedView {
   params: Record<string, string | undefined>
 }
 
-/** Seeded saved views. A user-made view is appended in session. */
+const OPEN = OPEN_RAW_STAGES.join(',')
+
 export const SAVED_VIEWS: SavedView[] = [
   {
-    key: 'my-open',
-    label: 'My open leads',
-    description: 'Everything assigned to you that is still in the pipeline.',
-    params: { owner: 'me', stage: 'new,contacted,qualified,counselling,application,payment_pending' },
+    key: 'waiting',
+    label: 'Waiting 15+ days',
+    description: 'Open enquiries that have not moved in over two weeks.',
+    params: { days: '15', stage: OPEN },
   },
   {
-    key: 'stalled',
-    label: 'Stalled 15+ days',
-    description: 'Open leads that have not moved stage in over a fortnight.',
-    params: { days: '15', stage: 'new,contacted,qualified,counselling,application,payment_pending' },
-  },
-  {
-    key: 'no-next-action',
-    label: 'No next action',
-    description: 'Open leads with nothing scheduled. Every lead needs a next action.',
-    params: { next: 'none', stage: 'new,contacted,qualified,counselling,application,payment_pending' },
+    key: 'nothing-planned',
+    label: 'Nothing planned',
+    description: 'Open enquiries with no next step written down.',
+    params: { next: 'none', stage: OPEN },
   },
   {
     key: 'this-week',
-    label: "This week's new",
-    description: 'Leads created in the last seven days.',
-    params: { created: '7d' },
+    label: 'New this week',
+    description: 'Enquiries that came in during the last seven days.',
+    params: { created: '7d', closed: '1' },
   },
   {
-    key: 'payment-pending',
-    label: 'Payment pending',
-    description: 'Leads waiting on money to land.',
+    key: 'ready',
+    label: 'Ready to pay',
+    description: 'They have said yes and we are waiting for the money.',
     params: { stage: 'payment_pending' },
+  },
+  {
+    key: 'not-now',
+    label: 'Not now',
+    description: 'Parked with a date to check back.',
+    params: { stage: 'future_nurture' },
   },
 ]
 
@@ -76,12 +70,12 @@ export const CREATED_RANGES: Array<{ value: string; label: string; days: number 
 ]
 
 export const NEXT_ACTION_OPTIONS = [
-  { value: 'yes', label: 'Has a next action' },
-  { value: 'none', label: 'No next action' },
-  { value: 'overdue', label: 'Next action overdue' },
+  { value: 'yes', label: 'Has a next step' },
+  { value: 'none', label: 'Nothing planned' },
+  { value: 'overdue', label: 'Next step overdue' },
 ]
 
-function dateDaysAgo(days: number): string {
+export function dateDaysAgo(days: number): string {
   return new Date(Date.parse(`${TODAY}T00:00:00Z`) - days * 86_400_000).toISOString().slice(0, 10)
 }
 
@@ -97,6 +91,8 @@ export interface LeadFilterInput {
   created?: string
   minDaysInStage?: number
   nextAction?: string
+  /** When false and no stage is chosen, only open enquiries are returned. */
+  includeClosed: boolean
 }
 
 export function readLeadFilters(query: QueryState, currentUserId: string): LeadFilterInput {
@@ -114,6 +110,7 @@ export function readLeadFilters(query: QueryState, currentUserId: string): LeadF
     created: query.get('created'),
     minDaysInStage: Number.isFinite(days) && days > 0 ? days : undefined,
     nextAction: query.get('next'),
+    includeClosed: query.get('closed') === '1',
   }
 }
 
@@ -129,7 +126,11 @@ export function applyLeadFilters(
 
   return leads.filter((lead) => {
     if (lead.archivedAt) return false
-    if (filters.stages.length && !filters.stages.includes(lead.stage)) return false
+    if (filters.stages.length) {
+      if (!filters.stages.includes(lead.stage)) return false
+    } else if (!filters.includeClosed && !isOpenStage(lead.stage)) {
+      return false
+    }
     if (filters.owners.length && !filters.owners.includes(lead.ownerUserId)) return false
     if (filters.sources.length && !filters.sources.includes(lead.originalSource)) return false
     if (filters.referrer && lead.referrerPersonId !== filters.referrer) return false
@@ -175,5 +176,5 @@ export function useFilteredLeads(filters: LeadFilterInput): Lead[] {
 }
 
 export function isOpenLead(lead: Lead): boolean {
-  return !CLOSED_STAGES.includes(lead.stage)
+  return isOpenStage(lead.stage)
 }

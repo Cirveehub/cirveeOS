@@ -1,16 +1,3 @@
-/**
- * My payslips — `/my-workspace/payslips`.
- *
- * Opening one is a recorded act, not just a render: Payroll reports on who has
- * and has not looked at theirs, and that figure is only honest if reading a
- * payslip writes the fact down. Both timestamps here were already on the
- * record with nothing in the app setting them.
- *
- * The figures come from the payroll item behind the payslip, so what an
- * employee sees is the same row Finance processed — not a second calculation
- * that could drift from it.
- */
-
 import { useMemo, useState } from 'react'
 import { Download, FileText, Receipt } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -77,8 +64,6 @@ export default function MyPayslips() {
   const download = (payslip: Payslip) => {
     if (!me.userId) return
     markPayslipDownloaded(payslip.id as string, me.userId)
-    // No file is produced in the prototype; what is real is the record that
-    // it was asked for, which is what payroll reports on.
     toast.success(`${periodLabel(payslip)} payslip downloaded. The request is on your record.`)
   }
 

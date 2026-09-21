@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { CalendarClock, EyeOff, Layers, UserPlus } from 'lucide-react'
+import { CalendarClock, Layers, UserPlus } from 'lucide-react'
 
 import { formatDate, formatNumber, formatPercent } from '@/lib/format'
 import {
@@ -52,11 +52,6 @@ import {
 const STATUSES = ['planned', 'open', 'running', 'completed', 'cancelled'] as const
 const MODES = ['on_campus', 'virtual', 'hybrid'] as const
 
-/**
- * Fourteen columns is a catalogue, not a default view. These eight answer
- * "what is this cohort and does it need me this week"; the rest are one click
- * away and the URL carries the choice, so a curated view is still a link.
- */
 const COLUMN_CATALOGUE: ColumnCatalogueEntry[] = [
   { key: 'code', label: 'Cohort', defaultVisible: true, locked: true },
   { key: 'course', label: 'Course', defaultVisible: true },
@@ -473,10 +468,6 @@ export default function Cohorts() {
             />
 
             <TabPanel id="cohort-students" tabId="students" active={tab === 'students'}>
-              <Alert tone="info" icon={EyeOff} title="This is the list a tutor sees" className="mb-4">
-                No balance, no invoice, no payment status. Tutors cannot see a student's financial standing, so a student who owes
-                money is never treated differently in class. Finance sees the same people under Student accounts.
-              </Alert>
               <DataTable
                 data={openEnrollments}
                 columns={studentColumns}
@@ -524,10 +515,6 @@ export default function Cohorts() {
             </TabPanel>
 
             <TabPanel id="cohort-tutors" tabId="tutors" active={tab === 'tutors'}>
-              <Alert tone="info" title="A tutor change ends one assignment and starts another" className="mb-4">
-                Nobody is swapped in place. The outgoing tutor keeps the sessions they delivered, with the date their assignment
-                ended and why — which is what makes historical delivery credit and pay reconcilable months later.
-              </Alert>
               <DataTable
                 data={openAssignments}
                 columns={assignmentColumns}

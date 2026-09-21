@@ -1,11 +1,3 @@
-/**
- * The Daily Executive Brief (screen-spec §1.1, band 2 left).
- *
- * Seven lines, each carrying a number and a link. Every number is derived from
- * the store at render time — the brief is a reading of the data, not a written
- * summary of it, so it changes the moment anything underneath it changes.
- */
-
 import {
   TODAY,
   admissionsCollection,
@@ -28,24 +20,17 @@ export type BriefTone = 'neutral' | 'positive' | 'warning' | 'danger'
 
 export interface BriefLine {
   id: string
-  /** What the line is about — "Yesterday's collections". */
   label: string
-  /** The figure, already formatted. */
   value: string
-  /** The sentence that gives the figure meaning. */
   detail: string
-  /** Where the number lives in full. */
   to: string
   linkLabel: string
   tone: BriefTone
-  /** True when the underlying count is zero — the line renders as a quiet row. */
   quiet: boolean
 }
 
 export interface DailyBrief {
-  /** The day the brief covers. */
   forDate: ISODate
-  /** When it was assembled — re-derived on every render, like everything else. */
   generatedAt: Date
   lines: BriefLine[]
 }
@@ -67,23 +52,19 @@ export function buildDailyBrief(userId: UserId): DailyBrief {
   const yesterday = shiftDays(TODAY, -1)
   const weekAgo = shiftDays(TODAY, -7)
 
-  /* 1 — yesterday's collections */
   const yesterdayPayments = paymentsCollection.where(
     (p) => p.status === 'matched' && p.receivedAt.slice(0, 10) === yesterday,
   )
   const collectedYesterday: Kobo = collectedRevenue(dayWindow(yesterday))
 
-  /* 2 — new enrolments */
   const newEnrolments = enrollmentsCollection.where((e) => e.enrolledAt === yesterday)
   const enrolmentsThisWeek = enrollmentsCollection.where((e) => e.enrolledAt >= weekAgo)
 
-  /* 3 — overdue tuition movement: balances that crossed 30 days in the last week */
   const crossed = invoicesCollection.where(
     (i) => i.balance > 0 && i.status !== 'cancelled' && i.daysOverdue >= 30 && i.daysOverdue < 37,
   )
   const crossedAmount = crossed.reduce((acc, i) => acc + i.balance, 0)
 
-  /* 4 — pipeline movement */
   const advanced = leadsCollection.where(
     (l) => ADVANCED_STAGES.includes(l.stage) && l.stageEnteredAt.slice(0, 10) >= weekAgo,
   )
@@ -91,20 +72,16 @@ export function buildDailyBrief(userId: UserId): DailyBrief {
     (l) => LOST_STAGES.includes(l.stage) && l.stageEnteredAt.slice(0, 10) >= weekAgo,
   )
 
-  /* 5 — attendance exceptions */
   const attendance = attendanceEventsCollection.where((a) => a.date === yesterday)
   const late = attendance.filter((a) => a.state === 'late').length
   const missingClockOut = attendance.filter((a) => a.state === 'missing_clock_out').length
 
-  /* 6 — unresolved issues past their SLA */
   const breached = ticketsCollection.where(
     (t) => OPEN_TICKETS.includes(t.status) && t.slaState === 'breached',
   )
 
-  /* 7 — approvals waiting on the signed-in user */
   const mine = approvalsPendingOn(userId)
 
-  /* Context for line 2's detail copy. */
   const enrolledAdmissions = admissionsCollection.count((a) => a.status === 'enrolled')
 
   const lines: BriefLine[] = [
@@ -196,7 +173,6 @@ export function buildDailyBrief(userId: UserId): DailyBrief {
   return { forDate: yesterday, generatedAt: new Date(), lines }
 }
 
-/** The "Export brief" action — a plain-text file, which is what gets pasted into WhatsApp. */
 export function briefAsText(brief: DailyBrief, rangeLabel: string): string {
   const header = [
     'Cirvee OS — Daily executive brief',

@@ -1,17 +1,3 @@
-/**
- * The commission preview the admission wizard shows **before** anything is
- * written.
- *
- * `select.evaluateCommissionRules` is the published engine, but it resolves an
- * `Admission` by id — which does not exist yet while someone is still filling
- * in step 4. This runs the same rules, through the same `computeCommission`
- * arithmetic, against a draft. It writes nothing.
- *
- * The three fields are evaluated **independently**: a rule that pays the
- * closer does not pay the referrer, and one admission routinely produces two
- * commissions to two different people. That is the whole demonstration.
- */
-
 import {
   computeCommission,
   referrerProfilesCollection,
@@ -34,12 +20,10 @@ export interface AdmissionPreviewInput {
   branchId: BranchId
   quotedFee: Kobo
   netFee: Kobo
-  /** Nothing is collected the moment an admission is created. */
   collected: Kobo
   referrerPersonId: PersonId | null
   leadOwnerUserId: UserId
   closerUserId: UserId | null
-  /** Rules in force on this date. Defaults to the seed's today. */
   onDate?: string
 }
 
@@ -48,11 +32,6 @@ function personIdOfUser(userId: UserId | null): PersonId | null {
   return usersCollection.find(userId)?.personId ?? null
 }
 
-/**
- * Mirrors `evaluateCommissionRules` line for line, minus the admission lookup.
- * Keep the two in step — a divergence here means the preview lies about what
- * the wizard is about to write.
- */
 export function previewAdmissionCommissions(input: AdmissionPreviewInput): CommissionPreview[] {
   const beneficiaries: Record<CommissionRoleOnDeal, PersonId | null> = {
     referrer: input.referrerPersonId,
@@ -69,8 +48,6 @@ export function previewAdmissionCommissions(input: AdmissionPreviewInput): Commi
     const beneficiaryPersonId = beneficiaries[rule.roleOnDeal]
     if (!beneficiaryPersonId) continue
 
-    /* A referrer rule only pays someone who actually holds a referrer profile
-       of the declared type, and only while that profile is active. */
     if (rule.roleOnDeal === 'referrer') {
       const profile = referrerProfilesCollection
         .all()

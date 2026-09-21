@@ -1,16 +1,3 @@
-/**
- * §20 — Invoice detail.
- *
- * The screen the two corrections hang off. Its whole argument is the banner at
- * the top: an issued invoice is never edited. A refund, a credit note and a
- * void are all new records that point back here, and the tabs below show every
- * one of them sitting beside the original rather than in place of it.
- *
- * A persistent summary rail carries the money; four tabs carry the detail, so
- * the page never stacks lines, payments, credits, commissions and audit in one
- * scroll.
- */
-
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Ban, FileMinus, Landmark, Receipt, ShieldCheck, Undo2 } from 'lucide-react'
@@ -71,8 +58,6 @@ export default function InvoiceDetail() {
   const [voidFor, setVoidFor] = useState<Invoice | null>(null)
   const [paymentOpen, setPaymentOpen] = useState(false)
 
-  /* Accepts either the internal id or the human reference, so a link written
-     as /finance/invoices/INV-2026-0933 resolves too. */
   const invoice = invoices.find((i) => i.id === id) ?? invoices.find((i) => i.ref === id) ?? null
 
   if (state.loading) {
@@ -320,12 +305,11 @@ export default function InvoiceDetail() {
         </Alert>
       )}
 
-      <Alert tone="info" icon={ShieldCheck} title="An issued invoice is never edited" className="mb-6">
-        There is no way to change a line, a price or a total on this page — and that is deliberate. A reduction is a credit
-        note, money going back is a refund, and cancelling is a void that credits rather than erases. Each one is its own
-        record, listed under Credit notes and refunds, and each names this invoice.
-        {invoice.voidedAt && ` Voided ${formatDate(invoice.voidedAt)}: ${invoice.voidReason ?? 'no reason recorded'}.`}
-      </Alert>
+      {invoice.voidedAt && (
+        <Alert tone="warning" icon={ShieldCheck} title="This invoice is voided" className="mb-6">
+          {`Voided ${formatDate(invoice.voidedAt)}: ${invoice.voidReason ?? 'no reason recorded'}.`}
+        </Alert>
+      )}
 
       <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
         {/* ---- persistent money rail ---- */}

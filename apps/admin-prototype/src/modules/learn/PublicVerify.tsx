@@ -1,21 +1,3 @@
-/**
- * §16 — public certificate verification.
- *
- * The one page in this whole app meant for someone with no Cirvee account at
- * all: an employer who scanned a QR code off a printed certificate. It lives
- * outside `RequireAuth`/`AppShell` (`src/app/App.tsx`, alongside `/public/kiosk`
- * — the one place a route can be mounted outside a module's own `base`), and
- * it is deliberately narrow about what it shows: certificate id, holder name,
- * course, issue date and issuing branch — exactly the sentence already
- * written into the admin's own QR modal (`Certificates.tsx`: "shows only the
- * holder, the course, the issue date and the issuing branch"). Never the
- * internal `id`, `issuedByUserId`, `eligibilitySnapshot`, or a revocation's
- * free-text reason — a public page has no business explaining internal
- * decisions, only confirming or denying a certificate's validity.
- *
- * Looked up by the public `certificateId` string, never by the internal
- * branded `id` — a URL should never be able to expose that.
- */
 import { useParams } from 'react-router-dom'
 import { CheckCircle2, ShieldAlert, ShieldQuestion } from 'lucide-react'
 
@@ -25,9 +7,6 @@ import { branchesCollection, certificatesCollection, coursesCollection, peopleCo
 
 export default function PublicVerify() {
   const { certificateId } = useParams<{ certificateId: string }>()
-  // Only a certificate that was actually issued at some point resolves here —
-  // one that is merely `eligible_not_issued` has nothing to verify yet, so it
-  // reads as "not found" rather than confirming a certificate nobody holds.
   const certificate = certificatesCollection
     .all()
     .find((c) => c.certificateId === certificateId && (c.status === 'issued' || c.status === 'revoked'))
@@ -127,7 +106,6 @@ function VerifiedResult({
   )
 }
 
-/** A deterministic square pattern derived from the payload, with finder marks — the same decorative treatment used everywhere else in the app that shows a "QR." */
 function QrPattern({ payload }: { payload: string }) {
   const size = 21
   let hash = 2166136261

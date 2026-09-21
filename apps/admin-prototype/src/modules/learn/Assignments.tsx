@@ -1,10 +1,3 @@
-/**
- * Assignments — `/learn/assignments`.
- *
- * The teaching-side view of the grading operation: how many submitted against
- * how many enrolled, how many of those are graded, and who is responsible.
- */
-
 import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { CalendarClock, ClipboardList } from 'lucide-react'

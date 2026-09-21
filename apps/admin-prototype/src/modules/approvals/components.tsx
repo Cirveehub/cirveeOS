@@ -1,12 +1,3 @@
-/**
- * Pieces shared by more than one approvals screen.
- *
- * The route visualiser and the impact preview both appear on the detail screen
- * and inside the raise-request wizard, where the route has to re-render as the
- * amount crosses a band. Keeping them here is what makes that possible without
- * two implementations drifting apart.
- */
-
 import { Link } from 'react-router-dom'
 import {
   ArrowUpRight,
@@ -33,10 +24,6 @@ import {
   userRoleName,
 } from './shared'
 
-/* -------------------------------------------------------------------------- */
-/* Route visualiser                                                           */
-/* -------------------------------------------------------------------------- */
-
 const STEP_ICON = {
   approved: Check,
   pending: Clock,
@@ -49,9 +36,7 @@ const STEP_ICON = {
 export interface RouteVisualiserProps {
   steps: ApprovalStep[]
   currentStepIndex: number
-  /** Plain-words escalation policy for the live step. */
   escalation?: string | null
-  /** Highlights steps that only just appeared as the amount crossed a band. */
   addedStepIds?: number[]
   compact?: boolean
 }
@@ -143,15 +128,6 @@ export function RouteVisualiser({
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Impact preview                                                             */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Where an impact line points. These are the spec's own routes; the modules
- * that own them light up as they are built, and until then the shell's
- * not-found screen offers a way back rather than a dead end.
- */
 function hrefFor(line: ApprovalImpactLine): string | null {
   switch (line.entityType) {
     case 'Invoice':
@@ -245,15 +221,6 @@ export function ImpactPreview({ lines, live, title = 'Impact preview', lead }: I
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Acting-user switch                                                         */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Prototype scaffolding, and labelled as such on screen. Flow 3 needs the
- * reviewer to become the Finance Manager so the self-approval block can be
- * lifted honestly rather than bypassed.
- */
 export function ActingUserSwitch({ className }: { className?: string }) {
   const acting = useActingUser()
   const options = userOptions()
@@ -276,10 +243,6 @@ export function ActingUserSwitch({ className }: { className?: string }) {
     </div>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* Small shared cells                                                         */
-/* -------------------------------------------------------------------------- */
 
 export function RouteChain({ request }: { request: ApprovalRequest }) {
   if (request.steps.length === 0) return <span className="text-text-secondary">No route</span>

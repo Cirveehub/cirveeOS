@@ -1,13 +1,3 @@
-/**
- * Timetable — this cohort's class sessions, in the legacy's table shape.
- *
- * Read-only on purpose. In the legacy portal a tutor could add and delete
- * rows in the weekly timetable; in Cirvee OS the timetable is Academy
- * operations' record — a session carries an expected count, a delivery status
- * and the tutor credited with it, and a tutor quietly deleting one would break
- * both the attendance rate and the delivery count a tutor is paid against.
- * What a tutor does here is take the register, so that is the row action.
- */
 import { CalendarDays, Video } from 'lucide-react'
 import { Link } from 'react-router-dom'
 

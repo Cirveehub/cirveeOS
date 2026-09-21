@@ -1,17 +1,3 @@
-/**
- * §6.4 — run history.
- *
- * 1,412 runs over seven days, so this screen is paginated and filtered rather
- * than scrolled. Every row carries the **version** that executed and the
- * **idempotency key** that made it unique, because those two columns are what
- * turn "it ran" into "here is exactly what ran and why it only ran once".
- *
- * The panel at the top fires a trigger for real against a seeded record. Fire
- * it twice with the same record and the second run comes back
- * `skipped_duplicate` with the key it refused — the duplicate guard, visible
- * rather than described.
- */
-
 import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Download, History, Play, RefreshCw, ShieldCheck } from 'lucide-react'
@@ -404,10 +390,6 @@ export default function Runs() {
     </>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* Firing a trigger for real                                                  */
-/* -------------------------------------------------------------------------- */
 
 function FireTriggerPanel({ onFired }: { onFired: (result: { run: AutomationRun; duplicate: boolean }) => void }) {
   const automations = useCollection(automationsCollection)

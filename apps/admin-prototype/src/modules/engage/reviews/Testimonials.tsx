@@ -1,11 +1,3 @@
-/**
- * Testimonials.
- *
- * Searchable by course and outcome, per the PRD — so the search runs across
- * the quote itself, the outcome line, the tags and the course title. Consent
- * and its date sit on every row: a quote without consent on file may not be
- * published, whatever it says.
- */
 import { useMemo, useState } from 'react'
 import { Image, MessageSquareQuote, Plus, ShieldOff, Video } from 'lucide-react'
 
@@ -44,9 +36,6 @@ import type { Channel, CohortId, CourseId, PersonId, Testimonial } from '@/mocks
 import {
   CHANNEL_LABEL,
   ErrorPanel,
-  ModuleHeader,
-  REVIEW_COMPLIANCE_NOTE,
-  Screen,
   TESTIMONIAL_STATUS_LABEL,
   TESTIMONIAL_STATUS_TONE,
   useCohortCode,
@@ -59,7 +48,6 @@ import { createTestimonial } from './writes'
 
 const STATUSES: Testimonial['status'][] = ['new', 'approved', 'published', 'archived']
 
-/** A quote reads as a quote in a dense table only if it is cut short. */
 function preview(quote: string): string {
   return quote.length <= 120 ? quote : `${quote.slice(0, 119)}…`
 }
@@ -94,6 +82,8 @@ export default function Testimonials() {
       .map((course) => ({ value: course.id as string, label: course.title }))
   }, [courses, allTestimonials])
 
+  const consented = testimonials.filter((t) => t.consentGranted).length
+
   const rows = useMemo(() => {
     const term = search.trim().toLowerCase()
     return testimonials
@@ -105,7 +95,6 @@ export default function Testimonials() {
         if (filters.media === 'with' && testimonial.mediaUrls.length === 0) return false
         if (filters.media === 'without' && testimonial.mediaUrls.length > 0) return false
         if (!term) return true
-        // Searchable by course and outcome, and by the quote itself.
         return (
           personName(testimonial.personId).toLowerCase().includes(term) ||
           testimonial.quote.toLowerCase().includes(term) ||
@@ -268,16 +257,15 @@ export default function Testimonials() {
   ]
 
   return (
-    <Screen>
-      <ModuleHeader
-        title="Testimonials"
-        description="Searchable by course and outcome. Nothing here may be published without consent on file."
-        actions={
-          <Button size="sm" leftIcon={<Plus size={16} aria-hidden="true" />} onClick={() => setCapturing(true)}>
-            Add testimonial
-          </Button>
-        }
-      />
+    <>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-body-13 text-text-secondary">
+          {formatNumber(testimonials.length)} captured · {formatNumber(consented)} with consent to publish
+        </p>
+        <Button size="sm" leftIcon={<Plus size={16} aria-hidden="true" />} onClick={() => setCapturing(true)}>
+          Add testimonial
+        </Button>
+      </div>
 
       {notice && (
         <Alert tone="success" className="mb-4" onDismiss={() => setNotice(null)}>
@@ -355,7 +343,7 @@ export default function Testimonials() {
                   <EmptyState
                     icon={MessageSquareQuote}
                     title="No testimonials captured"
-                    message="Testimonials are asked for in conversation at the same high-satisfaction moments as a review request — and, like a review, are never traded for anything."
+                    message="Ask for one in the same conversation as a review: after a certificate, a strong grade or a placement."
                     action={
                       <Button size="sm" onClick={() => setCapturing(true)}>
                         Capture the first one
@@ -489,19 +477,10 @@ export default function Testimonials() {
           setNotice(message)
         }}
       />
-    </Screen>
+    </>
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Capture a testimonial                                                      */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Consent is captured with the quote, not chased afterwards, and the form says
- * what happens either way. A quote saved without consent is kept — people often
- * agree later — but it carries no consent date and may not be published.
- */
 function NewTestimonialModal({
   open,
   onClose,
@@ -529,10 +508,10 @@ function NewTestimonialModal({
   const cohortsForCourse = courseId ? cohorts.filter((c) => (c.courseId as string) === courseId) : cohorts
 
   const personError = touched && !personId ? 'A quote belongs to a named person.' : undefined
-  const courseError = touched && !courseId ? 'The course this is about — the PRD makes testimonials searchable by it.' : undefined
+  const courseError = touched && !courseId ? 'The course this is about.' : undefined
   const cohortError = touched && !cohortId ? 'The cohort they were in.' : undefined
   const quoteError = touched && quote.trim().length < 15 ? 'Record what they actually said, in their words.' : undefined
-  const outcomeError = touched && !outcome.trim() ? 'One line on what happened for them — this is the other search key.' : undefined
+  const outcomeError = touched && !outcome.trim() ? 'One line on what happened for them.' : undefined
 
   const submit = () => {
     setTouched(true)
@@ -670,8 +649,6 @@ function NewTestimonialModal({
             description="Recorded with today's date and the channel it was given on. Without it the quote is kept but can never be published — approving it later will not unlock it."
           />
         </div>
-
-        <p className="text-body-12 text-text-secondary">{REVIEW_COMPLIANCE_NOTE}</p>
       </div>
     </Modal>
   )

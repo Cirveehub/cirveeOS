@@ -1,10 +1,3 @@
-/**
- * Quizzes — `/learn/quizzes` and `/learn/quizzes/:quizId`.
- *
- * List, then a three-pane builder: question list, question editor, settings.
- * Preview renders the quiz exactly as a learner meets it.
- */
-
 import { useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
@@ -240,16 +233,6 @@ export default function Quizzes() {
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* New quiz                                                                   */
-/* -------------------------------------------------------------------------- */
-
-/**
- * A quiz is not a free-floating record in this model — it is a `quiz`-type
- * lesson plus a `Quiz`. So the modal asks where in the outline it goes, then
- * writes both and drops the caller into the question editor, because a quiz
- * with no questions passes everybody.
- */
 function NewQuizModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const navigate = useNavigate()
   const courses = useCollection(coursesCollection)
@@ -411,10 +394,6 @@ function NewQuizModal({ open, onClose }: { open: boolean; onClose: () => void })
     </Modal>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* Builder                                                                    */
-/* -------------------------------------------------------------------------- */
 
 export function QuizBuilder() {
   const { quizId = '' } = useParams()

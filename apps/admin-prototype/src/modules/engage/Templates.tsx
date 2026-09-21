@@ -1,26 +1,10 @@
 import { useMemo, useState } from 'react'
 
 import { formatDate, formatNumber } from '@/lib/format'
-import {
-  Alert,
-  Badge,
-  Card,
-  DataTable,
-  SearchInput,
-  TableToolbar,
-  type BadgeTone,
-  type Column,
-} from '@/ui'
+import { Badge, Card, DataTable, SearchInput, TableToolbar, type BadgeTone, type Column } from '@/ui'
 import { messageTemplatesCollection, useCollection, type MessageTemplate } from '@/mocks'
 
-import { ModuleHeader, ErrorPanel, Screen, useModuleData } from './parts'
-
-const CHANNEL_LABEL: Record<string, string> = {
-  whatsapp: 'WhatsApp',
-  email: 'Email',
-  sms: 'SMS',
-  in_app: 'In-app',
-}
+import { CHANNEL_LABEL, ErrorPanel, useModuleData } from './parts'
 
 const APPROVAL: Record<MessageTemplate['whatsappApprovalStatus'], { label: string; tone: BadgeTone }> = {
   approved: { label: 'Approved', tone: 'success' },
@@ -45,8 +29,6 @@ export default function EngageTemplates() {
         t.preview.toLowerCase().includes(q),
     )
   }, [rows, search])
-
-  const pending = rows.filter((t) => t.whatsappApprovalStatus === 'pending')
 
   const columns: Array<Column<MessageTemplate>> = [
     {
@@ -112,9 +94,7 @@ export default function EngageTemplates() {
       sortable: true,
       sortValue: (t) => t.whatsappApprovalStatus,
       cell: (t) => (
-        <Badge tone={APPROVAL[t.whatsappApprovalStatus].tone}>
-          {APPROVAL[t.whatsappApprovalStatus].label}
-        </Badge>
+        <Badge tone={APPROVAL[t.whatsappApprovalStatus].tone}>{APPROVAL[t.whatsappApprovalStatus].label}</Badge>
       ),
       width: 165,
     },
@@ -152,56 +132,36 @@ export default function EngageTemplates() {
     },
   ]
 
+  if (error) return <ErrorPanel what="Templates" onRetry={retry} />
+
   return (
-    <Screen>
-      <ModuleHeader
-        title="Templates"
-        description="Message bodies with their merge fields, versions and platform approval state."
+    <Card padding="none">
+      <TableToolbar
+        lead={
+          <SearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder="Search templates"
+            inputSize="sm"
+            containerClassName="w-72"
+          />
+        }
       />
-
-      {pending.length > 0 && (
-        <Alert tone="warning" title="WhatsApp template approval is a real gate">
-          {formatNumber(pending.length)} template
-          {pending.length === 1 ? ' is' : 's are'} waiting on Meta. A pending template cannot be sent on
-          WhatsApp no matter what the campaign schedule says, so a campaign built on one will sit in
-          Scheduled until approval lands.
-        </Alert>
-      )}
-
-      <div className="mt-6">
-        {error ? (
-          <ErrorPanel what="Templates" onRetry={retry} />
-        ) : (
-          <Card padding="none">
-            <TableToolbar
-              lead={
-                <SearchInput
-                  value={search}
-                  onChange={setSearch}
-                  placeholder="Search templates"
-                  inputSize="sm"
-                  containerClassName="w-72"
-                />
-              }
-            />
-            <DataTable
-              data={filtered}
-              columns={columns}
-              rowKey={(t) => t.id as string}
-              loading={loading}
-              density="compact"
-              minWidth={1500}
-              caption="Message templates and their approval state"
-              emptyTitle={search ? 'No templates match this search' : 'No templates yet'}
-              emptyMessage={
-                search
-                  ? 'Clear the search to see every template.'
-                  : 'Nothing can be sent until a template exists and, on WhatsApp, has been approved.'
-              }
-            />
-          </Card>
-        )}
-      </div>
-    </Screen>
+      <DataTable
+        data={filtered}
+        columns={columns}
+        rowKey={(t) => t.id as string}
+        loading={loading}
+        density="compact"
+        minWidth={1500}
+        caption="Message templates and their approval state"
+        emptyTitle={search ? 'No templates match this search' : 'No templates yet'}
+        emptyMessage={
+          search
+            ? 'Clear the search to see every template.'
+            : 'Nothing can be sent until a template exists and, on WhatsApp, has been approved.'
+        }
+      />
+    </Card>
   )
 }

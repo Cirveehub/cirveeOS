@@ -1,11 +1,3 @@
-/**
- * Thin compositions over `@/ui` shared across the automation screens.
- *
- * Nothing here is a new primitive. Each one renders a library component with
- * the module's vocabulary applied, so a run status looks identical on the
- * dashboard, the run list, the run trace and the exception queue.
- */
-
 import type { ReactNode } from 'react'
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
@@ -27,10 +19,6 @@ import {
   type NodeKind,
 } from './lib'
 
-/* -------------------------------------------------------------------------- */
-/* Module navigation                                                          */
-/* -------------------------------------------------------------------------- */
-
 export const MODULE_TABS: Array<{ id: string; label: string; to: string }> = [
   { id: 'dashboard', label: 'Dashboard', to: '/automation' },
   { id: 'workflows', label: 'Workflows', to: '/automation/workflows' },
@@ -47,7 +35,6 @@ export interface ModulePageProps {
   breadcrumbs?: Breadcrumb[]
 }
 
-/** The page header every top-level automation screen wears, with in-module tabs. */
 export function ModulePage({ tab, title, description, actions, meta, breadcrumbs }: ModulePageProps) {
   const navigate = useNavigate()
   const location = useLocation()
@@ -70,26 +57,14 @@ export function ModulePage({ tab, title, description, actions, meta, breadcrumbs
   )
 }
 
-/** The content column every automation screen sits in. */
 export function Screen({ children, wide }: { children: ReactNode; wide?: boolean }) {
   return (
     <div className={wide ? 'w-full px-8 py-7' : 'mx-auto w-full max-w-[1400px] px-8 py-7'}>{children}</div>
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* The four standard states                                                   */
-/* -------------------------------------------------------------------------- */
-
 const booted = new Set<string>()
 
-/**
- * - **Loading**: 400ms on the first visit to a screen in this tab, so the
- *   skeleton is visible in a demo rather than a flash.
- * - **Error**: `demo.forceError('automation')`, or `?demo=error` on any
- *   automation URL, so the state is reachable and linkable.
- * - **Empty**: `demo.forceEmpty('automation')`, or `?demo=empty`.
- */
 export function useScreenState(scope: string): {
   loading: boolean
   errored: boolean
@@ -147,10 +122,6 @@ export function LoadFailed({ what, onRetry }: { what: string; onRetry: () => voi
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Vocabulary badges                                                          */
-/* -------------------------------------------------------------------------- */
-
 export function AutomationStatusBadge({ status, size = 'sm' }: { status: AutomationStatus; size?: 'sm' | 'md' }) {
   return (
     <Badge tone={AUTOMATION_STATUS_TONE[status]} variant="subtle" size={size} dot>
@@ -197,7 +168,6 @@ export function NodeKindBadge({ kind, size = 'sm' }: { kind: NodeKind; size?: 's
   )
 }
 
-/** A monospace chip for an idempotency key — staff read these out loud. */
 export function KeyChip({ value, className }: { value: string; className?: string }) {
   return (
     <code
@@ -208,10 +178,6 @@ export function KeyChip({ value, className }: { value: string; className?: strin
     </code>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* Small charts, built from ProgressBar rather than a charting dependency     */
-/* -------------------------------------------------------------------------- */
 
 export interface BarRow {
   key: string
@@ -240,10 +206,6 @@ export function BarChart({ rows, max, ariaLabel }: { rows: BarRow[]; max?: numbe
   )
 }
 
-/**
- * Seven-day stacked column chart. Success, failure and waiting per day, drawn
- * from divs rather than a charting dependency so it inherits the role tokens.
- */
 export function StackedDays({
   days,
   ariaLabel,

@@ -1,24 +1,3 @@
-/**
- * Dashboard — `/my-learning`.
- *
- * Three stacked sections and nothing else, which is exactly what the legacy
- * `student-portal` dashboard is: a four-tile stat row, an upcoming-classes
- * table, then a recent-activity list. The restraint is the design decision —
- * a learner opening their portal wants four numbers and their next class, not
- * the nine-tile wall an operations dashboard earns.
- *
- * The four tiles are the ones a learner actually asks about — how am I doing
- * on attendance, what do I owe, what is outstanding, how far am I from the
- * certificate — and every one of them is computed live from the same records
- * the staff screens read, not from a summary field.
- *
- * "Recent activity" replaces the legacy's "Announcements". Cirvee OS has no
- * announcement entity and inventing one to fill a card would be the worst
- * kind of prototype: a section that looks real and is not. What it does have
- * is the learner's own timeline — grades returned, work submitted, payments
- * received, classes cancelled — and that is both real and more use.
- */
-
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import {
@@ -72,8 +51,6 @@ import {
   weekdayOf,
 } from './common'
 
-/* -------------------------------------------------------------------------- */
-
 interface ClassRow {
   session: ClassSession
   courseTitle: string
@@ -110,8 +87,6 @@ export default function Dashboard() {
 
   const { enrolments, primary, personId } = student
 
-  /* ---- the four numbers -------------------------------------------------- */
-
   const myAttendance = useMemo(
     () => attendance.filter((a) => enrolments.some((e) => e.id === a.enrollmentId)),
     [attendance, enrolments],
@@ -130,16 +105,11 @@ export default function Dashboard() {
   )
   const overdueCount = outstanding.filter((row) => row.state === 'overdue').length
 
-  /* `certificateProgress` reads submissions, attendance and invoices through
-     the selector rather than from arguments — the extra dependencies are what
-     keep this tile live when a grade or a payment lands. */
   const certificate = useMemo(
     () => certificateProgress(enrolments),
     [enrolments, submissions, attendance, invoices],
   )
   const money = useMemo(() => moneyFor(personId), [personId, invoices])
-
-  /* ---- upcoming classes -------------------------------------------------- */
 
   const upcoming = useMemo<ClassRow[]>(() => {
     const cohortIds = new Set(enrolments.map((e) => e.cohortId))
@@ -159,8 +129,6 @@ export default function Dashboard() {
         }
       })
   }, [sessions, enrolments])
-
-  /* ---- recent activity --------------------------------------------------- */
 
   const activity = useMemo<ActivityRow[]>(() => {
     const rows: ActivityRow[] = []
@@ -213,8 +181,6 @@ export default function Dashboard() {
 
     return rows.sort((a, b) => b.at.localeCompare(a.at)).slice(0, 4)
   }, [submissions, payments, sessions, personId, enrolments])
-
-  /* ---- render ------------------------------------------------------------ */
 
   const classColumns: Array<Column<ClassRow>> = [
     {

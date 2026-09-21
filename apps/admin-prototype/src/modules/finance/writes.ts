@@ -1,20 +1,3 @@
-/**
- * Finance's write path, kept out of the components so it can be bundled and
- * run in Node against the real seed. Every function here follows one rule:
- *
- *   **A financial correction is a new record. The original is never edited.**
- *
- * That is `referral/Ledger.tsx`'s `adjust()` / `reverse()` pattern applied to
- * money. A refund inserts a `Refund`, a `CreditNote` and — where the money had
- * already earned somebody a commission — a negative `Commission` pointing back
- * at the original. The invoice's own `subtotal`, `discountAmount`, `total`,
- * `paidAmount`, `balance` and `lines` are never touched by any of it. The only
- * writes back to the original are the two links the data model asks for
- * (`creditNoteIds`, and `status` moving to Refunded once the credit covers the
- * total) — the same two the seed itself makes, and exactly analogous to
- * `Ledger.reverse()` setting `reversedByCommissionId` on the original.
- */
-
 import {
   CURRENT_USER_ID,
   TODAY,
@@ -59,11 +42,6 @@ import {
   refundId as asRefundId,
 } from '@/mocks/types'
 
-/* -------------------------------------------------------------------------- */
-/* Clock and audit                                                            */
-/* -------------------------------------------------------------------------- */
-
-/** The seed's fixed clock, so relative dates in a demo never rot. */
 export function financeNow(): string {
   return `${TODAY}T11:20:00+01:00`
 }
@@ -92,7 +70,6 @@ export interface AuditInput {
   source?: AuditSource
 }
 
-/** Append-only. There is no update or delete path for an audit event. */
 export function emitAudit(input: AuditInput): AuditEvent {
   auditSequence += 1
   const user = usersCollection.find(CURRENT_USER_ID)
@@ -115,10 +92,6 @@ export function emitAudit(input: AuditInput): AuditEvent {
     ip: '102.89.34.17',
   })
 }
-
-/* -------------------------------------------------------------------------- */
-/* References                                                                 */
-/* -------------------------------------------------------------------------- */
 
 function nextNumber(refs: string[], prefix: string): number {
   const numbers = refs
@@ -152,27 +125,12 @@ function nextCommissionRef(): string {
   return `COM-${year}-${pad(nextNumber(commissionsCollection.all().map((c) => c.ref), `COM-${year}-`))}`
 }
 
-/* -------------------------------------------------------------------------- */
-/* The commission cascade a refund sets off                                   */
-/* -------------------------------------------------------------------------- */
-
 export interface CommissionImpact {
   commission: Commission
-  /** Proportional share of the original, rounded to the kobo. */
   reversalAmount: Kobo
-  /** True when the money has already left the building. */
   alreadyPaid: boolean
 }
 
-/**
- * What a refund of `refundAmount` against `invoice` would do to commissions.
- *
- * The PRD's rule is that a refund after a commission has been paid produces
- * either a reversal or a receivable *per policy* — and this prototype has no
- * policy engine. So the preview computes the arithmetic and states, for each
- * already-paid line, that which of the two it becomes is an unencoded policy
- * decision. It never silently picks one.
- */
 export function commissionImpactOfRefund(invoice: Invoice, refundAmount: number): CommissionImpact[] {
   if (invoice.total <= 0) return []
   const share = Math.min(1, refundAmount / invoice.total)
@@ -192,20 +150,12 @@ export function commissionImpactOfRefund(invoice: Invoice, refundAmount: number)
     }))
 }
 
-/* -------------------------------------------------------------------------- */
-/* Credit notes                                                               */
-/* -------------------------------------------------------------------------- */
-
 export interface CreditNoteInput {
   invoice: Invoice
   amount: number
   reason: string
 }
 
-/**
- * A credit note is its own record. The invoice keeps every figure it had; it
- * gains a link, and moves to Refunded only once the credit covers the total.
- */
 export function issueCreditNote({ invoice, amount, reason }: CreditNoteInput): CreditNote {
   const at = financeNow()
   const note: CreditNote = {
@@ -243,11 +193,6 @@ export function issueCreditNote({ invoice, amount, reason }: CreditNoteInput): C
   return note
 }
 
-/* -------------------------------------------------------------------------- */
-/* Routing a refund through the shared approval engine                        */
-/* -------------------------------------------------------------------------- */
-
-/** The refund route in force today, resolved from the shared data layer. */
 export function refundRouteInForce() {
   return approvalRoutesCollection
     .where((r) => r.type === 'refund' && r.effectiveFrom <= TODAY && (r.effectiveTo === null || r.effectiveTo > TODAY))
@@ -263,16 +208,10 @@ function holderOfRole(roleId: string | null): UserId | null {
   return (usersCollection.all().find((u) => (u.roleIds as string[]).includes(roleId))?.id as UserId) ?? null
 }
 
-/** Live preview of the approver chain — re-renders as the amount crosses a band. */
 export function previewRefundRoute(amount: number) {
   return resolveApprovalRoute('refund', asKobo(amount))
 }
 
-/**
- * Raise the refund's approval request through the shared route configuration,
- * so the reference on the refund record resolves to something real in Work &
- * approvals rather than a fabricated string.
- */
 function raiseRefundApproval(
   invoice: Invoice,
   refundAmount: number,
@@ -322,15 +261,10 @@ function raiseRefundApproval(
   return request
 }
 
-/** Kobo as naira, without pulling the UI formatter into the write path. */
 function formatKobo(kobo: number): string {
   return `₦${(kobo / 100).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
-/**
- * The four lines Flow 3 requires an operator to see *before* deciding — the
- * last of which states the non-negotiable: a refund never rewrites attribution.
- */
 export function refundImpactLines(
   invoice: Invoice,
   refundAmount: number,
@@ -367,15 +301,10 @@ export function refundImpactLines(
   return lines
 }
 
-/* -------------------------------------------------------------------------- */
-/* Refunds                                                                    */
-/* -------------------------------------------------------------------------- */
-
 export interface RefundInput {
   invoice: Invoice
   refundAmount: number
   reason: string
-  /** Commissions the operator confirmed should be reversed, by commission id. */
   reverseCommissionIds: string[]
 }
 
@@ -386,13 +315,6 @@ export interface RefundResult {
   approval: ApprovalRequest
 }
 
-/**
- * The never-mutate correction, end to end.
- *
- * Inserts a `Refund`, the `CreditNote` that carries the money, and one negative
- * `Commission` per confirmed reversal. Every original — invoice and commission
- * alike — keeps its amounts and its state; each gains only a back-link.
- */
 export function createRefund({ invoice, refundAmount, reason, reverseCommissionIds }: RefundInput): RefundResult {
   const at = financeNow()
   const impacts = commissionImpactOfRefund(invoice, refundAmount).filter((impact) =>
@@ -488,28 +410,17 @@ export function createRefund({ invoice, refundAmount, reason, reverseCommissionI
   return { refund, creditNote, reversals, approval }
 }
 
-/* -------------------------------------------------------------------------- */
-/* Manual payment                                                             */
-/* -------------------------------------------------------------------------- */
-
 export interface ManualPaymentInput {
   amount: number
   method: Payment['method']
   payerName: string
   payerReference: string
   receivedAt: string
-  /** Required on every invoice, expense and payroll allocation — never optional. */
   unitId: string
   branchId: string
   allocations: Array<{ invoiceId: string; amount: number }>
 }
 
-/**
- * Money that arrived outside the bank feed — cash at the desk, a POS terminal,
- * a cheque. Same shape as the payment `Reconciliation.tsx` writes on a
- * confirmed match, with no bank transaction behind it. The surplus stays
- * visible as `unallocatedAmount` rather than being spread onto a guess.
- */
 export function recordManualPayment(input: ManualPaymentInput): Payment {
   const at = financeNow()
   const applied = input.allocations.filter((a) => a.amount > 0)
@@ -573,16 +484,11 @@ export function recordManualPayment(input: ManualPaymentInput): Payment {
   return payment
 }
 
-/* -------------------------------------------------------------------------- */
-/* Expense                                                                    */
-/* -------------------------------------------------------------------------- */
-
 export interface ExpenseInput {
   date: string
   category: string
   vendor: string
   amount: number
-  /** Required. Unit P&L is only trustworthy because every cost carries one. */
   unitId: string
   branchId: string
   budgetLine: string
@@ -624,15 +530,6 @@ export function createExpense(input: ExpenseInput): Expense {
   return expense
 }
 
-/* -------------------------------------------------------------------------- */
-/* Void                                                                       */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Voiding is the one lifecycle change an invoice can take, and it still credits
- * rather than erases: a full-value credit note is raised first, so the money
- * reconciles, and the original row stays visible with its reason recorded.
- */
 export function voidInvoice(invoice: Invoice, reason: string): CreditNote {
   const at = financeNow()
   const note = issueCreditNote({ invoice, amount: invoice.total - invoice.paidAmount, reason })

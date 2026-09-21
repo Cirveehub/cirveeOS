@@ -1,20 +1,3 @@
-/**
- * Certificates — `/learn/certificates`.
- *
- * The issue/revoke queue. Two things make this screen worth building rather
- * than listing rows:
- *
- *  1. **Eligible-but-not-issued is derived, not seeded.** A completed
- *     enrolment with no certificate row still appears here the moment the
- *     live `certificateEligibility` selector says every criterion is met —
- *     grade a final project on the grading queue and a row arrives on this
- *     screen without a reload.
- *  2. **Issuing runs a cascade, not an insert.** The confirm dialog states the
- *     five criteria with their actual values, refuses outright when financial
- *     clearance fails, and the success panel lists every downstream record
- *     that was created, each one linked.
- */
-
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
@@ -83,7 +66,6 @@ import {
 } from './common'
 import { issueCertificate, revokeCertificate, type IssueResult } from './writes'
 
-/** One row: an existing certificate, or an enrolment the rules say is ready for one. */
 interface CertificateRow {
   key: string
   certificate: Certificate | null
@@ -96,7 +78,6 @@ interface CertificateRow {
   issuedAt: string | null
   issuedByUserId: string | null
   criteria: Array<{ criterion: string; required: string; actual: string; met: boolean }>
-  /** Blocked criteria, for rows not yet issued. */
   blockedBy: string[]
   outcomeRecordId: string | null
   verificationUrl: string
@@ -126,8 +107,6 @@ export default function Certificates() {
   const courses = useCollection(coursesCollection)
   const cohorts = useCollection(cohortsCollection)
   const outcomes = useCollection(outcomeRecordsCollection)
-  // Grading a submission or completing a lesson changes who is eligible, so
-  // this screen has to re-render on both.
   useCollection(submissionsCollection)
   useCollection(progressCollection)
 
@@ -152,17 +131,10 @@ export default function Certificates() {
   const courseTitle = (id: string) => courses.find((c) => c.id === id)?.title ?? '—'
   const cohortCode = (id: string) => cohorts.find((c) => c.id === id)?.code ?? '—'
 
-  /**
-   * Certificates first, then every enrolment the rules currently clear that
-   * has no certificate row at all. The second half is what makes the queue
-   * live rather than seeded.
-   */
   const rows = useMemo<CertificateRow[]>(() => {
     const withCertificate = new Set(certificates.map((c) => c.enrollmentId as string))
 
     const fromCertificates = certificates.map<CertificateRow>((certificate) => {
-      // An issued certificate shows the snapshot taken at issue — that is what
-      // it was awarded against. One still waiting is re-evaluated live.
       const live =
         certificate.status === 'eligible_not_issued'
           ? certificateEligibility(certificate.enrollmentId)
@@ -223,7 +195,6 @@ export default function Certificates() {
           .includes(term)
       })
       .sort((a, b) => {
-        // Anything waiting on a decision sits above the archive of issued ones.
         const rank = (r: CertificateRow) => (r.status === 'eligible_not_issued' ? 0 : r.status === 'issued' ? 1 : 2)
         return rank(a) - rank(b) || (b.issuedAt ?? '').localeCompare(a.issuedAt ?? '')
       })
@@ -266,8 +237,6 @@ export default function Certificates() {
         issueCertificate(row.enrollmentId)
         count += 1
       } catch {
-        // A row that fails clearance between selection and confirm is skipped
-        // rather than aborting the batch. The queue still shows it afterwards.
       }
     }
     setConfirmBulk(false)
@@ -378,7 +347,6 @@ export default function Certificates() {
   const waiting = rows.filter((r) => r.status === 'eligible_not_issued')
   const readyNow = waiting.filter(isIssuable)
 
-  /** What is standing in the way, most common first — the queue's real answer. */
   const blockers = useMemo(() => {
     const counts = new Map<string, number>()
     for (const row of waiting) {
@@ -839,7 +807,6 @@ export default function Certificates() {
   )
 }
 
-/** Issuable means: no certificate yet or one still waiting, and every criterion met. */
 function isIssuable(row: CertificateRow): boolean {
   return row.status === 'eligible_not_issued' && row.criteria.every((c) => c.met)
 }
@@ -872,7 +839,6 @@ const SHORT_CRITERION: Record<string, string> = {
   'Financial clearance': 'Money',
 }
 
-/** A deterministic square pattern derived from the payload, with finder marks. */
 function QrPattern({ payload }: { payload: string }) {
   const size = 21
   let hash = 2166136261

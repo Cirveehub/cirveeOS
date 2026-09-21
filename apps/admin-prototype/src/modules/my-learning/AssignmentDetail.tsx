@@ -1,19 +1,3 @@
-/**
- * Assignment detail — `/my-learning/assignments/:assignmentId`.
- *
- * The legacy portal's two-thirds / one-third layout, kept exactly: the brief
- * and the learner's own submission on the left, a slim metadata sidebar on
- * the right. The same four status words appear here as in the list, in the
- * same colours, which is the legacy app's single best discipline and the one
- * it broke itself (its table paints "Submitted" purple and its detail page
- * paints it green — here it is one vocabulary, declared once, in `common`).
- *
- * What Cirvee OS adds underneath: the real rubric the tutor grades against,
- * the real late policy and its penalty, the per-criterion scores that came
- * back, and the tutor's voice note. A learner who only ever sees a number is
- * being told less than the system knows.
- */
-
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
@@ -104,8 +88,6 @@ export default function AssignmentDetail() {
   )
 }
 
-/* -------------------------------------------------------------------------- */
-
 function Detail({
   assignment,
   enrolment,
@@ -130,9 +112,6 @@ function Detail({
   const overdue = state === 'overdue'
   const note = splitNote(submission?.note ?? null)
 
-  /* Whether the learner may still put something in. A graded submission is
-     final unless the tutor returned it; an assignment whose late policy is
-     `reject` closes at the due date. */
   const closed = dueDate !== null && dueDate < TODAY && assignment.latePolicy === 'reject'
   const canAct = !closed && (!submission || submission.status === 'returned_for_revision')
 
@@ -450,16 +429,6 @@ function latePolicyLine(assignment: Assignment): string {
   }
 }
 
-/* -------------------------------------------------------------------------- */
-/* The submission modal                                                       */
-/* -------------------------------------------------------------------------- */
-
-/**
- * File, link and comment — all three at once, which is what the legacy modal
- * actually sends. The only rule it enforces is the one worth enforcing: at
- * least one of file or link, because a comment on its own is not a
- * submission. Everything else is the tutor's judgement, not the form's.
- */
 function SubmitModal({
   open,
   onClose,

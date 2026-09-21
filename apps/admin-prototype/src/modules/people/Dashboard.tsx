@@ -1,22 +1,3 @@
-/**
- * People dashboard — `/people` (screen-spec §9).
- *
- * This screen was the density audit's worst offender: eleven stat cards, the
- * highest count in the app, plus five more flat `Card` sections — sixteen
- * blocks in one scroll with nothing deferred. Worse, its stat cards linked to
- * five routes that did not exist, so half the page 404'd.
- *
- * The fix is the checklist's tabbed-dashboard pattern, copied from
- * `command-centre/pages/ExecutiveHome.tsx`. Nothing was deleted. **Overview**
- * shows the four numbers that decide whether anything needs doing today, plus
- * the one panel that is true regardless of which theme you care about. Each
- * theme then gets its own tab with its full band and charts. Each band
- * computes only its own slice rather than one function deriving all eleven
- * cards whether or not they are on screen.
- *
- * Every figure is derived from a live collection, and every link now resolves.
- */
-
 import { useMemo, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -129,8 +110,6 @@ export default function PeopleDashboard() {
   const branches = useCollection(branchesCollection)
 
   const active = useMemo(() => employees.filter((e) => e.status !== 'exited'), [employees])
-
-  /* -- one function per theme, per the checklist's A.2 ------------------- */
 
   const hiring = useMemo(() => {
     const weekEnd = addDays(TODAY, 7)

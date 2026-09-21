@@ -1,14 +1,3 @@
-/**
- * Roster — the legacy `CourseDetail`'s Students tab: one card, one table,
- * three numbers per student (who, how much they have handed in, how they are
- * doing).
- *
- * Two deliberate differences. The attendance rate is real, recomputed from
- * `studentAttendanceCollection` rather than a denormalised field, so a tutor
- * who corrects a register sees this move. And there is no balance column and
- * no route to one: the Tutor role deliberately cannot see who owes money, and
- * attendance here is a teaching signal, never a billing one.
- */
 import { useMemo } from 'react'
 import { Users } from 'lucide-react'
 

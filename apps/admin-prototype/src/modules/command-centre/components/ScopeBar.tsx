@@ -1,14 +1,3 @@
-/**
- * The scope controls: date range and business unit.
- *
- * Both live in the query string (`?preset=&from=&to=&unit=`), so every view of
- * Home is linkable and the whole screen re-derives when either changes.
- *
- * The spec puts the Unit and Branch filters in the top bar of the global
- * shell. The shell is not this module's to edit, so the Unit filter lives here
- * for now and moves up when the shell grows one.
- */
-
 import { CalendarRange } from 'lucide-react'
 
 import type { Unit } from '@/mocks'

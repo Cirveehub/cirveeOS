@@ -91,10 +91,6 @@ import {
   type TableDensity,
 } from '@/ui'
 
-/* ========================================================================== */
-/* Demo data                                                                  */
-/* ========================================================================== */
-
 interface DemoRow {
   id: string
   name: string
@@ -119,7 +115,6 @@ const STATUSES = ['active', 'pending', 'part_paid', 'overdue', 'completed', 'wit
 const OWNERS = ['Ngozi Eze', 'Kunle Adeleke', 'Aisha Bello', 'Tunde Balogun']
 const SOURCES = ['Referral', 'Instagram', 'Walk-in', 'Website', 'Corporate', 'Event']
 
-/** Deterministic pseudo-random so the table looks the same on every reload. */
 function makeRows(count: number): DemoRow[] {
   let seed = 20260920
   const next = () => {
@@ -156,10 +151,6 @@ const ROWS = makeRows(50)
 const SPARK_UP = [12, 18, 15, 24, 22, 31, 29, 38, 44, 41, 52, 61]
 const SPARK_DOWN = [61, 58, 60, 52, 49, 51, 44, 40, 42, 35, 31, 28]
 const SPARK_FLAT = [30, 34, 31, 36, 33, 35, 32, 37, 34, 36, 33, 35]
-
-/* ========================================================================== */
-/* Page scaffolding                                                           */
-/* ========================================================================== */
 
 interface SectionProps {
   id: string
@@ -213,10 +204,6 @@ function Grid({ children, cols = 2 }: { children: ReactNode; cols?: 2 | 3 | 4 })
     </div>
   )
 }
-
-/* ========================================================================== */
-/* Sections                                                                   */
-/* ========================================================================== */
 
 const ROLE_TOKENS = [
   { name: 'canvas', className: 'bg-canvas' },
@@ -1166,10 +1153,6 @@ function OverlaysSection() {
   )
 }
 
-/* ========================================================================== */
-/* The data-dense section                                                     */
-/* ========================================================================== */
-
 function columnsFor(): Array<Column<DemoRow>> {
   return [
     {
@@ -1282,7 +1265,6 @@ function columnsFor(): Array<Column<DemoRow>> {
       header: '',
       width: 56,
       align: 'center',
-      // Stops the row-click handler firing when the menu is opened.
       cell: () => (
         <span onClick={(event) => event.stopPropagation()}>
           <Popover
@@ -1584,10 +1566,6 @@ function DataTableSection() {
   )
 }
 
-/* ========================================================================== */
-/* The page                                                                   */
-/* ========================================================================== */
-
 const NAV = [
   { id: 'foundations', label: 'Foundations' },
   { id: 'buttons', label: 'Buttons' },
@@ -1650,8 +1628,6 @@ export default defineModule({
   group: 'system',
   depth: 'deep',
   summary: 'Every design-system component in every variant and state, on one page.',
-  // A review tool, not a business module — gated so it doesn't leak into
-  // every role's sidebar. Held by Super Admin, CEO and the Technology Lead.
   permission: 'settings.role.view',
   routes: [{ path: '', element: <KitchenSink /> }],
 })

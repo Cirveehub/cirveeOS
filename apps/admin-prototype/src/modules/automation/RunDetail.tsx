@@ -1,23 +1,3 @@
-/**
- * §6.5 — run detail.
- *
- * A vertical execution trace mirroring the builder canvas: one card per node,
- * in execution order, with what it read, what it concluded in the record's own
- * values, what it produced, and — where it failed — the full error and the
- * retry attempts.
- *
- * Two things this screen exists to prove:
- *
- *  - **Outputs link to the records they created.** A commission output lands on
- *    the real row in the commission ledger.
- *  - **Historical runs are never rewritten.** The header names the version this
- *    run executed, and when the definition has moved on it says so plainly
- *    rather than quietly showing today's definition.
- *
- * Only the most recent runs carry a full step trace. The rest keep a summary,
- * and that is a designed state here rather than an empty list.
- */
-
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
@@ -65,7 +45,6 @@ import {
 import { KeyChip, LoadFailed, RunStatusBadge, Screen, VersionBadge, useScreenState } from './parts'
 import { retryRun } from './writes'
 
-/** Where an output lands. The commission link is the one Flow 4 follows. */
 function outputHref(output: AutomationRunStep['outputs'][number]): string {
   switch (output.type) {
     case 'Commission':

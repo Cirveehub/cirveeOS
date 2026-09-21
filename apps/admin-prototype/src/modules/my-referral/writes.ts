@@ -1,17 +1,3 @@
-/**
- * Every write this module performs.
- *
- * Generating a code and editing payout details are the only two — approving
- * or paying a commission is entirely staff-driven through the admin
- * `referral` module's existing payout-run workflow (`Payouts.tsx`), which
- * this module never touches. A person can only ever act on their own record.
- *
- * The code-suggestion and profile shape below mirror
- * `src/modules/referral/Referrers.tsx`'s `NewReferrerModal` (the admin's
- * "add a referrer" flow) exactly, so a code minted here looks no different
- * from one a Growth admin would have minted for the same person.
- */
-
 import {
   CURRENT_USER_ID,
   TODAY,
@@ -60,7 +46,6 @@ function emitAudit(input: {
   })
 }
 
-/** Same shape as `Referrers.tsx`'s `suggestCode` — a name stem plus a counter. */
 function suggestCode(name: string, taken: Set<string>): string {
   const stem = (name.split(/\s+/)[0] ?? 'CIRVEE').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 6) || 'CIRVEE'
   for (let n = 1; n < 100; n++) {
@@ -70,11 +55,6 @@ function suggestCode(name: string, taken: Set<string>): string {
   return `${stem}${Date.now() % 100}`
 }
 
-/**
- * Mints this person's first referral code and link. Idempotent in spirit —
- * the screen only ever offers this button when `useMyReferral()` found no
- * profile — but not enforced here, since the caller already guarantees it.
- */
 export function generateMyReferralCode(
   personId: PersonId,
   displayName: string,
@@ -126,7 +106,6 @@ export interface PayoutDetailsInput {
   accountNumber: string
 }
 
-/** Bank details only ever change the account a future payout batch pays into — never a past one. */
 export function updateMyPayoutDetails(profileId: string, input: PayoutDetailsInput): void {
   const before = referrerProfilesCollection.find(profileId)
   if (!before) return

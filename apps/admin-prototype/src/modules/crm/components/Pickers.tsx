@@ -1,11 +1,3 @@
-/**
- * Person and staff pickers.
- *
- * Referrer, lead owner and closer are three independent fields, so they get
- * three independent pickers. Nothing here derives one from another, and each
- * one clears on its own.
- */
-
 import { useMemo, useState } from 'react'
 import { Check, ChevronDown, UserSearch, X } from 'lucide-react'
 import {
@@ -20,17 +12,11 @@ import { relationshipsCollection, useCollection, peopleCollection } from '@/mock
 import type { PersonId, UserId } from '@/mocks/types'
 import { RELATIONSHIP_LABELS, personFullName, useDirectory, userRoleName } from '../lib/lookups'
 
-/* -------------------------------------------------------------------------- */
-/* Person picker                                                              */
-/* -------------------------------------------------------------------------- */
-
 export interface PersonPickerProps {
   value: PersonId | null
   onChange: (value: PersonId | null) => void
-  /** Accessible name for the trigger when there is no visible label. */
   label: string
   placeholder?: string
-  /** Narrow the list to people holding this relationship — referrers, say. */
   relationship?: 'referrer' | 'student' | 'alumnus'
   id?: string
   disabled?: boolean
@@ -183,10 +169,6 @@ export function PersonPickerRow({
     </div>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* Staff picker                                                               */
-/* -------------------------------------------------------------------------- */
 
 export interface UserPickerProps {
   value: UserId | null

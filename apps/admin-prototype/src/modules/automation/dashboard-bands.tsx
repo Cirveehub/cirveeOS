@@ -1,18 +1,3 @@
-/**
- * The automation dashboard, one theme at a time.
- *
- * The screen used to render all ten stat cards plus five chart panels in one
- * flat scroll, with every figure computed on every render whether or not
- * anyone was looking at it. Following `command-centre/components/
- * ExecutiveStats.tsx`, each band below computes only its own slice and lives
- * inside its own `TabPanel`, so the work happens when the tab is opened rather
- * than on mount.
- *
- * Nothing was cut. Every card and every chart the dashboard carried is still
- * here — `OverviewHeadlines` repeats four of them as the ten-second read, and
- * the rest sit one click away under the theme they belong to.
- */
-
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Activity, AlertTriangle, CheckCircle2, Pause, Send, ShieldCheck, Workflow, Zap } from 'lucide-react'
@@ -43,10 +28,6 @@ function BandSkeleton({ cards }: { cards: number }) {
     </div>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* Overview — the ten-second read                                             */
-/* -------------------------------------------------------------------------- */
 
 export function OverviewHeadlines({ loading }: { loading: boolean }) {
   const navigate = useNavigate()
@@ -94,10 +75,6 @@ export function OverviewHeadlines({ loading }: { loading: boolean }) {
     </section>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* Fleet — what exists, and what state it is in                               */
-/* -------------------------------------------------------------------------- */
 
 export function FleetBand({ loading }: { loading: boolean }) {
   const navigate = useNavigate()
@@ -171,10 +148,6 @@ export function TriggerMixChart({ loading }: { loading: boolean }) {
     </Card>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* Runs — volume and what it produced                                         */
-/* -------------------------------------------------------------------------- */
 
 export function RunsBand({ loading }: { loading: boolean }) {
   const navigate = useNavigate()
@@ -344,10 +317,6 @@ export function RunOutcomesChart({ loading }: { loading: boolean }) {
     </Card>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* Reliability — what broke, and what was prevented                           */
-/* -------------------------------------------------------------------------- */
 
 export function ReliabilityBand({ loading }: { loading: boolean }) {
   const navigate = useNavigate()

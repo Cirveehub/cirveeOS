@@ -6,7 +6,6 @@ import Crm from './crm'
 import Referral from './referral'
 import Engage from './engage'
 import Corporate from './corporate'
-import Reputation from './reputation'
 import Academy from './academy'
 import Learn from './learn'
 import Teaching from './teaching'
@@ -25,13 +24,6 @@ import Meetings from './meetings'
 import Settings from './settings'
 import KitchenSink from './_kitchen-sink'
 
-/**
- * The module registry.
- *
- * Order here is the order modules appear within their nav group.
- * To add a module: create `src/modules/<id>/index.tsx` default-exporting a
- * `defineModule({...})`, then add it to this array. Nothing else changes.
- */
 export const modules: ModuleDef[] = [
   CommandCentre,
   Reports,
@@ -39,7 +31,6 @@ export const modules: ModuleDef[] = [
   Referral,
   Engage,
   Corporate,
-  Reputation,
   Academy,
   Learn,
   Teaching,

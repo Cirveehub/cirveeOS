@@ -1,18 +1,3 @@
-/**
- * Quiz attempt — `/my-learning/quizzes/:quizId`.
- *
- * The real thing the admin's quiz builder Preview only pretends to be
- * ("Exactly what the learner sees. Answers are not recorded.") — this one
- * records them. One page, no wizard: a quiz here runs three questions, not
- * thirty, and a step-by-step flow would be ceremony a phone-first learner
- * does not need.
- *
- * Only the option-bearing question types (`multiple_choice`, `multiple_select`,
- * `true_false`) are auto-scored, against each option's own `correct` flag —
- * `short_answer`/`numeric` questions have no accepted-answer field anywhere
- * in the data model, so they are recorded and flagged for the tutor to read,
- * never guessed at. See `writes.ts`'s `submitQuizAttempt` for the scoring rule.
- */
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { CheckCircle2, Clock3, FileQuestion, RotateCcw, XCircle } from 'lucide-react'

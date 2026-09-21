@@ -19,15 +19,6 @@ import CertificateRules from './CertificateRules'
 import Certificates from './Certificates'
 import StudentView from './StudentView'
 
-/**
- * A student who opens "Cirvee Learn" wants their own course, not the staff
- * dashboard with a course builder and a grading queue — `StudentView` already
- * exists for exactly this, but it takes an enrolment id as a route param
- * because it doubles as the screen a tutor previews a specific learner
- * through. This resolves that id for the signed-in student and lands on it
- * directly, so the module means the same thing to both kinds of visitor
- * without being two different modules.
- */
 function LearnIndex() {
   const session = useSession()
 
@@ -65,10 +56,6 @@ export default defineModule({
     { path: '', element: <LearnIndex /> },
 
     { path: 'courses', element: <Courses /> },
-    // The param names below are the ones the screens actually read through
-    // `useParams`. They were `:id` before, which meant every deep link into
-    // the builder, the lesson editor, the quiz builder and the student view
-    // resolved to a "not found" panel.
     { path: 'courses/:courseId/builder', element: <CourseBuilder /> },
     { path: 'courses/:courseId/certificate', element: <CertificateRules /> },
     { path: 'courses/:courseId/modules/:moduleId/lessons/:lessonId', element: <LessonEditor /> },
@@ -87,8 +74,6 @@ export default defineModule({
 
     { path: 'certificates', element: <Certificates /> },
 
-    // What a learner sees. Here so the founder can check the student side
-    // without a second login.
     { path: 'student', element: <StudentView /> },
     { path: 'student/:enrollmentId', element: <StudentView /> },
   ],

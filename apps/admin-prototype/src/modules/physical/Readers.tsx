@@ -1,11 +1,3 @@
-/**
- * §14 — readers.
- *
- * The buffering row is this screen's reason to exist. A reader that loses its
- * connection keeps accepting taps and holds them locally; they sync on
- * reconnect carrying their original timestamp, so attendance is never lost
- * because the network was.
- */
 import { useMemo, useState } from 'react'
 import { Radio, WifiOff } from 'lucide-react'
 
@@ -64,7 +56,6 @@ export default function PhysicalReaders() {
 
   const branchName = (id: string) => branches.find((b) => (b.id as string) === id)?.name ?? 'Unknown branch'
 
-  /** Live, so a kiosk tap taken a moment ago shows up against its reader. */
   const tapsByReader = useMemo(() => {
     const map = new Map<string, number>()
     for (const tap of taps) map.set(tap.readerId as string, (map.get(tap.readerId as string) ?? 0) + 1)

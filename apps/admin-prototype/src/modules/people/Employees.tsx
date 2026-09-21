@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { History, Lock, ShieldAlert, Users } from 'lucide-react'
+import { Lock, ShieldAlert, Users } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 import { formatDate, formatNaira, formatNumber, formatPercent } from '@/lib/format'
@@ -55,12 +55,6 @@ const STATUSES = ['active', 'probation', 'on_leave', 'notice', 'exited', 'suspen
 const TYPES = ['full_time', 'part_time', 'contract', 'intern'] as const
 const PAGE_SIZE = 25
 
-/**
- * Fourteen possible columns, eight shown. The density audit flagged this table
- * by name; the fix is the checklist's A.4 pattern — a curated default that
- * answers "who is this and does anything need doing", with the rest one click
- * away behind `ColumnPicker` and linkable through `?cols=`.
- */
 const COLUMN_CATALOGUE: ColumnCatalogueEntry[] = [
   { key: 'employeeId', label: 'Employee ID', defaultVisible: true, locked: true },
   { key: 'name', label: 'Name', defaultVisible: true },
@@ -391,11 +385,6 @@ export default function Employees() {
                     </Badge>
                   </div>
 
-                  <Alert tone="info" icon={History} title="Every row here is immutable" className="mb-4">
-                    A pay change appends a new version and end-dates the previous one. Nothing is overwritten, so a payslip from two
-                    years ago can still be explained by the figures that were in force on the day it was issued.
-                  </Alert>
-
                   {current && (
                     <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-surface-sunken px-4 py-3">
                       <span className="text-body-13 text-text-secondary">
@@ -533,8 +522,7 @@ export default function Employees() {
           )}
           {probationOutcomeDraft === 'ended' && (
             <Alert tone="warning" title="This opens an exit case">
-              Ending probation never deletes the employment record — it opens an exit case (notice review through to
-              final settlement), the same as any other exit.
+              Notice review through to final settlement.
             </Alert>
           )}
           <Field label="Note" optional>

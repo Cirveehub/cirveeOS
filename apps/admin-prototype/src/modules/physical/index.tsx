@@ -9,12 +9,6 @@ import PhysicalVisitors from './Visitors'
 import PhysicalSignage from './Signage'
 import PhysicalKiosk from './Kiosk'
 
-/**
- * The spec puts the walk-in kiosk at `/public/kiosk`, outside the shell. Only
- * `src/app/App.tsx` can mount a route outside a module base, and this module
- * does not own that file — so the kiosk lives at `/physical/kiosk` and renders
- * its own full-bleed, chrome-free surface instead.
- */
 export default defineModule({
   id: 'physical',
   label: 'Physical layer',

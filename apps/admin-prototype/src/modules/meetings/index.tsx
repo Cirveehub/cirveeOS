@@ -18,7 +18,6 @@ export default defineModule({
   routes: [
     { path: '', element: <Meetings /> },
 
-    // The literals precede `:id` so they are matched as paths, not as meeting ids.
     { path: 'actions', element: <ActionRegister /> },
     { path: 'decisions', element: <DecisionLog /> },
 

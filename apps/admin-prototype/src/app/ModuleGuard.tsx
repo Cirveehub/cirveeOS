@@ -5,27 +5,12 @@ import { useCan, useSession } from '@/auth'
 import type { PermissionString } from '@/auth'
 import { moduleVisibleTo, type ModuleDef } from './module-registry'
 
-/**
- * Enforces a module's reach on direct navigation.
- *
- * The sidebar already hides what a role cannot reach, but a URL can still be
- * typed or bookmarked — the PRD's fourth non-negotiable is that hiding a
- * button is not security, and the same logic applies to hiding a nav item.
- * This is still presentation only (there is no server here to authorise
- * against), but it means the same rule holds everywhere in the prototype
- * rather than only where a person happens to click.
- *
- * It asks `moduleVisibleTo` — the same question the sidebar and the command
- * palette ask — and then, where a single screen needs more than the module
- * does, checks that route's own narrower permission on top.
- */
 export default function ModuleGuard({
   mod,
   permission,
   children,
 }: {
   mod: Pick<ModuleDef, 'id' | 'permission' | 'personas'>
-  /** The route's own requirement, where it is narrower than the module's. */
   permission?: PermissionString
   children: React.ReactNode
 }) {

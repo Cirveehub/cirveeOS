@@ -1,16 +1,3 @@
-/**
- * Toasts.
- *
- * **This belongs in `src/ui/`.** The spec asks for a bottom-right toast on
- * every successful write (§0.5), and the design system has no `Toast` or
- * `Toaster` yet, so the CRM module carries a minimal one rather than editing
- * the library. It is deliberately thin — an `Alert` on a fixed stack — so
- * lifting it into `src/ui` later is a file move and a kitchen-sink entry.
- *
- * The store is module-scope rather than a React context so a toast pushed
- * immediately before `navigate()` still renders on the screen it lands on.
- */
-
 import { useSyncExternalStore } from 'react'
 import { Link } from 'react-router-dom'
 import { Alert, type AlertTone } from '@/ui'

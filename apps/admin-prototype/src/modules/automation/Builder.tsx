@@ -1,27 +1,3 @@
-/**
- * §6.3 — the automation builder.
- *
- * A vertical flow canvas rather than a free-form node graph: a linear stack
- * with one level of branch lanes, which is both easier to build and far easier
- * to read at a glance. Left is the palette, centre is the canvas, right is the
- * inspector for the selected node with the reliability footer always present.
- *
- * Four things this screen has to prove, and each one is visible without
- * clicking anything twice:
- *
- *  1. `TRIGGER → CONDITIONS → ACTIONS` is configurable by a human, with
- *     delays, branches, approvals and a stop condition available.
- *  2. A **test run writes nothing**, and the modal says so before and after.
- *  3. The **idempotency key** is built from named fields and previewed, so the
- *     duplicate guard is concrete rather than a promise.
- *  4. **Editing a definition that has run creates a new version.** The banner
- *     says so before you save, and the activate dialog says it again.
- *
- * Reordering is by explicit move controls rather than drag. Drag is faster
- * with a mouse; move buttons are the only version that works from a keyboard,
- * and §4 of the review checklist is not optional.
- */
-
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
@@ -121,17 +97,11 @@ import { AutomationStatusBadge, KeyChip, LoadFailed, NodeKindBadge, Screen, Vers
 import { renderTemplatePreview, testSubjects } from './simulate'
 import { activate, createAutomation, saveDraft, setAutomationStatus, type DraftShape } from './writes'
 
-/* -------------------------------------------------------------------------- */
-/* Draft state                                                                */
-/* -------------------------------------------------------------------------- */
-
 const BLANK_TRIGGER: AutomationNode = {
   id: 'n1',
   kind: 'trigger',
   triggerType: 'lead_created',
   params: {},
-  // An empty summary means "not chosen yet" — the card and the validator both
-  // read it that way, so a new automation genuinely opens empty.
   summary: '',
 }
 
@@ -160,10 +130,6 @@ function draftFrom(a: Automation): DraftShape {
     reliability: a.reliability,
   }
 }
-
-/* -------------------------------------------------------------------------- */
-/* Page                                                                       */
-/* -------------------------------------------------------------------------- */
 
 export default function Builder() {
   const { id } = useParams<{ id: string }>()
@@ -211,8 +177,6 @@ export default function Builder() {
 
   const updateNode = (nodeId: string, updater: (node: AutomationNode) => AutomationNode) =>
     setNodes(draft.nodes.map((n) => (n.id === nodeId ? updater(n) : n)))
-
-  /* ---- node operations ------------------------------------------------- */
 
   const addNode = (kind: AutomationNode['kind'], actionType?: AutomationActionType, laneOf?: { branchId: string; lane: number }) => {
     const nodeId = nextNodeId(draft.nodes)
@@ -310,8 +274,6 @@ export default function Builder() {
     setNodes(nodes)
   }
 
-  /* ---- saving ----------------------------------------------------------- */
-
   const onSave = () => {
     if (errors.length) {
       setShowIssues(true)
@@ -345,8 +307,6 @@ export default function Builder() {
   const selected = draft.nodes.find((n) => n.id === selectedId)
   const subjects = useMemo(() => testSubjects(6), [])
   const sampleSubject = subjects[0]
-
-  /* ---- render ----------------------------------------------------------- */
 
   if (errored) {
     return (
@@ -581,10 +541,6 @@ const BREADCRUMBS = [
   { label: 'Builder' },
 ]
 
-/* -------------------------------------------------------------------------- */
-/* Palette                                                                    */
-/* -------------------------------------------------------------------------- */
-
 function Palette({
   onAdd,
 }: {
@@ -635,10 +591,6 @@ function Palette({
     </Card>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* Canvas                                                                     */
-/* -------------------------------------------------------------------------- */
 
 interface CanvasProps {
   nodes: AutomationNode[]
@@ -892,10 +844,6 @@ function NodeCard({
     </div>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* Inspector                                                                  */
-/* -------------------------------------------------------------------------- */
 
 function Inspector({
   node,
@@ -1276,10 +1224,6 @@ function StopInspector({
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Action inspector                                                           */
-/* -------------------------------------------------------------------------- */
-
 function ActionInspector({
   node,
   onChange,
@@ -1621,10 +1565,6 @@ function ActionInspector({
     </div>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* Reliability — always present, never behind a tab                           */
-/* -------------------------------------------------------------------------- */
 
 function ReliabilityPanel({
   draft,

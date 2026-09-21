@@ -1,27 +1,3 @@
-/**
- * Every write Cirvee Learn performs.
- *
- * Three of them matter beyond this module:
- *
- *  1. `createCourse` — a course is the root of everything downstream. Nothing
- *     can be timetabled, enrolled or certified until one exists, so the wizard
- *     that calls this drops the caller straight into the builder.
- *  2. `createQuiz` — a quiz in this data model is a `quiz`-type lesson plus a
- *     `Quiz` record. Creating one creates both, so the outline tree and the
- *     quiz list agree the moment it lands.
- *  3. `issueCertificate` — the cross-module cascade. A certificate is not a
- *     row; it is an alumnus relationship, an outcome record with its 3/6/12
- *     month checkpoints, a review request and a drafted proof asset. The
- *     automation module ships a seeded journey for exactly this
- *     (`certificate-issued-cascade`, trigger `certificate_issued`), so this
- *     function also records the run against it rather than pretending the
- *     cascade happened by hand.
- *
- * Nothing here removes a row. A revoked certificate keeps its verification id
- * and its reason; the relationship and the outcome record it opened are ended
- * rather than deleted.
- */
-
 import {
   TODAY,
   CURRENT_USER_ID,
@@ -81,10 +57,6 @@ import {
 
 import { nowIso, personName, userName } from './common'
 
-/* -------------------------------------------------------------------------- */
-/* Audit                                                                      */
-/* -------------------------------------------------------------------------- */
-
 let auditSequence = 0
 
 export interface AuditInput {
@@ -98,7 +70,6 @@ export interface AuditInput {
   source?: AuditSource
 }
 
-/** Append-only. There is no update or delete path for an audit event. */
 export function emitAudit(input: AuditInput): AuditEvent {
   auditSequence += 1
   const user = usersCollection.find(CURRENT_USER_ID)
@@ -138,10 +109,6 @@ function emptyCoverage(): Record<ContentFormat, { have: number; total: number }>
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Courses                                                                    */
-/* -------------------------------------------------------------------------- */
-
 export interface NewCourseInput {
   title: string
   code: string
@@ -153,14 +120,12 @@ export interface NewCourseInput {
   listPrice: Kobo
 }
 
-/** True when `code` is already taken, including by an archived course. */
 export function courseCodeTaken(code: string, exceptId?: string): boolean {
   const wanted = code.trim().toUpperCase()
   if (!wanted) return false
   return coursesCollection.all().some((c) => c.id !== exceptId && c.code.toUpperCase() === wanted)
 }
 
-/** Suggests `DA-101` from "Data Analysis", skipping codes already in use. */
 export function suggestCourseCode(title: string): string {
   const initials =
     title
@@ -176,11 +141,6 @@ export function suggestCourseCode(title: string): string {
   return `${initials}-${Date.now() % 1000}`
 }
 
-/**
- * The course lands as a draft with no modules. That is deliberate: the caller
- * routes into the builder, where the outline tree's "Add your first module"
- * empty state is the next step.
- */
 export function createCourse(input: NewCourseInput): Course {
   const at = nowIso()
   const course: Course = {
@@ -230,17 +190,9 @@ export function createCourse(input: NewCourseInput): Course {
   return course
 }
 
-/**
- * Whatever the rest of the catalogue already certifies against. A new course
- * inheriting the house template beats a new course pointing at nothing.
- */
 function defaultCertificateTemplateId(): DocumentTemplateId {
   return coursesCollection.all()[0]?.certificateRules.templateId ?? TPL.certificate
 }
-
-/* -------------------------------------------------------------------------- */
-/* Quizzes                                                                    */
-/* -------------------------------------------------------------------------- */
 
 export interface NewQuizInput {
   courseId: string
@@ -256,11 +208,6 @@ export interface NewQuizResult {
   lesson: Lesson
 }
 
-/**
- * A quiz is a `quiz`-type lesson plus a `Quiz` record. Creating only the
- * second one would give the quiz list a row the outline tree cannot see, so
- * both are written here and linked in both directions.
- */
 export function createQuiz(input: NewQuizInput): NewQuizResult {
   const at = nowIso()
   const stamp = Date.now().toString(36)
@@ -318,11 +265,6 @@ export function createQuiz(input: NewQuizInput): NewQuizResult {
   return { quiz, lesson }
 }
 
-/* -------------------------------------------------------------------------- */
-/* Certificates                                                               */
-/* -------------------------------------------------------------------------- */
-
-/** `CIR-CERT-2026-0421`, continuing the seeded sequence rather than restarting it. */
 export function nextCertificatePublicId(): string {
   const year = TODAY.slice(0, 4)
   const prefix = `CIR-CERT-${year}-`
@@ -341,23 +283,9 @@ export interface IssueResult {
   outcome: OutcomeRecord
   reviewRequest: ReviewRequest
   proofAsset: ProofAsset
-  /** Every record the cascade produced, in the order it produced them. */
   cascade: Array<{ label: string; ref: string; to: string }>
 }
 
-/**
- * The cascade. The PRD's most-cited cross-module payoff, so this deliberately
- * does all five writes in one call rather than leaving four of them to a
- * "would also happen" note:
- *
- *   Certificate → Alumnus relationship → Outcome record (3/6/12 checkpoints)
- *   → Review request → Proof asset draft
- *
- * Financial clearance is a hard block, not a warning: if the course requires
- * it and the balance is not zero, this throws rather than issuing. The caller
- * never offers the button in that state, but a guard that only lives in the
- * UI is not a rule.
- */
 export function issueCertificate(enrollmentIdValue: EnrollmentId): IssueResult {
   const at = nowIso()
   const enrolment = enrollmentsCollection.find(enrollmentIdValue)
@@ -372,8 +300,6 @@ export function issueCertificate(enrollmentIdValue: EnrollmentId): IssueResult {
   const cohort = cohortsCollection.find(enrolment.cohortId)
   const branchId = cohort?.branchId ?? BR.ibadan
 
-  /* 1 — the certificate itself. An eligible-not-issued row is completed in
-     place so its public verification id survives; otherwise a new one. */
   const existing = certificatesCollection
     .all()
     .find((c) => c.enrollmentId === enrollmentIdValue && c.status === 'eligible_not_issued')
@@ -430,8 +356,6 @@ export function issueCertificate(enrollmentIdValue: EnrollmentId): IssueResult {
     after: 'issued',
   })
 
-  /* 2 — the person becomes an alumnus. The Student relationship is left
-     alone: somebody can hold both while a second enrolment is running. */
   const relationship = relationshipsCollection
     .all()
     .find((r) => r.personId === enrolment.personId && r.type === 'alumnus' && r.status === 'active')
@@ -448,8 +372,6 @@ export function issueCertificate(enrollmentIdValue: EnrollmentId): IssueResult {
       ...auditable(at),
     })
 
-  /* 3 — the outcome record, opened not answered, with the three checkpoints
-     the PRD schedules off graduation. */
   const outcome = outcomeRecordsCollection.insert({
     id: outcomeIdValue,
     personId: enrolment.personId,
@@ -490,7 +412,6 @@ export function issueCertificate(enrollmentIdValue: EnrollmentId): IssueResult {
     source: 'automation',
   })
 
-  /* 4 — the review request, on the satisfaction moment the PRD names. */
   const reviewRequest = reviewRequestsCollection.insert({
     id: asReviewReqId(`reviewreq-ui-${Date.now().toString(36)}`),
     personId: enrolment.personId,
@@ -508,8 +429,6 @@ export function issueCertificate(enrollmentIdValue: EnrollmentId): IssueResult {
     ...auditable(at),
   })
 
-  /* 5 — the proof asset, drafted rather than published. Consent is pending
-     until the graduate grants it; nothing goes out on this alone. */
   const proofAsset = proofAssetsCollection.insert({
     id: asProofId(`proof-ui-${Date.now().toString(36)}`),
     type: 'graduation',
@@ -526,8 +445,6 @@ export function issueCertificate(enrollmentIdValue: EnrollmentId): IssueResult {
     ...auditable(at),
   })
 
-  /* The seeded journey that models this cascade gets a real run row, so the
-     automation module's run list shows the one that just happened. */
   recordCascadeRun(certificate, publicId, {
     relationship,
     outcome,
@@ -543,8 +460,8 @@ export function issueCertificate(enrollmentIdValue: EnrollmentId): IssueResult {
       ref: outcome.checkpoints.map((c) => `${c.month}m`).join(' · '),
       to: '/outcomes/follow-ups',
     },
-    { label: 'Review request queued', ref: 'WhatsApp, on the graduation moment', to: '/reputation/requests' },
-    { label: 'Proof asset drafted', ref: 'Graduation — consent pending', to: '/reputation/proof' },
+    { label: 'Review request queued', ref: 'WhatsApp, on the graduation moment', to: '/engage/reviews/requests' },
+    { label: 'Story drafted', ref: 'Graduation — consent pending', to: '/engage/reviews/stories' },
   ]
 
   return { certificate, relationship, outcome, reviewRequest, proofAsset, cascade }
@@ -606,13 +523,6 @@ function step(nodeId: string, label: string, type: string, id: string, ref: stri
   }
 }
 
-/**
- * Revocation. The certificate keeps its id, its verification URL and its
- * eligibility snapshot — a revoked certificate has to stay verifiable as
- * revoked, which is the whole point of the public checker. The alumnus
- * relationship and the outcome record it opened are end-dated with the same
- * reason rather than removed.
- */
 export function revokeCertificate(certificateRecordId: string, reason: string): Certificate | undefined {
   const at = nowIso()
   const certificate = certificatesCollection.find(certificateRecordId)
@@ -666,10 +576,6 @@ export function revokeCertificate(certificateRecordId: string, reason: string): 
   return updated
 }
 
-/* -------------------------------------------------------------------------- */
-/* Small helpers                                                              */
-/* -------------------------------------------------------------------------- */
-
 export function addMonths(date: string, months: number): string {
   const d = new Date(`${date.slice(0, 10)}T00:00:00Z`)
   d.setUTCMonth(d.getUTCMonth() + months)
@@ -681,7 +587,6 @@ export function unitName(unitIdValue: UnitId | string | null | undefined): strin
   return unitsCollection.find(unitIdValue)?.name ?? 'Unassigned'
 }
 
-/** Modules of a course, in outline order — for the "where does this quiz live" select. */
 export function modulesOf(courseIdValue: string) {
   return courseModulesCollection
     .where((m) => m.courseId === courseIdValue)

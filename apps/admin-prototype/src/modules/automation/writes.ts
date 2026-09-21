@@ -1,19 +1,3 @@
-/**
- * Every write the automation module makes, in one place, so that each one can
- * also leave an audit row.
- *
- * Two rules are enforced here rather than in a screen:
- *
- *  - **Editing never mutates a version that has run.** `saveDraft` refuses to
- *    write over an active or paused definition and returns a new draft version
- *    instead. Runs keep the `automationVersion` they executed, so a v1 run
- *    still reads v1 after v2 exists.
- *  - **A duplicate trigger is refused, not executed.** `fireAutomation` looks
- *    for a run that already carries the same idempotency key and, if it finds
- *    one, records a `skipped_duplicate` run naming the key. Nothing downstream
- *    happens twice.
- */
-
 import {
   auditEventsCollection,
   automationExceptionsCollection,
@@ -95,14 +79,6 @@ export function writeAudit(args: {
   return auditEventsCollection.insert(event)
 }
 
-/* -------------------------------------------------------------------------- */
-/* Status — pause, resume, archive                                            */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Authorised users can pause or disable any automation, in one click. Paused
- * automations create no new runs; runs already in flight are left alone.
- */
 export function setAutomationStatus(automation: Automation, status: AutomationStatus): Automation | undefined {
   if (automation.status === status) return automation
   const updated = automationsCollection.update(automation.id, {
@@ -125,10 +101,6 @@ export function setAutomationStatus(automation: Automation, status: AutomationSt
   return updated
 }
 
-/* -------------------------------------------------------------------------- */
-/* Versioning                                                                 */
-/* -------------------------------------------------------------------------- */
-
 export interface DraftShape {
   name: string
   description: string
@@ -148,7 +120,6 @@ function stamp(): { createdAt: string; createdBy: UserId; updatedAt: string; upd
   return { createdAt: now, createdBy: actor, updatedAt: now, updatedBy: actor }
 }
 
-/** A brand new automation, always at v1 and always as a draft. */
 export function createAutomation(draft: DraftShape): Automation {
   const created: Automation = {
     id: makeAutomationId(`auto-${draft.automationKey || 'untitled'}-v1-${Math.random().toString(36).slice(2, 6)}`),
@@ -178,11 +149,6 @@ export function createAutomation(draft: DraftShape): Automation {
   return created
 }
 
-/**
- * Saving a draft writes in place. Saving against a version that has already
- * run — active, paused or archived — refuses to mutate it and returns a new
- * draft version instead, so historical runs are never rewritten.
- */
 export function saveDraft(
   existing: Automation,
   draft: DraftShape,
@@ -238,10 +204,6 @@ export function saveDraft(
   return { automation: created, newVersion: true }
 }
 
-/**
- * Activation promotes a draft. The version it supersedes is archived rather
- * than deleted, and every run it produced keeps pointing at it.
- */
 export function activate(draft: Automation): Automation | undefined {
   const previous = automationsCollection
     .where((a) => a.automationKey === draft.automationKey && a.id !== draft.id && a.status === 'active')
@@ -283,15 +245,10 @@ export function activate(draft: Automation): Automation | undefined {
   return updated
 }
 
-/* -------------------------------------------------------------------------- */
-/* Firing a real run — and refusing a duplicate                               */
-/* -------------------------------------------------------------------------- */
-
 function nowIso(): string {
   return new Date().toISOString()
 }
 
-/** A run that already carries this key means the work has been done once. */
 export function existingRunForKey(key: string): AutomationRun | undefined {
   return automationRunsCollection.where((r) => r.idempotencyKey === key && r.status !== 'skipped_duplicate')[0]
 }
@@ -301,14 +258,6 @@ export interface FireResult {
   duplicate: boolean
 }
 
-/**
- * Fires an automation for real against a seeded record.
- *
- * The first fire executes and records outputs that link to real records. A
- * second fire with the same idempotency key is **refused** — it still leaves a
- * run row, because a refusal a human cannot see is not a guard, but its status
- * is `skipped_duplicate` and its summary names the key.
- */
 export function fireAutomation(automation: Automation, subject: TestSubject): FireResult {
   const key = idempotencyPreviewFor(
     automation.automationKey,
@@ -576,14 +525,6 @@ function createMessage(
   return messagesCollection.insert(message)
 }
 
-/* -------------------------------------------------------------------------- */
-/* Retrying a run                                                             */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Retrying never rewrites the failed run. It records a new one that names the
- * run it retried, so the original failure stays on the record.
- */
 export function retryRun(run: AutomationRun, fromFailedNodeOnly: boolean): AutomationRun {
   const automation = automationsCollection.find(run.automationId)
   const startedAt = nowIso()
@@ -621,15 +562,6 @@ export function retryRun(run: AutomationRun, fromFailedNodeOnly: boolean): Autom
   return retry
 }
 
-/* -------------------------------------------------------------------------- */
-/* The exception queue                                                        */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Some failures a retry cannot fix. A missing WhatsApp number is a data
- * problem, so retrying it leaves it open — which is why the queue is never
- * magically empty after a bulk retry.
- */
 export function isPermanentFailure(exception: AutomationException): boolean {
   return /no whatsapp number/i.test(exception.errorMessage)
 }

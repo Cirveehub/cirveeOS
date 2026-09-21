@@ -1,16 +1,3 @@
-/**
- * The procurement stage machine.
- *
- * The PRD's flow is Request → Approval → Quote and vendor → Purchase →
- * Payment → Asset or expense record, and each hop has a precondition that has
- * to be satisfied by data rather than by a person clicking through. Keeping the
- * rules here rather than in the screen means the register renders the reason a
- * stage cannot advance in the same words the guard uses to refuse it.
- *
- * Nothing here removes a row. A request that does not proceed is `rejected`,
- * which is terminal and stays on the register.
- */
-
 import type { ProcurementRequest, ProcurementStage } from '@/mocks'
 
 export const STAGE_ORDER: ProcurementStage[] = [
@@ -34,7 +21,6 @@ export const STAGE_LABEL: Record<ProcurementStage, string> = {
   rejected: 'Rejected',
 }
 
-/** The six phases of the PRD flow, each covering one or more stored stages. */
 export interface ProcurementPhase {
   id: string
   label: string
@@ -85,7 +71,6 @@ export function phaseOf(stage: ProcurementStage): ProcurementPhase | null {
   return PHASES.find((phase) => phase.stages.includes(stage)) ?? null
 }
 
-/** Categories that produce a durable company asset rather than a consumed expense. */
 const ASSET_CATEGORIES = ['IT equipment', 'AV equipment', 'Furniture', 'Facilities']
 
 export function producesAsset(request: ProcurementRequest): boolean {
@@ -99,17 +84,11 @@ export function nextStage(stage: ProcurementStage): ProcurementStage | null {
 }
 
 export interface AdvanceCheck {
-  /** The stage this request would move to, or null if it is already terminal. */
   to: ProcurementStage | null
   allowed: boolean
-  /** Why not — rendered verbatim next to the disabled button. */
   reason: string | null
 }
 
-/**
- * `approvalStatus` is the status of the linked approval request, or null when
- * nothing is linked. The register resolves it; the guard only reads it.
- */
 export function canAdvance(
   request: ProcurementRequest,
   approvalStatus: string | null,
@@ -174,7 +153,6 @@ export function canAdvance(
   }
 }
 
-/** Variance of actual against estimate, in kobo. Positive means an overspend. */
 export function variance(request: ProcurementRequest): number | null {
   if (request.actualCost === null) return null
   return request.actualCost - request.estimatedCost

@@ -93,7 +93,6 @@ export default function Branches() {
 
     const at = new Date().toISOString()
     branchesCollection.insert({
-      /* The seed's `BranchCode` union is a seed convenience; the real column is a string. */
       id: `branch-${form.code.trim().toLowerCase()}` as Branch['id'],
       code: form.code.trim().toUpperCase() as Branch['code'],
       name: form.name.trim(),

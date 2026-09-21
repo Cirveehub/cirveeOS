@@ -20,14 +20,7 @@ import {
   type Message,
 } from '@/mocks'
 
-import { ModuleHeader, ErrorPanel, Screen, useModuleData, usePersonName } from './parts'
-
-const CHANNEL_LABEL: Record<string, string> = {
-  whatsapp: 'WhatsApp',
-  email: 'Email',
-  sms: 'SMS',
-  in_app: 'In-app',
-}
+import { CHANNEL_LABEL, ModuleHeader, ErrorPanel, Screen, useModuleData, usePersonName } from './parts'
 
 export default function EngageMessages() {
   const messages = useCollection(messagesCollection)
@@ -165,12 +158,12 @@ export default function EngageMessages() {
   return (
     <Screen>
       <ModuleHeader
-        title="Message history"
+        title="Messages"
         description="Every message the system has sent or received, with the campaign or automation that caused it."
       />
 
       {error ? (
-        <ErrorPanel what="Message history" onRetry={retry} />
+        <ErrorPanel what="Messages" onRetry={retry} />
       ) : (
         <Card padding="none">
           <FilterBar
@@ -237,7 +230,7 @@ export default function EngageMessages() {
             loading={loading}
             density="compact"
             minWidth={1900}
-            caption="Message history"
+            caption="Messages sent and received"
             emptyTitle={hasFilters ? 'No messages match these filters' : 'No messages yet'}
             emptyMessage={
               hasFilters

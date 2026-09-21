@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Building2, Monitor, Plus } from 'lucide-react'
+import { Building2, CalendarClock, Monitor, Plus } from 'lucide-react'
 
 import { formatDate, formatNaira, formatNumber } from '@/lib/format'
 import {
@@ -28,8 +28,10 @@ import {
   type Column,
   type ColumnCatalogueEntry,
 } from '@/ui'
+import { useQueryState } from '@/lib/view-state'
 import {
   TODAY,
+  addDays,
   clientOrgsCollection,
   corporateDealsCollection,
   invoicesCollection,
@@ -52,10 +54,6 @@ import {
   useUserName,
 } from './parts'
 
-/**
- * Fourteen columns exist; eight answer "what is this client, and does it need
- * my attention". The rest are one click away rather than always on screen.
- */
 const ORG_COLUMNS: ColumnCatalogueEntry[] = [
   { key: 'name', label: 'Organisation', defaultVisible: true, locked: true },
   { key: 'industry', label: 'Industry', defaultVisible: false },
@@ -82,6 +80,8 @@ export default function CorporateOrganisations() {
   const userName = useUserName()
 
   const [search, setSearch] = useState('')
+  const query = useQueryState()
+  const renewalOnly = query.get('renewal') === 'due'
   const [openId, setOpenId] = useState<string | null>(null)
   const [portalPreview, setPortalPreview] = useState(false)
   const [creating, setCreating] = useState(false)
@@ -93,11 +93,18 @@ export default function CorporateOrganisations() {
   const dealCount = (id: string) => deals.filter((d) => (d.organisationId as string) === id).length
   const invoicesFor = (id: string) => invoices.filter((i) => (i.organisationId as string | null) === id)
 
+  const horizon = addDays(TODAY, 90)
+  const needsRenewalTalk = (o: ClientOrg) => o.renewalDate !== null && o.renewalDate <= horizon
+  const renewalCount = rows.filter(needsRenewalTalk).length
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
-    if (!q) return rows
-    return rows.filter((o) => o.name.toLowerCase().includes(q) || o.industry.toLowerCase().includes(q))
-  }, [rows, search])
+    return rows.filter((o) => {
+      if (renewalOnly && !needsRenewalTalk(o)) return false
+      if (q && !o.name.toLowerCase().includes(q) && !o.industry.toLowerCase().includes(q)) return false
+      return true
+    })
+  }, [rows, search, renewalOnly, horizon])
 
   const open = openId ? orgs.find((o) => (o.id as string) === openId) : undefined
   const openParticipants = openParticipantsFor(participants, openId)
@@ -201,7 +208,13 @@ export default function CorporateOrganisations() {
       sortable: true,
       sortValue: contractStatus,
       cell: (o) => (
-        <Badge tone={contractStatus(o) === 'Active' ? 'success' : 'neutral'}>{contractStatus(o)}</Badge>
+        <Badge
+          tone={
+            contractStatus(o) === 'Expired' ? 'danger' : needsRenewalTalk(o) ? 'warning' : contractStatus(o) === 'Active' ? 'success' : 'neutral'
+          }
+        >
+          {contractStatus(o) === 'Active' && needsRenewalTalk(o) ? 'Renews soon' : contractStatus(o)}
+        </Badge>
       ),
       width: 160,
     },
@@ -257,17 +270,16 @@ export default function CorporateOrganisations() {
   }
 
   const resolved = visible.map((key) => allColumns[key]).filter(Boolean)
-  /* A hand-edited ?cols= that names nothing real would otherwise blank the table. */
   const columns = resolved.length > 0 ? resolved : defaultKeys.map((key) => allColumns[key]).filter(Boolean)
 
   return (
     <Screen>
       <ModuleHeader
-        title="Organisations"
-        description="Client organisations, their participants and what they owe."
+        title="Clients"
+        description="The companies you train, the people they send and what they owe."
         actions={
           <Button leftIcon={<Plus size={16} />} onClick={() => setCreating(true)}>
-            Add organisation
+            Add client
           </Button>
         }
       />
@@ -285,13 +297,24 @@ export default function CorporateOrganisations() {
           <TableToolbar
             className="px-4 py-3"
             lead={
-              <SearchInput
-                value={search}
-                onChange={setSearch}
-                placeholder="Search organisations"
-                inputSize="sm"
-                containerClassName="w-72"
-              />
+              <div className="flex flex-wrap items-center gap-2">
+                <SearchInput
+                  value={search}
+                  onChange={setSearch}
+                  placeholder="Search clients"
+                  inputSize="sm"
+                  containerClassName="w-72"
+                />
+                <Button
+                  size="sm"
+                  variant={renewalOnly ? 'primary' : 'secondary'}
+                  leftIcon={<CalendarClock size={14} />}
+                  onClick={() => query.set('renewal', renewalOnly ? undefined : 'due')}
+                  aria-pressed={renewalOnly}
+                >
+                  Needs a renewal conversation{renewalCount > 0 ? ` · ${formatNumber(renewalCount)}` : ''}
+                </Button>
+              </div>
             }
             actions={
               <ColumnPicker
@@ -312,11 +335,19 @@ export default function CorporateOrganisations() {
             caption="Client organisations"
             onRowClick={(o) => setOpenId(o.id as string)}
             activeRowKey={openId ?? undefined}
-            emptyTitle={search ? 'No organisations match this search' : 'No client organisations yet'}
+            emptyTitle={
+              renewalOnly
+                ? 'No client needs a renewal conversation'
+                : search
+                  ? 'No clients match this search'
+                  : 'No clients yet'
+            }
             emptyMessage={
-              search
-                ? 'Clear the search to see every client.'
-                : 'Corporate work is invoiced to an organisation. Nothing is tracked here until one exists.'
+              renewalOnly
+                ? 'No contract ends in the next 90 days and none has lapsed.'
+                : search
+                  ? 'Clear the search to see every client.'
+                  : 'Add the first company you train and it will appear here.'
             }
           />
         </Card>
@@ -344,8 +375,7 @@ export default function CorporateOrganisations() {
                   </Button>
                 }
               >
-                This is what the client sees: their own participants' attendance, progress and assessment
-                results, plus their invoices. No other client's data, no internal notes, no pipeline.
+                What the client sees: their own participants and invoices, nothing else.
               </Alert>
             )}
 
@@ -541,7 +571,7 @@ export default function CorporateOrganisations() {
         onClose={() => setCreating(false)}
         onCreated={(name) =>
           setNotice(
-            `${name} is now a client organisation. It starts at zero lifetime revenue, zero outstanding and no participants trained — those figures only move when an invoice does.`,
+            `${name} added as a client. Revenue, balance and participants fill in as invoices are raised.`,
           )
         }
       />
@@ -557,11 +587,6 @@ function openParticipantsFor(
   return participants.filter((p) => p.organisationId === orgId)
 }
 
-/* -------------------------------------------------------------------------- */
-/* Add an organisation                                                        */
-/* -------------------------------------------------------------------------- */
-
-/** Sectors the seed already uses, plus the rest of the corporate book. */
 const INDUSTRIES = [
   'Banking',
   'Fintech',
@@ -585,7 +610,6 @@ const INDUSTRIES = [
 
 const SIZES = ['1–50', '50–200', '200–500', '500–1,000', '1,000+']
 
-/** `cli-sterling`, `cli-interswitch` — the slug convention the seed uses. */
 function slugFor(name: string, taken: Set<string>): string {
   const base =
     name
@@ -736,7 +760,7 @@ function NewOrganisationModal({
         onClose()
       }}
       size="lg"
-      title="Add an organisation"
+      title="Add a client"
       description="A client organisation is who the invoice is addressed to. Its participants, deals and revenue all hang off this one record, so the name has to be unique."
       footer={
         <>
@@ -750,7 +774,7 @@ function NewOrganisationModal({
             Cancel
           </Button>
           <Button leftIcon={<Building2 size={16} />} onClick={submit}>
-            Add organisation
+            Add client
           </Button>
         </>
       }

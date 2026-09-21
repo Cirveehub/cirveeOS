@@ -1,14 +1,6 @@
-/**
- * Label and reference resolution for the CRM module.
- *
- * Every function here reads a live `Collection`, never a seed array, so a
- * Person created by the new-lead wizard resolves by name on the very next
- * render. Components that must re-render when identity data changes use
- * `useDirectory()`; everything else calls the plain resolvers.
- */
-
 import { useMemo } from 'react'
 import type { BusinessUnit } from '@/app/module-registry'
+import type { BadgeTone } from '@/ui'
 import {
   branchesCollection,
   cohortsCollection,
@@ -42,11 +34,8 @@ import type {
   CourseId,
   CohortId,
   CommissionRoleOnDeal,
+  Lead,
 } from '@/mocks/types'
-
-/* -------------------------------------------------------------------------- */
-/* Enum labels — sentence case, short                                         */
-/* -------------------------------------------------------------------------- */
 
 export const STAGE_LABELS: Record<LeadStage, string> = {
   new: 'New',
@@ -54,16 +43,15 @@ export const STAGE_LABELS: Record<LeadStage, string> = {
   qualified: 'Qualified',
   counselling: 'Counselling',
   application: 'Application',
-  payment_pending: 'Payment pending',
+  payment_pending: 'Ready to pay',
   enrolled: 'Enrolled',
   not_interested: 'Not interested',
   lost: 'Lost',
   invalid: 'Invalid',
   unresponsive: 'Unresponsive',
-  future_nurture: 'Future nurture',
+  future_nurture: 'Not now',
 }
 
-/** The seven stages a lead walks forward through. */
 export const OPEN_STAGES: LeadStage[] = [
   'new',
   'contacted',
@@ -74,7 +62,6 @@ export const OPEN_STAGES: LeadStage[] = [
   'enrolled',
 ]
 
-/** Leaving the pipeline through one of these requires a loss reason. */
 export const EXIT_STAGES: LeadStage[] = [
   'not_interested',
   'lost',
@@ -85,7 +72,6 @@ export const EXIT_STAGES: LeadStage[] = [
 
 export const ALL_STAGES: LeadStage[] = [...OPEN_STAGES, ...EXIT_STAGES]
 
-/** Stages that no longer count as pipeline. */
 export const CLOSED_STAGES: LeadStage[] = ['enrolled', 'lost', 'not_interested', 'invalid']
 
 export const SOURCE_LABELS: Record<LeadSource, string> = {
@@ -156,7 +142,7 @@ export const PLAN_INSTALMENT_COUNT: Record<PaymentPlan, number> = {
 }
 
 export const RELATIONSHIP_LABELS: Record<RelationshipType, string> = {
-  lead: 'Lead',
+  lead: 'Enquiry',
   applicant: 'Applicant',
   student: 'Student',
   alumnus: 'Alumnus',
@@ -171,14 +157,10 @@ export const RELATIONSHIP_LABELS: Record<RelationshipType, string> = {
 }
 
 export const ROLE_ON_DEAL_LABELS: Record<CommissionRoleOnDeal, string> = {
-  referrer: 'Referrer',
-  lead_owner: 'Lead owner',
-  closer: 'Closer',
+  referrer: 'Referred by',
+  lead_owner: 'Handled by',
+  closer: 'Closed by',
 }
-
-/* -------------------------------------------------------------------------- */
-/* Units                                                                      */
-/* -------------------------------------------------------------------------- */
 
 const UNIT_CODE_TO_BUSINESS_UNIT: Record<UnitCode, BusinessUnit> = {
   ACADEMY: 'academy',
@@ -189,16 +171,11 @@ const UNIT_CODE_TO_BUSINESS_UNIT: Record<UnitCode, BusinessUnit> = {
   TCF: 'tcf',
 }
 
-/** `unit-academy` → `academy`, the key `UnitTag` wants. */
 export function businessUnitOf(id: UnitId | null | undefined): BusinessUnit | null {
   if (!id) return null
   const unit = unitsCollection.find(id)
   return unit ? UNIT_CODE_TO_BUSINESS_UNIT[unit.code] : null
 }
-
-/* -------------------------------------------------------------------------- */
-/* People, users, catalogue                                                   */
-/* -------------------------------------------------------------------------- */
 
 export function personFullName(person: Person | undefined): string {
   return person ? `${person.firstName} ${person.lastName}` : 'Unknown person'
@@ -209,7 +186,6 @@ export function personName(id: PersonId | null | undefined): string {
   return personFullName(peopleCollection.find(id))
 }
 
-/** The Person behind a staff login. Staff are people too — one record each. */
 export function personIdForUser(id: UserId | null | undefined): PersonId | null {
   if (!id) return null
   return usersCollection.find(id)?.personId ?? null
@@ -221,7 +197,6 @@ export function userName(id: UserId | null | undefined): string {
   return user ? personName(user.personId) : 'Unknown user'
 }
 
-/** "Sales Executive" — the first role on the user, for a PersonChip's second line. */
 export function userRoleName(id: UserId | null | undefined): string {
   if (!id) return ''
   const user = usersCollection.find(id)
@@ -249,10 +224,6 @@ export function unitName(id: UnitId | null | undefined): string {
   return unitsCollection.find(id)?.name ?? 'Unknown unit'
 }
 
-/* -------------------------------------------------------------------------- */
-/* The reactive directory                                                     */
-/* -------------------------------------------------------------------------- */
-
 export interface Directory {
   people: Person[]
   users: User[]
@@ -262,7 +233,6 @@ export interface Directory {
   branches: Branch[]
   personById: Map<string, Person>
   userById: Map<string, User>
-  /** Staff options for an owner or closer picker, sorted by name. */
   staffOptions: Array<{ value: string; label: string }>
   courseOptions: Array<{ value: string; label: string }>
   branchOptions: Array<{ value: string; label: string }>
@@ -271,11 +241,6 @@ export interface Directory {
   userNameOf: (id: UserId | null | undefined) => string
 }
 
-/**
- * Subscribes to every reference collection a CRM screen resolves labels
- * against, so a newly created Person or a reassigned owner re-renders the
- * rows that name them.
- */
 export function useDirectory(): Directory {
   const people = useCollection(peopleCollection)
   const users = useCollection(usersCollection)
@@ -323,11 +288,6 @@ export function useDirectory(): Directory {
   }, [people, users, courses, cohorts, units, branches])
 }
 
-/* -------------------------------------------------------------------------- */
-/* Small formatting helpers                                                   */
-/* -------------------------------------------------------------------------- */
-
-/** 251 → "4h 11m". Used by every response-time surface in the module. */
 export function formatMinutes(minutes: number): string {
   if (minutes < 60) return `${Math.round(minutes)}m`
   const hours = Math.floor(minutes / 60)
@@ -337,7 +297,6 @@ export function formatMinutes(minutes: number): string {
   return `${days}d ${hours % 24}h`
 }
 
-/** "18.0%" — the discount as a share of the quoted fee, for a list cell. */
 export function discountPercentLabel(admission: {
   quotedFee: number
   discountAmount: number
@@ -346,7 +305,6 @@ export function discountPercentLabel(admission: {
   return `${((admission.discountAmount / admission.quotedFee) * 100).toFixed(1)}%`
 }
 
-/** Days in stage colour banding, per §2.2: amber at 8, red at 15. */
 export function ageTone(days: number): 'default' | 'warning' | 'danger' {
   if (days >= 15) return 'danger'
   if (days >= 8) return 'warning'
@@ -359,3 +317,134 @@ export const AGE_BUCKETS = [
   { key: '8-14', label: '8–14 days', min: 8, max: 14 },
   { key: '15+', label: '15+ days', min: 15, max: Number.POSITIVE_INFINITY },
 ] as const
+
+export type SimpleStage = 'new' | 'talking' | 'ready_to_pay' | 'enrolled' | 'not_now' | 'lost'
+
+export const SIMPLE_STAGE: Record<LeadStage, SimpleStage> = {
+  new: 'new',
+  contacted: 'talking',
+  qualified: 'talking',
+  counselling: 'talking',
+  application: 'talking',
+  payment_pending: 'ready_to_pay',
+  enrolled: 'enrolled',
+  future_nurture: 'not_now',
+  not_interested: 'lost',
+  lost: 'lost',
+  invalid: 'lost',
+  unresponsive: 'lost',
+}
+
+export const SIMPLE_STAGE_LABEL: Record<SimpleStage, string> = {
+  new: 'New',
+  talking: 'Talking',
+  ready_to_pay: 'Ready to pay',
+  enrolled: 'Enrolled',
+  not_now: 'Not now',
+  lost: 'Lost',
+}
+
+export const SIMPLE_STAGE_TONE: Record<SimpleStage, BadgeTone> = {
+  new: 'info',
+  talking: 'accent',
+  ready_to_pay: 'warning',
+  enrolled: 'success',
+  not_now: 'neutral',
+  lost: 'danger',
+}
+
+export const SIMPLE_PIPELINE: SimpleStage[] = ['new', 'talking', 'ready_to_pay', 'enrolled']
+export const SIMPLE_OUTCOMES: SimpleStage[] = ['not_now', 'lost']
+export const SIMPLE_OPEN: SimpleStage[] = ['new', 'talking', 'ready_to_pay']
+
+// The raw stage written when a user picks a simple stage.
+export const SIMPLE_STAGE_WRITE: Record<SimpleStage, LeadStage> = {
+  new: 'new',
+  talking: 'contacted',
+  ready_to_pay: 'payment_pending',
+  enrolled: 'enrolled',
+  not_now: 'future_nurture',
+  lost: 'lost',
+}
+
+export const RAW_STAGES_OF: Record<SimpleStage, LeadStage[]> = (
+  Object.keys(SIMPLE_STAGE) as LeadStage[]
+).reduce(
+  (acc, raw) => {
+    acc[SIMPLE_STAGE[raw]].push(raw)
+    return acc
+  },
+  { new: [], talking: [], ready_to_pay: [], enrolled: [], not_now: [], lost: [] } as Record<SimpleStage, LeadStage[]>,
+)
+
+export const OPEN_RAW_STAGES: LeadStage[] = SIMPLE_OPEN.flatMap((s) => RAW_STAGES_OF[s])
+
+export function simpleStageOf(stage: LeadStage): SimpleStage {
+  return SIMPLE_STAGE[stage]
+}
+
+export function isOpenStage(stage: LeadStage): boolean {
+  return SIMPLE_OPEN.includes(SIMPLE_STAGE[stage])
+}
+
+export function exitStageForReason(reason: LossReason): LeadStage {
+  if (reason === 'unresponsive') return 'unresponsive'
+  if (reason === 'not_qualified' || reason === 'duplicate') return 'invalid'
+  return 'lost'
+}
+
+export function waitingLabel(days: number): string {
+  if (days <= 0) return 'Waiting since today'
+  return `Waiting ${days} day${days === 1 ? '' : 's'}`
+}
+
+export type ReplySpeed = 'fast' | 'slow' | 'none'
+
+export function replySpeedOf(lead: Pick<Lead, 'firstResponseMinutes' | 'responseSlaMinutes' | 'stage'>): ReplySpeed {
+  if (lead.firstResponseMinutes === null) return 'none'
+  return lead.firstResponseMinutes <= lead.responseSlaMinutes ? 'fast' : 'slow'
+}
+
+export const REPLY_SPEED_LABEL: Record<ReplySpeed, string> = {
+  fast: 'Replied within 2 hours',
+  slow: 'Slow to reply',
+  none: 'No reply yet',
+}
+
+export const REPLY_SPEED_TONE: Record<ReplySpeed, BadgeTone> = {
+  fast: 'success',
+  slow: 'warning',
+  none: 'danger',
+}
+
+const SOURCE_PHRASE: Record<LeadSource, string> = {
+  website_form: 'the website form',
+  whatsapp: 'WhatsApp',
+  walk_in_kiosk: 'a walk-in at the kiosk',
+  instagram_dm: 'an Instagram message',
+  referral_link: 'a referral link',
+  event_scan: 'a scan at an event',
+  phone: 'a phone call',
+  import: 'a spreadsheet import',
+  facebook_ad: 'a Facebook ad',
+  google_ad: 'a Google ad',
+  alumni_word_of_mouth: 'an alumnus telling them',
+}
+
+export function sourceSentence(lead: Pick<Lead, 'originalSource' | 'latestSource'>): string {
+  const first = SOURCE_PHRASE[lead.originalSource]
+  if (lead.latestSource === lead.originalSource) return `Came via ${first}`
+  return `Came via ${SOURCE_PHRASE[lead.latestSource]} · first heard through ${first}`
+}
+
+export function whatsappHref(person: Pick<Person, 'phone' | 'whatsapp'> | undefined): string | null {
+  const raw = person?.whatsapp ?? person?.phone
+  if (!raw) return null
+  let digits = raw.replace(/\D/g, '')
+  if (digits.startsWith('0')) digits = `234${digits.slice(1)}`
+  return digits ? `https://wa.me/${digits}` : null
+}
+
+export function firstNameOf(fullName: string | undefined): string {
+  return (fullName ?? '').trim().split(/\s+/)[0] || 'there'
+}

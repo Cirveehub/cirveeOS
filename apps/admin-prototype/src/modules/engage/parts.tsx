@@ -1,72 +1,36 @@
-/**
- * Engage — module-local scaffolding.
- *
- * `Screen`, `useModuleData` and `BarList` are composed entirely from `@/ui`
- * primitives and layout markup; they exist here because the library has no
- * page shell, no first-load hook and no chart. All three belong in `src/ui/`.
- */
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
 
 import { cn } from '@/lib/cn'
 import { Alert, Button, PageHeader, ProgressBar, SkeletonCard, SkeletonTable } from '@/ui'
-import { demo, peopleCollection, useCollection, usersCollection } from '@/mocks'
+import { demo, peopleCollection, useCollection, usersCollection, type Channel } from '@/mocks'
 
 export const MODULE_ID = 'engage'
-const BASE = '/engage'
 
-/** The content well has no padding of its own — every screen supplies it. */
+export const CHANNEL_LABEL: Record<Channel, string> = {
+  whatsapp: 'WhatsApp',
+  email: 'Email',
+  sms: 'SMS',
+  in_app: 'In-app',
+}
+
 export function Screen({ children }: { children: ReactNode }) {
   return <div className="mx-auto w-full max-w-[1560px] px-6 py-6">{children}</div>
 }
-
-/**
- * The shell renders module `subnav` only in the command palette, so every
- * module carries its own in-page navigation. This belongs in the shell.
- */
-const NAV = [
-  { id: '', label: 'Dashboard' },
-  { id: 'segments', label: 'Segments' },
-  { id: 'campaigns', label: 'Campaigns' },
-  { id: 'templates', label: 'Templates' },
-  { id: 'messages', label: 'Message history' },
-]
 
 export function ModuleHeader({
   title,
   description,
   actions,
+  meta,
 }: {
   title: ReactNode
   description?: ReactNode
   actions?: ReactNode
+  meta?: ReactNode
 }) {
-  const navigate = useNavigate()
-  const { pathname } = useLocation()
-  const relative = pathname.startsWith(BASE) ? pathname.slice(BASE.length).replace(/^\//, '') : ''
-  const active =
-    [...NAV]
-      .sort((a, b) => b.id.length - a.id.length)
-      .find((item) =>
-        item.id === '' ? relative === '' : relative === item.id || relative.startsWith(`${item.id}/`),
-      )?.id ?? ''
-
-  return (
-    <PageHeader
-      title={title}
-      description={description}
-      actions={actions}
-      tabs={NAV.map((item) => ({ id: item.id || 'overview', label: item.label }))}
-      activeTab={active || 'overview'}
-      onTabChange={(id) => navigate(id === 'overview' ? BASE : `${BASE}/${id}`)}
-    />
-  )
+  return <PageHeader title={title} description={description} actions={actions} meta={meta} />
 }
 
-/**
- * First-mount delay so the skeleton is actually visible in a demo, plus the
- * two demo-control switches the spec wires into Settings → Demo controls.
- */
 export function useModuleData<T>(rows: T[], scope: string): {
   loading: boolean
   error: boolean
@@ -119,10 +83,6 @@ export function DashboardSkeleton() {
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Name lookups                                                               */
-/* -------------------------------------------------------------------------- */
-
 export function usePersonName(): (id: string | null | undefined) => string {
   const people = useCollection(peopleCollection)
   const byId = useMemo(
@@ -141,10 +101,6 @@ export function useUserName(): (id: string | null | undefined) => string {
   }, [users, people])
   return (id) => (id ? (byId.get(id) ?? 'Unknown user') : 'Unassigned')
 }
-
-/* -------------------------------------------------------------------------- */
-/* Bar list — the stand-in for a chart component                              */
-/* -------------------------------------------------------------------------- */
 
 export interface BarRow {
   key: string
@@ -189,7 +145,6 @@ export function BarList({
   )
 }
 
-/** A right-aligned percentage, one decimal at most. */
 export function percent(part: number, whole: number): number {
   return whole === 0 ? 0 : Number(((part / whole) * 100).toFixed(1))
 }

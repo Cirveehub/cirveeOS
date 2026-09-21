@@ -5,14 +5,6 @@ import { Search } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { PERSONAS_BY_DEPARTMENT, signIn, type Persona } from '@/auth'
 
-/**
- * The mock sign-in screen: pick a role, land in that role's system.
- *
- * There is no password because there is no backend — this is a role switcher
- * wearing a login's clothes. It deliberately does not explain what each role
- * does; the point of the prototype is the interface each role gets, not a
- * paragraph describing it before you get there.
- */
 export default function Login() {
   const navigate = useNavigate()
   const [query, setQuery] = useState('')

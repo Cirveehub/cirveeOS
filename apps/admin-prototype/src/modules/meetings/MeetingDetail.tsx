@@ -1,13 +1,3 @@
-/**
- * One meeting.
- *
- * The "Live numbers" tab is the point of the module: the review pack is read
- * straight out of the same collections the dashboards read, so the monthly
- * review builds itself and nobody spends two days on slides.
- *
- * Action items show their carried-forward count here too, because an item that
- * has rolled through four agendas is the number that creates accountability.
- */
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
@@ -82,7 +72,6 @@ import {
 import { NewActionModal, NewDecisionModal } from './modals'
 import { circulateMinutes, saveMinutes, updateActionStatus } from './writes'
 
-/** A lead is out of the pipeline once it enrols or is closed out. */
 const CLOSED_LEAD_STAGES: LeadStage[] = [
   'enrolled',
   'not_interested',
@@ -109,7 +98,6 @@ export default function MeetingDetail() {
   const [addingAction, setAddingAction] = useState(false)
   const [loggingDecision, setLoggingDecision] = useState(false)
   const [replacing, setReplacing] = useState<Decision | null>(null)
-  /** Minutes are edited in place, keyed by agenda sequence, until saved. */
   const [draftNotes, setDraftNotes] = useState<Record<number, string>>({})
   const [editingMinutes, setEditingMinutes] = useState(false)
 
@@ -119,7 +107,6 @@ export default function MeetingDetail() {
   const actions = useCollection(actionItemsCollection)
   const decisions = useCollection(decisionsCollection)
 
-  /* The live review pack reads the same collections every dashboard reads. */
   const invoices = useCollection(invoicesCollection)
   const payments = useCollection(paymentsCollection)
   const leads = useCollection(leadsCollection)
@@ -158,11 +145,9 @@ export default function MeetingDetail() {
         ['new', 'open', 'pending_customer', 'escalated', 'reopened'].includes(t.status),
       ).length,
     }),
-    // Every collection is a dependency so the pack re-derives when any of them moves.
     [invoices, payments, leads, admissions, enrollments, approvals, tickets],
   )
 
-  /* The draft follows whichever meeting is on screen, and is discarded on leaving. */
   const agendaNotes = useMemo(
     () => (meeting ? meeting.agendaItems.map((item) => [item.sequence, item.notes] as const) : []),
     [meeting],
@@ -364,12 +349,6 @@ export default function MeetingDetail() {
 
         {tab === 'numbers' && (
           <div className="space-y-6">
-            <Alert tone="info" title="The review pack builds itself">
-              Every figure below is read from the same collections the dashboards read, at the moment
-              this tab is opened. Nothing is pasted in, nothing is exported to slides, and nothing
-              goes stale between the pack being prepared and the meeting starting.
-            </Alert>
-
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
               <StatCard
                 label="Collected this month"
@@ -732,10 +711,6 @@ export default function MeetingDetail() {
     </Screen>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* Action status — closed or re-opened, never removed                         */
-/* -------------------------------------------------------------------------- */
 
 const NEXT_STATUS: Record<ActionItemStatus, { to: ActionItemStatus; label: string; note: string }> = {
   open: { to: 'in_progress', label: 'Start', note: 'Picked up by the owner.' },

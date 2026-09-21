@@ -1,13 +1,3 @@
-/**
- * Job openings — `/people/openings` (screen-spec §9).
- *
- * A requisition is how a department asks for headcount, so this list answers
- * two questions per row: what is the role, and is anything holding it up. The
- * salary band is deliberately **not** a default column — it sits behind a row
- * click with a restricted chip, because in production this list is visible to
- * far more people than the band is.
- */
-
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { BriefcaseBusiness, Lock, Plus } from 'lucide-react'

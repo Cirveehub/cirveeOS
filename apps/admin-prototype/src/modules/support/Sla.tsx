@@ -46,7 +46,6 @@ export default function SupportSla() {
 
   const { loading, error, rows, retry } = useModuleData(tickets, 'support.sla')
 
-  /** The target is configuration. No component here types a number. */
   const activeSla = useMemo(
     () =>
       policies.find(

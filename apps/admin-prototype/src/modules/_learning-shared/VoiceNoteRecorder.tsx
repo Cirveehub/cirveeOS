@@ -1,13 +1,3 @@
-/**
- * Voice-note feedback — simulated, because the PRD names it explicitly.
- *
- * Shared by the curriculum team's grading queue (`learn/Submissions.tsx`)
- * and the Tutor's own grading screen (`teaching/Grading.tsx`) — both grade
- * the same `Submission`, so both should be able to leave the same kind of
- * feedback on it. There is no real `MediaRecorder` use anywhere in this
- * prototype; this is honestly labelled as simulated rather than pretending
- * to capture audio the app has nowhere to store.
- */
 import { useEffect, useState } from 'react'
 import { Mic, Pause, Play, RotateCcw, Square } from 'lucide-react'
 
@@ -27,7 +17,6 @@ export function VoiceNoteRecorder({
 }: {
   value: Submission['voiceNote']
   onChange: (note: Submission['voiceNote']) => void
-  /** Fires once a recording is stopped and attached — a caller's toast hook. */
   onRecorded?: () => void
 }) {
   const [recording, setRecording] = useState(false)

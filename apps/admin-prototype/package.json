@@ -11,9 +11,11 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.101.0",
+    "@types/qrcode": "^1.5.6",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.474.0",
+    "qrcode": "^1.5.4",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-hot-toast": "^2.5.2",

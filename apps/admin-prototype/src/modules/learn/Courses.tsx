@@ -1,10 +1,3 @@
-/**
- * Course list — `/learn/courses`.
- *
- * The way into the builder. Carries the format-coverage pills on every row so
- * the catalogue's readiness is legible before anyone opens a course.
- */
-
 import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { BookOpen, Plus } from 'lucide-react'
@@ -312,10 +305,6 @@ export default function Courses() {
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* New course                                                                 */
-/* -------------------------------------------------------------------------- */
-
 const MODES: Array<{ value: Mode; label: string }> = [
   { value: 'on_campus', label: 'On campus' },
   { value: 'virtual', label: 'Virtual' },
@@ -328,12 +317,6 @@ const LEVELS: Array<{ value: CourseLevel; label: string }> = [
   { value: 'advanced', label: 'Advanced' },
 ]
 
-/**
- * One modal, one insert, then straight into the builder — a course has no
- * sequencing worth a wizard. Everything past this point (modules, lessons,
- * formats, price changes, certificate rules) is the builder's job, and the
- * builder already does it.
- */
 function NewCourseModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const navigate = useNavigate()
   const units = useCollection(unitsCollection)

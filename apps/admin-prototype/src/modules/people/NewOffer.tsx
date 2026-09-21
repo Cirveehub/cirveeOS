@@ -1,13 +1,3 @@
-/**
- * Generate an offer — `/people/offers/new`.
- *
- * Three steps, because each one depends on the last: who and what role, then
- * the terms, then the letter the template produces from them. The final step
- * is a preview of the generated document before anything is written, and the
- * two buttons under it are deliberately different acts — saving a draft
- * commits nothing to the candidate, issuing does.
- */
-
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, Check, Lock } from 'lucide-react'
@@ -88,7 +78,6 @@ export default function NewOffer() {
 
   const managers = useMemo(() => staffOptions(), [])
 
-  /** Only candidates who are still live and do not already hold a live offer. */
   const eligible = useMemo(
     () =>
       candidates.filter(
@@ -102,7 +91,6 @@ export default function NewOffer() {
   const candidate = candidates.find((c) => c.id === candidateId)
   const opening = candidate ? openings.find((o) => o.id === candidate.openingId) : undefined
 
-  /** Defaults follow the opening the candidate applied against. */
   const applyOpeningDefaults = (nextCandidateId: string) => {
     setCandidateId(nextCandidateId)
     const next = candidates.find((c) => c.id === nextCandidateId)

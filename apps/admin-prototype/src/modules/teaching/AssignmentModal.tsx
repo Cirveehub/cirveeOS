@@ -1,23 +1,3 @@
-/**
- * Create assignment — the legacy `UploadAssignmentModal`, two steps, same
- * fields in the same order.
- *
- * Step 1 is the legacy's six: course, cohort, title, due date, total marks,
- * description. Course and cohort are pre-filled from the hub and shown
- * read-only, because the tutor is standing inside one cohort — the legacy had
- * them as dropdowns only because its modal could also be opened from a page
- * with no cohort context.
- *
- * Step 2 is the legacy's optional attachment, plus the two rules Cirvee OS's
- * `Assignment` actually enforces and a student's submit screen reads back:
- * which formats are accepted and what happens to late work. Four controls, not
- * a settings page.
- *
- * There is no rubric builder. The legacy graded against one "total marks"
- * number and a feedback box, so an assignment created here is written with an
- * empty `rubric` and grades holistically. Seeded assignments that *do* carry
- * rubric rows still grade per criterion — the grading modal branches on it.
- */
 import { useEffect, useMemo, useState } from 'react'
 import { Calendar, FileText, Target, Upload } from 'lucide-react'
 
@@ -60,9 +40,6 @@ export default function AssignmentModal({
 }) {
   const lessons = useCollection(lessonsCollection)
 
-  /* Every assignment hangs off a lesson in the outline. A tutor should not
-     have to think about that, so the default is the course's own assignment
-     or project lesson and the select is there only if they disagree. */
   const lessonOptions = useMemo(() => {
     const mine = lessons
       .filter((l) => l.courseId === course.id)

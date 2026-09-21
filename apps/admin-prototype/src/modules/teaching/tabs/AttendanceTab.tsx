@@ -1,25 +1,3 @@
-/**
- * Attendance — taking a register, in the legacy's shape and under Cirvee OS's
- * rules.
- *
- * Legacy layout: pick the class, a table of students with a control per row,
- * "mark all present", one save. That is kept.
- *
- * Three things the legacy register never had, all of them real here:
- *
- *  1. **The policy in force is read, not assumed.** Grace, late-after and
- *     absent-after come from the active `attendance` policy version in
- *     `policyVersionsCollection`, so raising the grace period in Settings
- *     changes what this screen tells the tutor.
- *  2. **The non-negotiable is stated on the screen.** PRD §7: the consequence
- *     engine exists and ships with `financialConsequenceEnabled = false`. A
- *     tutor marking somebody absent is not touching their bill, and the screen
- *     says so rather than leaving them to guess.
- *  3. **Changing a recorded state is an override.** It needs a reason and it
- *     emits an audit event carrying the previous state beside the new one.
- *     That write is `recordAttendance` — Academy operations' implementation,
- *     re-used rather than re-invented, so there is one version of the rule.
- */
 import { useEffect, useMemo, useState } from 'react'
 import { CheckCheck, ClipboardCheck, ShieldCheck } from 'lucide-react'
 
@@ -52,7 +30,6 @@ import {
 import { TeachingCard, personName } from '../shared'
 import { activeAttendancePolicy, recordAttendance, type AttendanceEntry } from '../writes'
 
-/** `''` means "leave this student unrecorded" — the safe default. */
 type DraftState = StudentAttendanceState | ''
 
 const STATE_OPTIONS: Array<{ value: DraftState; label: string }> = [
@@ -96,9 +73,6 @@ export default function AttendanceTab({
     [sessions],
   )
 
-  /* Today's class if there is one, otherwise the most recent one that has
-     already happened — a tutor opening this tab is nearly always here to mark
-     the class they just taught. */
   const defaultSessionId = useMemo(() => {
     const today = openSessions.find((s) => s.date === TODAY)
     if (today) return today.id
@@ -124,8 +98,6 @@ export default function AttendanceTab({
     [attendance, sessionId],
   )
 
-  /* Reset the draft whenever the chosen session changes, so a tutor never
-     saves one class's marks against another's. */
   useEffect(() => {
     const next: Record<string, DraftState> = {}
     for (const enrolment of enrolments) {
@@ -136,9 +108,6 @@ export default function AttendanceTab({
     setTouched(false)
     setNotice(null)
     setFailure(null)
-    // Deliberately keyed on the session alone. Re-running whenever the
-    // attendance collection changes would wipe marks the tutor has made but
-    // not saved — and it changes the moment they do save.
   }, [sessionId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const rows = useMemo<RegisterRow[]>(
@@ -351,14 +320,12 @@ export default function AttendanceTab({
 
   return (
     <div className="flex flex-col gap-6">
-      <Alert tone="info" icon={ShieldCheck} title="Attendance is a teaching signal, not a billing one">
-        Policy version {policy.version} is in force: {policy.graceMinutes} minutes of grace, late after{' '}
-        {policy.lateAfterMinutes} minutes, absent after {policy.absentAfterMinutes}.{' '}
+      <Alert tone="info" icon={ShieldCheck} title={`Policy version ${policy.version} is in force`}>
+        {policy.graceMinutes} minutes of grace, late after {policy.lateAfterMinutes} minutes, absent after{' '}
+        {policy.absentAfterMinutes}.{' '}
         {policy.financialConsequenceEnabled
           ? 'A financial consequence is enabled on this policy.'
-          : 'No consequence is financial — repeated absence raises an advisory flag for the advisor, and nothing else.'}{' '}
-        Correcting a state the system already recorded is an override: it needs a reason and it goes to
-        the audit log with the previous state beside the new one.
+          : 'No consequence is financial.'}
       </Alert>
 
       {notice && (

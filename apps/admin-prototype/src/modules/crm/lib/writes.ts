@@ -1,19 +1,3 @@
-/**
- * Every write the CRM module performs.
- *
- * Three rules hold across this file, and the PRD is unforgiving about all
- * three:
- *
- *  1. **Attribution is never overwritten.** Reassigning an owner appends to
- *     `ownershipHistory`; it does not touch the referrer or the closer.
- *  2. **`originalSource` is written once.** Only `latestSource` ever moves.
- *  3. **Audited actions emit an `AuditEvent`** — actor, timestamp, field,
- *     before and after — which is a different record from an `Activity`.
- *
- * Nothing here removes a row. Withdrawals, archives and merges are status
- * transitions that leave the original visible.
- */
-
 import {
   TODAY,
   CURRENT_USER_ID,
@@ -77,6 +61,8 @@ import {
   type LeadStage,
   type LossReason,
   type Mode,
+  type Payment,
+  type PaymentMethod,
   type PaymentPlan,
   type Person,
   type PersonId,
@@ -84,17 +70,9 @@ import {
   type UnitId,
   type UserId,
 } from '@/mocks/types'
+import { recordManualPayment } from '@/modules/finance/writes'
 import { personName, userName } from './lookups'
 
-/* -------------------------------------------------------------------------- */
-/* The clock                                                                  */
-/* -------------------------------------------------------------------------- */
-
-/**
- * The prototype's now. The date is always the seed's fixed TODAY so relative
- * dates never rot; only the time of day comes from the wall clock, which is
- * what makes the response-time chip tick during a demo.
- */
 export function nowIso(): string {
   const d = new Date()
   const pad2 = (n: number) => String(n).padStart(2, '0')
@@ -117,10 +95,6 @@ export function daysBetween(from: string, to: string): number {
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Audit                                                                      */
-/* -------------------------------------------------------------------------- */
-
 let auditSequence = 0
 
 export interface AuditInput {
@@ -135,7 +109,6 @@ export interface AuditInput {
   actorUserId?: UserId
 }
 
-/** Append-only. There is no update or delete path for an audit event. */
 export function emitAudit(input: AuditInput): AuditEvent {
   auditSequence += 1
   const actorUserId = input.actorUserId ?? CURRENT_USER_ID
@@ -164,10 +137,6 @@ export function emitAudit(input: AuditInput): AuditEvent {
 function auditable(at: string = nowIso()) {
   return { createdAt: at, createdBy: CURRENT_USER_ID, updatedAt: at, updatedBy: CURRENT_USER_ID }
 }
-
-/* -------------------------------------------------------------------------- */
-/* References                                                                 */
-/* -------------------------------------------------------------------------- */
 
 function nextSequence(refs: string[], prefix: string): number {
   const numbers = refs
@@ -221,10 +190,6 @@ export function nextApprovalRef(): string {
   return `APR-${year}-${String(n).padStart(4, '0')}`
 }
 
-/* -------------------------------------------------------------------------- */
-/* Activity feed                                                              */
-/* -------------------------------------------------------------------------- */
-
 export function logActivity(args: {
   subjectType: ActivitySubjectType
   subjectId: string
@@ -251,11 +216,6 @@ export function logActivity(args: {
   return activitiesCollection.insert(activity)
 }
 
-/**
- * Logging a human touch on a lead stops the response-time clock — once, and
- * only once. `firstResponseAt` is the PRD's reported metric, so a later call
- * must not reset it.
- */
 export function recordLeadTouch(lead: Lead, at: string = nowIso()): void {
   if (lead.firstResponseAt) {
     leadsCollection.update(lead.id, { lastActivityAt: at, updatedAt: at, updatedBy: CURRENT_USER_ID })
@@ -294,10 +254,6 @@ export function recordLeadTouch(lead: Lead, at: string = nowIso()): void {
   }
 }
 
-/* -------------------------------------------------------------------------- */
-/* People                                                                     */
-/* -------------------------------------------------------------------------- */
-
 export interface NewPersonInput {
   firstName: string
   lastName: string
@@ -312,7 +268,7 @@ export interface NewPersonInput {
 export function createPerson(input: NewPersonInput): Person {
   const at = nowIso()
   const person: Person = {
-    id: asPersonId(`per-ui-${Date.now().toString(36)}`),
+    id: asPersonId(`per-ui-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`),
     firstName: input.firstName.trim(),
     lastName: input.lastName.trim(),
     email: input.email?.trim() || null,
@@ -398,10 +354,6 @@ export function endRelationship(relationshipId: string, reason: string): void {
   })
 }
 
-/* -------------------------------------------------------------------------- */
-/* Leads                                                                      */
-/* -------------------------------------------------------------------------- */
-
 export interface NewLeadInput {
   personId: PersonId
   courseInterestId: CourseId | null
@@ -418,7 +370,6 @@ export interface NewLeadInput {
   nextAction: string | null
   nextActionDueAt: string | null
   notes: string
-  /** The routing rule that chose the owner, named on the profile's audit row. */
   routingRule: string
 }
 
@@ -426,7 +377,7 @@ export function createLead(input: NewLeadInput): Lead {
   const at = nowIso()
   const ref = nextLeadRef()
   const lead: Lead = {
-    id: asLeadId(`lead-ui-${Date.now().toString(36)}`),
+    id: asLeadId(`lead-ui-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`),
     ref,
     personId: input.personId,
     courseInterestId: input.courseInterestId,
@@ -579,11 +530,6 @@ export function changeStage(lead: Lead, to: LeadStage, loss?: { reason: LossReas
   })
 }
 
-/**
- * Ownership moves; history is appended, never replaced. Referrer and closer
- * are untouched by design — the person who brought the lead is not the person
- * working it, and reassignment must not silently rewrite attribution.
- */
 export function reassignOwner(lead: Lead, toUserId: UserId, reason: string): void {
   if (lead.ownerUserId === toUserId) return
   const at = nowIso()
@@ -654,7 +600,6 @@ export function setReferrer(lead: Lead, referrerPersonId: PersonId | null, reaso
   })
 }
 
-/** Original source stays where it is. Only the latest source moves. */
 export function setLatestSource(lead: Lead, source: LeadSource): void {
   leadsCollection.update(lead.id, { latestSource: source, updatedAt: nowIso(), updatedBy: CURRENT_USER_ID })
   emitAudit({
@@ -690,10 +635,6 @@ export function archiveLead(lead: Lead, reason: string): void {
     after: at,
   })
 }
-
-/* -------------------------------------------------------------------------- */
-/* Follow-ups                                                                 */
-/* -------------------------------------------------------------------------- */
 
 export function createFollowUp(args: {
   leadId: string
@@ -753,10 +694,6 @@ export function reassignFollowUp(followUp: FollowUp, ownerUserId: UserId): void 
   followUpsCollection.update(followUp.id, { ownerUserId, updatedAt: nowIso(), updatedBy: CURRENT_USER_ID })
 }
 
-/* -------------------------------------------------------------------------- */
-/* Duplicates                                                                 */
-/* -------------------------------------------------------------------------- */
-
 export function resolveDuplicate(
   candidate: DuplicateCandidate,
   status: 'merged' | 'not_duplicate' | 'skipped',
@@ -779,11 +716,6 @@ export function resolveDuplicate(
   })
 }
 
-/**
- * Merge. The losing record is never removed — it is marked
- * `mergedIntoPersonId`, and every lead, admission and activity is repointed
- * so both timelines survive on the surviving record.
- */
 export function mergePeople(args: {
   survivingId: PersonId
   mergedId: PersonId
@@ -837,10 +769,6 @@ export function mergePeople(args: {
   return { movedLeads, movedAdmissions, movedActivities, movedRelationships }
 }
 
-/**
- * The reviewer chose to create a new Person despite a likely match. The PRD
- * requires the reason to be captured and audited, not silently swallowed.
- */
 export function logDuplicateOverride(person: Person, matchedPerson: Person, reason: string): void {
   emitAudit({
     action: 'person.duplicate.override',
@@ -853,10 +781,6 @@ export function logDuplicateOverride(person: Person, matchedPerson: Person, reas
   })
 }
 
-/* -------------------------------------------------------------------------- */
-/* Discount policy                                                            */
-/* -------------------------------------------------------------------------- */
-
 export interface DiscountBand {
   fromPercent: number
   toPercent: number | null
@@ -864,10 +788,6 @@ export interface DiscountBand {
   label: string
 }
 
-/**
- * The threshold is configuration, not a constant in a component. It is read
- * from the active `discount_threshold` policy version.
- */
 export function discountBands(): DiscountBand[] {
   const policy = policyVersionsCollection
     .all()
@@ -893,10 +813,6 @@ export function bandForDiscount(percent: number): DiscountBand | null {
 export function approverRoleLabel(percent: number): string {
   return bandForDiscount(percent)?.label ?? 'No approval needed'
 }
-
-/* -------------------------------------------------------------------------- */
-/* Admissions                                                                 */
-/* -------------------------------------------------------------------------- */
 
 export interface AdmissionDraft {
   leadId: string | null
@@ -958,12 +874,6 @@ export function splitInstalmentAmounts(total: number, count: number): number[] {
   return parts
 }
 
-/**
- * The one write in this module that touches five collections at once, and the
- * moment Flow 1 turns a lead into a student. In order: Admission, Student
- * relationship, Enrolment, Invoice (held when a discount needs approval),
- * commission rows, audit events.
- */
 export function createAdmission(draft: AdmissionDraft, preview: CommissionPreview[]): AdmissionResult {
   const at = nowIso()
   const ref = nextAdmissionRef()
@@ -1015,7 +925,6 @@ export function createAdmission(draft: AdmissionDraft, preview: CommissionPrevie
     after: admission.status,
   })
 
-  /* Identity gains a Student relationship — the Person record is not duplicated. */
   addRelationship({
     personId: draft.personId,
     type: 'student',
@@ -1024,7 +933,6 @@ export function createAdmission(draft: AdmissionDraft, preview: CommissionPrevie
     relatedRecordId: admission.id,
   })
 
-  /* Enrolment. */
   const enrolmentId = asEnrollmentId(`enr-ui-${Date.now().toString(36)}`)
   enrollmentsCollection.insert({
     id: enrolmentId,
@@ -1044,21 +952,18 @@ export function createAdmission(draft: AdmissionDraft, preview: CommissionPrevie
   if (cohort) cohortsCollection.update(cohort.id, { enrolledCount: cohort.enrolledCount + 1 })
   admissionsCollection.update(admission.id, { enrolmentId })
 
-  /* Approval, when the discount is over the configured threshold. */
   let approval: ApprovalRequest | null = null
   if (needsApproval && band) {
     approval = raiseDiscountApproval(admission, discountPercent, band)
     admissionsCollection.update(admission.id, { discountApprovalId: approval.id })
   }
 
-  /* Invoice — held while the discount waits for a decision. */
   let invoice: Invoice | null = null
   if (!needsApproval) {
     invoice = issueInvoiceFor({ ...admission, enrolmentId })
     admissionsCollection.update(admission.id, { invoiceId: invoice.id })
   }
 
-  /* Commission expectations, one row per rule that matched a beneficiary. */
   const commissions = invoice ? writeCommissions(admission, invoice, preview) : []
 
   logActivity({
@@ -1168,7 +1073,6 @@ function raiseDiscountApproval(
   return request
 }
 
-/** The invoice. Lines sum to the total; balance is total minus paid. */
 export function issueInvoiceFor(admission: Admission): Invoice {
   const at = nowIso()
   const ref = nextInvoiceRef()
@@ -1321,11 +1225,6 @@ function writeCommissions(
   })
 }
 
-/**
- * Withdrawal. Nothing is deleted: the invoice is voided, pending commissions
- * are cancelled with a reason, the Student relationship is end-dated and the
- * admission stays visible with a Withdrawn badge.
- */
 export function withdrawAdmission(admission: Admission, reason: string): void {
   const at = nowIso()
   admissionsCollection.update(admission.id, {
@@ -1399,7 +1298,72 @@ export function withdrawAdmission(admission: Admission, reason: string): void {
   })
 }
 
-/* Re-exported so the approval id caster does not leak into every page. */
 function asApprovalRouteId(value: string) {
   return value as ApprovalRequest['routeId']
+}
+
+export interface FirstPaymentInput {
+  amount: Kobo
+  method: PaymentMethod
+  reference: string
+}
+
+export function applyFirstPayment(admission: Admission, invoice: Invoice, input: FirstPaymentInput): Payment {
+  const at = nowIso()
+  const payment = recordManualPayment({
+    amount: input.amount,
+    method: input.method,
+    payerName: personName(admission.personId),
+    payerReference: input.reference.trim() || `Enrolment ${admission.ref}`,
+    receivedAt: at,
+    unitId: admission.unitId as string,
+    branchId: admission.branchId as string,
+    allocations: [{ invoiceId: invoice.id as string, amount: input.amount }],
+  })
+
+  const paid = Math.min(input.amount, invoice.total)
+  const settled = paid >= invoice.total
+  let remaining = paid
+  const instalments = admission.instalments.map((row) => {
+    if (remaining <= 0) return row
+    const covers = remaining >= row.amount
+    remaining -= Math.min(remaining, row.amount)
+    return covers ? { ...row, status: 'paid' as Instalment['status'] } : row
+  })
+
+  admissionsCollection.update(admission.id, {
+    status: settled ? 'enrolled' : 'partially_paid',
+    instalments,
+    updatedAt: at,
+    updatedBy: CURRENT_USER_ID,
+  })
+
+  const account = accountsCollection.find(invoice.accountId)
+  if (account) {
+    accountsCollection.update(account.id, {
+      paidTotal: asKobo(account.paidTotal + paid),
+      balance: asKobo(Math.max(0, account.balance - paid)),
+    })
+  }
+
+  emitAudit({
+    action: 'admission.payment.first',
+    entityType: 'Admission',
+    entityId: admission.id,
+    entityRef: admission.ref,
+    field: 'status',
+    before: admission.status,
+    after: settled ? 'enrolled' : 'partially_paid',
+  })
+
+  logActivity({
+    subjectType: 'admission',
+    subjectId: admission.id,
+    type: 'system',
+    body: `${payment.ref} recorded: ₦${(paid / 100).toLocaleString('en-NG')} by ${input.method.replace(/_/g, ' ')}.${settled ? ' Fee settled in full.' : ''}`,
+    system: true,
+    at,
+  })
+
+  return payment
 }

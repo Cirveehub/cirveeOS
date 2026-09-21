@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react'
 
 import { formatNumber } from '@/lib/format'
 import {
-  Alert,
   Badge,
   Card,
   ColumnPicker,
@@ -11,6 +10,7 @@ import {
   MoneyCell,
   PersonChip,
   ProgressBar,
+  StatCard,
   TableToolbar,
   useColumnVisibility,
   type Column,
@@ -23,11 +23,6 @@ import { useParticipants } from './data'
 import type { Participant } from './participant-model'
 import { ErrorPanel, ModuleHeader, Screen, useModuleData, usePersonName } from './parts'
 
-/**
- * Twelve columns exist; eight answer "who is this seat and is it going well".
- * The billing trail (paid-by invoice, seat price) and the raw pre/post scores
- * the gain is computed from sit behind the picker.
- */
 const PARTICIPANT_COLUMNS: ColumnCatalogueEntry[] = [
   { key: 'name', label: 'Participant', defaultVisible: true, locked: true },
   { key: 'org', label: 'Organisation', defaultVisible: true },
@@ -196,7 +191,6 @@ export default function CorporateParticipants() {
   }
 
   const resolved = visible.map((key) => allColumns[key]).filter(Boolean)
-  /* A hand-edited ?cols= that names nothing real would otherwise blank the table. */
   const columns = resolved.length > 0 ? resolved : defaultKeys.map((key) => allColumns[key]).filter(Boolean)
 
   const hasFilters = search.length > 0 || Object.values(filters).some(Boolean)
@@ -205,14 +199,16 @@ export default function CorporateParticipants() {
     <Screen>
       <ModuleHeader
         title="Participants"
-        description="Every sponsored seat, traced from the invoice line that paid for it to the certificate at the end."
+        description="Everyone a client has paid to train, with their attendance, progress and certificate."
       />
 
-      <Alert tone="info" title="Measurable skill gain, not attendance sheets">
-        {averageGain === null
-          ? 'No participant in this view has two graded pieces of work yet, so no gain can be reported. A single score is not a gain.'
-          : `Average gain across ${formatNumber(withGain.length)} participants with two graded pieces of work is ${averageGain >= 0 ? '+' : ''}${averageGain} points. Pre and post are the first and latest graded submission — the seed carries no dedicated assessment instrument.`}
-      </Alert>
+      <div className="mt-6">
+        <StatCard
+          label="Average skill gain"
+          value={averageGain === null ? '—' : `${averageGain >= 0 ? '+' : ''}${averageGain} pts`}
+          caption={`Across ${formatNumber(withGain.length)} participants with two graded pieces of work`}
+        />
+      </div>
 
       <div className="mt-6">
         {error ? (
@@ -270,7 +266,7 @@ export default function CorporateParticipants() {
               emptyMessage={
                 hasFilters
                   ? 'Clear the filters to see every sponsored seat.'
-                  : 'A participant appears once an organisation invoice allocates a line to their enrolment. Until then the seat is billed but not attributed.'
+                  : 'A participant appears here once their seat has been invoiced to their organisation.'
               }
             />
           </Card>

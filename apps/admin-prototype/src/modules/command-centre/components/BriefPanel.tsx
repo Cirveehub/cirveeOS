@@ -1,11 +1,3 @@
-/**
- * The Daily Executive Brief (screen-spec §1.1, band 2 left).
- *
- * Seven lines, each a number and a link. The figures come from
- * `buildDailyBrief()`, which reads the store — there is no written summary
- * anywhere, so the brief cannot go stale.
- */
-
 import { ArrowRight, Download } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Link } from 'react-router-dom'
@@ -27,7 +19,6 @@ const VALUE_TONE: Record<BriefTone, string> = {
 
 export interface BriefPanelProps {
   rangeLabel: string
-  /** Full page mode drops the card chrome and lets the lines breathe. */
   expanded?: boolean
   className?: string
 }

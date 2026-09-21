@@ -1,17 +1,5 @@
-/**
- * Formatting helpers.
- *
- * Money is stored in KOBO everywhere, as a plain number. The real system will
- * use BigInt (see docs/build-plan.md §2.3 — the current backend's int32 kobo
- * column silently caps at ₦21,474,836). In the prototype a JS number is safe:
- * Number.MAX_SAFE_INTEGER is ~₦90 trillion.
- *
- * Never store or pass naira as a float. Convert at the edges only.
- */
-
 export const KOBO = 100
 
-/** ₦1,250,000 — the brand book's house style: Naira, thousands separator. */
 export function formatNaira(kobo: number, opts?: { decimals?: boolean; compact?: boolean }): string {
   const naira = kobo / KOBO
 
@@ -43,25 +31,18 @@ export function formatPercent(n: number, decimals = 1): string {
   return `${n.toFixed(decimals).replace(/\.0$/, '')}%`
 }
 
-/** +12.4% / −3.1% — for trend deltas. Uses a real minus sign, not a hyphen. */
 export function formatDelta(n: number, decimals = 1): string {
   const sign = n > 0 ? '+' : n < 0 ? '−' : ''
   return `${sign}${Math.abs(n).toFixed(decimals).replace(/\.0$/, '')}%`
 }
 
-/* -------------------------------------------------------------------------- */
-/* Dates                                                                      */
-/* -------------------------------------------------------------------------- */
-
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
-/** 27 Aug 2026 — the format the PRD's audit examples use. */
 export function formatDate(d: Date | string): string {
   const date = typeof d === 'string' ? new Date(d) : d
   return `${date.getDate()} ${MONTHS[date.getMonth()]} ${date.getFullYear()}`
 }
 
-/** 27 Aug 2026 14:43 */
 export function formatDateTime(d: Date | string): string {
   const date = typeof d === 'string' ? new Date(d) : d
   const hh = String(date.getHours()).padStart(2, '0')
@@ -74,7 +55,6 @@ export function formatTime(d: Date | string): string {
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
 }
 
-/** "2 hours ago", "3 days ago", "just now" */
 export function formatRelative(d: Date | string): string {
   const date = typeof d === 'string' ? new Date(d) : d
   const seconds = Math.floor((Date.now() - date.getTime()) / 1000)
@@ -99,7 +79,6 @@ export function formatRelative(d: Date | string): string {
   return 'just now'
 }
 
-/** Whole days between now and a date. Negative when overdue. */
 export function daysUntil(d: Date | string): number {
   const date = typeof d === 'string' ? new Date(d) : d
   return Math.ceil((date.getTime() - Date.now()) / 86_400_000)
@@ -110,10 +89,6 @@ export function daysSince(d: Date | string): number {
   return Math.floor((Date.now() - date.getTime()) / 86_400_000)
 }
 
-/* -------------------------------------------------------------------------- */
-/* People                                                                     */
-/* -------------------------------------------------------------------------- */
-
 export function initials(name: string): string {
   return name
     .trim()
@@ -123,7 +98,6 @@ export function initials(name: string): string {
     .join('')
 }
 
-/** "Adebayo O." — for dense table cells where the full name won't fit. */
 export function shortName(name: string): string {
   const parts = name.trim().split(/\s+/)
   if (parts.length < 2) return name
@@ -141,10 +115,6 @@ export function formatPhone(raw: string): string {
   return raw
 }
 
-/* -------------------------------------------------------------------------- */
-/* Misc                                                                       */
-/* -------------------------------------------------------------------------- */
-
 export function pluralize(n: number, singular: string, plural?: string): string {
   return `${formatNumber(n)} ${n === 1 ? singular : (plural ?? `${singular}s`)}`
 }
@@ -153,7 +123,6 @@ export function truncate(s: string, max: number): string {
   return s.length <= max ? s : `${s.slice(0, max - 1)}…`
 }
 
-/** Title-cases a snake or kebab enum for display: `payment_pending` → `Payment pending`. */
 export function humanize(s: string): string {
   const spaced = s.replace(/[_-]/g, ' ').toLowerCase()
   return spaced.charAt(0).toUpperCase() + spaced.slice(1)

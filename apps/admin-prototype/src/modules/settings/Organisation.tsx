@@ -1,7 +1,7 @@
 import { Building2 } from 'lucide-react'
 
 import { formatDate } from '@/lib/format'
-import { Alert, Badge, Card, EmptyState, KeyValue, KeyValueList, SectionHeader } from '@/ui'
+import { Badge, Card, EmptyState, KeyValue, KeyValueList, SectionHeader } from '@/ui'
 import { organisationsCollection, useCollection } from '@/mocks'
 
 import { DashboardSkeleton, ErrorPanel, ModuleHeader, Screen, useModuleData } from './parts'
@@ -128,10 +128,6 @@ export default function Organisation() {
             </div>
           </div>
 
-          <Alert tone="info" className="mt-4" title="Changing these values does not rewrite history">
-            The organisation record is versioned like every other policy. An invoice issued last year keeps the legal name and
-            address that were in force on the day it was raised, whatever this screen says today.
-          </Alert>
         </Card>
       </div>
     </Screen>

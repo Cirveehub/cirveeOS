@@ -1,9 +1,8 @@
 import { useMemo, useState } from 'react'
-import { GraduationCap, Lock } from 'lucide-react'
+import { GraduationCap } from 'lucide-react'
 
 import { formatDate, formatPercent } from '@/lib/format'
 import {
-  Alert,
   Badge,
   BUSINESS_UNITS,
   Button,
@@ -163,12 +162,6 @@ export default function Students() {
       />
 
       <ScreenError state={state} />
-
-      <Alert tone="info" icon={Lock} title="The balance column is not part of the tutor view" className="mb-6">
-        Finance and administration see it here. Tutors see the same students inside a cohort without any financial column, so
-        teaching decisions are never coloured by what somebody owes. Attention flags are advisory and carry no financial
-        consequence of their own.
-      </Alert>
 
       <Card>
         <CardBody padding="none">
