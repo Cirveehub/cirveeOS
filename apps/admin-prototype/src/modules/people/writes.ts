@@ -15,6 +15,9 @@ import {
   jobOpeningsCollection,
   leaveRequestsCollection,
   offersCollection,
+  payrollAdjustmentsCollection,
+  payrollItemsCollection,
+  payrollPeriodsCollection,
   peopleCollection,
   performanceReviewsCollection,
   relationshipsCollection,
@@ -33,6 +36,7 @@ import {
   interviewId as asInterviewId,
   offerId as asOfferId,
   openingId as asOpeningId,
+  payAdjId,
   performanceReviewId as asPerformanceReviewId,
   pid,
   relId,
@@ -66,6 +70,7 @@ import type {
   Mode,
   Offer,
   OfferId,
+  PayrollAdjustment,
   PerformanceReview,
   Person,
   PersonId,
@@ -990,6 +995,8 @@ export function recordResumption(input: ResumptionInput): ResumptionResult | nul
       priority: spec.dueOffsetDays === 0 ? 'high' : 'normal',
       status: 'open',
       completedAt: null,
+      incentive: null,
+      incentivePayrollAdjustmentId: null,
       ...stamp(),
     }
     tasksCollection.insert(task)
@@ -1050,6 +1057,8 @@ export function createOnboardingChecklist(employeeRecordId: string): Task[] {
       priority: spec.dueOffsetDays === 0 ? 'high' : 'normal',
       status: 'open',
       completedAt: null,
+      incentive: null,
+      incentivePayrollAdjustmentId: null,
       ...stamp(),
     }
     tasksCollection.insert(task)
@@ -1078,9 +1087,103 @@ export function onboardingTasksFor(employeeRecordId: string): Task[] {
     .sort((a, b) => (a.dueAt ?? '').localeCompare(b.dueAt ?? ''))
 }
 
-export function setTaskStatus(taskIdValue: string, status: TaskStatus): void {
+function nextAdjustmentRef(): string {
+  const numbers = payrollAdjustmentsCollection
+    .all()
+    .map((a) => Number(a.ref.split('-').pop() ?? 0))
+    .filter((n) => Number.isFinite(n))
+  return `ADJ-2026-${String(Math.max(0, ...numbers) + 1).padStart(4, '0')}`
+}
+
+export type TaskIncentivePayoutReason =
+  | 'paid'
+  | 'not_money'
+  | 'already_paid'
+  | 'no_employee_record'
+  | 'no_open_period'
+  | 'no_payroll_item'
+
+/**
+ * Posts a task's money incentive to the owner's current payslip, the moment
+ * the task is actually done — never at creation, since nothing is earned
+ * until the work is. Mirrors how a referral commission reaches payroll:
+ * a `PayrollAdjustment` for the review trail (`proposed`, with a dispute
+ * window), and the matching `bonusLines`/`gross`/`net` entry on the open
+ * `PayrollItem` so it is visible on the projected payslip immediately.
+ */
+export function payTaskIncentive(
+  task: Task,
+  actorUserId: UserId = CURRENT_USER_ID,
+): { adjustment: PayrollAdjustment | null; reason: TaskIncentivePayoutReason } {
+  if (!task.incentive || task.incentive.type !== 'money') return { adjustment: null, reason: 'not_money' }
+  if (task.incentivePayrollAdjustmentId) return { adjustment: null, reason: 'already_paid' }
+
+  const owner = usersCollection.find(task.ownerUserId)
+  const employee = owner ? employeesCollection.where((e) => e.personId === owner.personId)[0] : undefined
+  if (!employee) return { adjustment: null, reason: 'no_employee_record' }
+
+  const period = payrollPeriodsCollection.where((p) => p.status === 'open')[0]
+  if (!period) return { adjustment: null, reason: 'no_open_period' }
+
+  const item = payrollItemsCollection.where((i) => i.employeeId === employee.id && i.periodId === period.id)[0]
+  if (!item) return { adjustment: null, reason: 'no_payroll_item' }
+
+  const at = nowIso()
+  const amount = task.incentive.amount ?? (0 as Kobo)
+
+  const adjustment = payrollAdjustmentsCollection.insert({
+    id: payAdjId(rand('adj')),
+    ref: nextAdjustmentRef(),
+    periodId: period.id,
+    employeeId: employee.id,
+    type: 'performance_bonus',
+    amount,
+    sourceEventType: 'Task',
+    sourceEventId: task.id as string,
+    sourceEventRef: task.title,
+    policyVersionId: null,
+    formulaUsed: `Task incentive: "${task.title}"`,
+    status: 'proposed',
+    disputeWindowEndsAt: `${addDays(TODAY, 7)}T23:59:00+01:00`,
+    voidedReason: null,
+    createdAt: at,
+    createdBy: actorUserId,
+    updatedAt: at,
+    updatedBy: actorUserId,
+  })
+
+  payrollItemsCollection.update(item.id, {
+    bonusLines: [...item.bonusLines, { label: `Task incentive: "${task.title}"`, amount, sourceRef: adjustment.ref }],
+    adjustmentIds: [...item.adjustmentIds, adjustment.id],
+    gross: (item.gross + amount) as Kobo,
+    net: (item.net + amount) as Kobo,
+    updatedAt: at,
+    updatedBy: actorUserId,
+  })
+
+  tasksCollection.update(task.id, {
+    incentivePayrollAdjustmentId: adjustment.id,
+    updatedAt: at,
+    updatedBy: actorUserId,
+  })
+
+  emitAudit({
+    action: 'task.incentive.paid',
+    entityType: 'PayrollAdjustment',
+    entityId: adjustment.id as string,
+    entityRef: adjustment.ref,
+    field: 'status',
+    before: null,
+    after: `Proposed against "${task.title}"`,
+    actorUserId,
+  })
+
+  return { adjustment, reason: 'paid' }
+}
+
+export function setTaskStatus(taskIdValue: string, status: TaskStatus): PayrollAdjustment | null {
   const task = tasksCollection.find(taskIdValue)
-  if (!task || task.status === status) return
+  if (!task || task.status === status) return null
   const at = nowIso()
   tasksCollection.update(taskIdValue, {
     status,
@@ -1097,6 +1200,8 @@ export function setTaskStatus(taskIdValue: string, status: TaskStatus): void {
     before: task.status,
     after: status,
   })
+  if (status !== 'done') return null
+  return payTaskIncentive({ ...task, status }, CURRENT_USER_ID).adjustment
 }
 
 export interface NewPerformanceReviewInput {

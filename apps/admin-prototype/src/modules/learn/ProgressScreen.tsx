@@ -637,6 +637,8 @@ function FlagModal({ row, onClose }: { row: ProgressRow | null; onClose: () => v
                 priority: 'normal',
                 status: 'open',
                 completedAt: null,
+                incentive: null,
+                incentivePayrollAdjustmentId: null,
                 createdAt: nowIso(),
                 createdBy: CURRENT_USER_ID,
                 updatedAt: nowIso(),

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { ClipboardList, Plus } from 'lucide-react'
+import { ClipboardList, Gift, Plus } from 'lucide-react'
 import {
   Alert,
   Badge,
@@ -9,6 +9,7 @@ import {
   Button,
   Card,
   CardBody,
+  CurrencyInput,
   DataTable,
   EmptyState,
   Field,
@@ -16,6 +17,8 @@ import {
   Input,
   Modal,
   PageHeader,
+  Radio,
+  RadioGroup,
   Select,
   Skeleton,
   Textarea,
@@ -23,8 +26,9 @@ import {
 } from '@/ui'
 import { departmentsCollection, tasksCollection, useCollection, TODAY } from '@/mocks'
 import { taskId as asTaskId } from '@/mocks/types'
-import type { Task, TaskPriority, TaskStatus } from '@/mocks'
-import { formatDate } from '@/lib/format'
+import type { Kobo, Task, TaskIncentive, TaskPriority, TaskStatus } from '@/mocks'
+import { formatDate, formatNaira } from '@/lib/format'
+import { payTaskIncentive } from '@/modules/people/writes'
 import { useActingUser, useScreenState, userName, userOptions } from './shared'
 import { writeAudit } from './engine'
 
@@ -48,7 +52,16 @@ export default function Tasks() {
 
   const [selected, setSelected] = useState<string[]>([])
   const [newOpen, setNewOpen] = useState(false)
-  const [form, setForm] = useState({ title: '', ownerUserId: '', dueAt: TODAY, priority: 'normal', description: '' })
+  const [form, setForm] = useState({
+    title: '',
+    ownerUserId: '',
+    dueAt: TODAY,
+    priority: 'normal',
+    description: '',
+    incentiveType: 'none' as 'none' | 'money' | 'other',
+    incentiveAmount: null as number | null,
+    incentiveNote: '',
+  })
   const [formError, setFormError] = useState<string | null>(null)
 
   const set = (key: string, value: string | undefined) => {
@@ -114,6 +127,15 @@ export default function Tasks() {
     })
   }
 
+  const setStatus = (task: Task, status: TaskStatus) => {
+    patch(task, { status, completedAt: status === 'done' ? new Date().toISOString() : null }, 'status', task.status, status)
+    if (status !== 'done') return
+    const { adjustment } = payTaskIncentive({ ...task, status }, acting)
+    if (adjustment) {
+      toast.success(`"${task.title}" done — ${formatNaira(adjustment.amount)} posted to ${userName(task.ownerUserId)}'s payroll.`)
+    }
+  }
+
   const createTask = () => {
     if (!form.title.trim()) {
       setFormError('A task needs a title.')
@@ -123,6 +145,20 @@ export default function Tasks() {
       setFormError('A task needs an owner, or nobody picks it up.')
       return
     }
+    if (form.incentiveType === 'money' && (!form.incentiveAmount || form.incentiveAmount <= 0)) {
+      setFormError('Give the money incentive an amount, or switch it back to none.')
+      return
+    }
+    if (form.incentiveType === 'other' && !form.incentiveNote.trim()) {
+      setFormError('Say what the incentive is, or switch it back to none.')
+      return
+    }
+    const incentive: TaskIncentive | null =
+      form.incentiveType === 'money'
+        ? { type: 'money', amount: form.incentiveAmount as Kobo, note: form.incentiveNote.trim() || null }
+        : form.incentiveType === 'other'
+          ? { type: 'other', amount: null, note: form.incentiveNote.trim() }
+          : null
     const now = new Date().toISOString()
     const task: Task = {
       id: asTaskId(`tsk-${Math.random().toString(36).slice(2, 10)}`),
@@ -137,6 +173,8 @@ export default function Tasks() {
       priority: form.priority as TaskPriority,
       status: 'open',
       completedAt: null,
+      incentive,
+      incentivePayrollAdjustmentId: null,
       createdAt: now,
       createdBy: acting,
       updatedAt: now,
@@ -154,7 +192,16 @@ export default function Tasks() {
       after: 'Open',
     })
     setNewOpen(false)
-    setForm({ title: '', ownerUserId: '', dueAt: TODAY, priority: 'normal', description: '' })
+    setForm({
+      title: '',
+      ownerUserId: '',
+      dueAt: TODAY,
+      priority: 'normal',
+      description: '',
+      incentiveType: 'none',
+      incentiveAmount: null,
+      incentiveNote: '',
+    })
     setFormError(null)
     toast.success('Task created.')
   }
@@ -224,6 +271,14 @@ export default function Tasks() {
       sortable: true,
     },
     {
+      key: 'incentive',
+      header: 'Incentive',
+      width: 190,
+      cell: (t) => <IncentiveCell task={t} />,
+      sortValue: (t) => (t.incentive?.type === 'money' ? (t.incentive.amount ?? 0) : t.incentive ? 1 : -1),
+      sortable: true,
+    },
+    {
       key: 'status',
       header: 'Status',
       width: 150,
@@ -233,18 +288,7 @@ export default function Tasks() {
           aria-label={`Status of ${t.title}`}
           value={t.status}
           options={STATUSES.map((s) => ({ value: s, label: s.replace(/_/g, ' ') }))}
-          onChange={(event) =>
-            patch(
-              t,
-              {
-                status: event.target.value as TaskStatus,
-                completedAt: event.target.value === 'done' ? new Date().toISOString() : null,
-              },
-              'status',
-              t.status,
-              event.target.value,
-            )
-          }
+          onChange={(event) => setStatus(t, event.target.value as TaskStatus)}
         />
       ),
       sortValue: (t) => t.status,
@@ -339,7 +383,7 @@ export default function Tasks() {
             onClick={() => {
               selected.forEach((id) => {
                 const task = tasks.find((t) => t.id === id)
-                if (task) patch(task, { status: 'done', completedAt: new Date().toISOString() }, 'status', task.status, 'done')
+                if (task) setStatus(task, 'done')
               })
               setSelected([])
               toast.success('Tasks closed.')
@@ -465,7 +509,77 @@ export default function Tasks() {
         <Field className="mt-3" label="Notes" optional>
           <Textarea rows={2} value={form.description} onChange={(event) => setForm((f) => ({ ...f, description: event.target.value }))} />
         </Field>
+
+        <div className="mt-4 border-t border-border pt-4">
+          <RadioGroup legend="Incentive" description="Only paid out once the task is marked done.">
+            <Radio
+              name="task-incentive-type"
+              label="None"
+              checked={form.incentiveType === 'none'}
+              onChange={() => setForm((f) => ({ ...f, incentiveType: 'none' }))}
+            />
+            <Radio
+              name="task-incentive-type"
+              label="Money"
+              description="Posted to the owner's payroll the moment this task is done."
+              checked={form.incentiveType === 'money'}
+              onChange={() => setForm((f) => ({ ...f, incentiveType: 'money' }))}
+            />
+            <Radio
+              name="task-incentive-type"
+              label="Something else"
+              description="Recognition, time off, first pick of something — anything that isn't money."
+              checked={form.incentiveType === 'other'}
+              onChange={() => setForm((f) => ({ ...f, incentiveType: 'other' }))}
+            />
+          </RadioGroup>
+
+          {form.incentiveType === 'money' && (
+            <Field
+              className="mt-3"
+              label="Amount"
+              required
+              error={formError && (!form.incentiveAmount || form.incentiveAmount <= 0) ? formError : null}
+            >
+              <CurrencyInput
+                value={form.incentiveAmount}
+                onChange={(kobo) => setForm((f) => ({ ...f, incentiveAmount: kobo }))}
+              />
+            </Field>
+          )}
+          {form.incentiveType === 'other' && (
+            <Field className="mt-3" label="What's the incentive?" required error={formError && !form.incentiveNote.trim() ? formError : null}>
+              <Input
+                value={form.incentiveNote}
+                onChange={(event) => setForm((f) => ({ ...f, incentiveNote: event.target.value }))}
+                placeholder="A shout-out in the all-hands"
+              />
+            </Field>
+          )}
+        </div>
       </Modal>
     </div>
+  )
+}
+
+function IncentiveCell({ task }: { task: Task }) {
+  if (!task.incentive) return <span className="text-body-13 text-text-secondary">—</span>
+
+  if (task.incentive.type === 'money') {
+    const paid = Boolean(task.incentivePayrollAdjustmentId)
+    return (
+      <div className="flex flex-col gap-0.5">
+        <Badge tone={paid ? 'success' : 'accent'} variant="subtle" size="sm" icon={<Gift size={12} />}>
+          {formatNaira(task.incentive.amount ?? 0)}
+        </Badge>
+        <span className="text-body-12 text-text-secondary">{paid ? 'Posted to payroll' : 'On completion'}</span>
+      </div>
+    )
+  }
+
+  return (
+    <Badge tone="accent" variant="subtle" size="sm" icon={<Gift size={12} />} className="max-w-full">
+      <span className="truncate">{task.incentive.note}</span>
+    </Badge>
   )
 }

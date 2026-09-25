@@ -75,6 +75,7 @@ const SOURCE_LINK: Record<string, string> = {
   AttendanceEvent: '/people/attendance',
   PerformanceReview: '/people/employees',
   SalaryAdvance: '/finance/expenses',
+  Task: '/work/tasks',
 }
 
 export default function Adjustments() {

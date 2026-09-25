@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
-import { CheckCircle2, ClipboardList } from 'lucide-react'
+import { CheckCircle2, ClipboardList, Gift } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 import { TODAY, tasksCollection, useCollection, type Task, type TaskStatus } from '@/mocks'
-import { formatDate, formatNumber, humanize } from '@/lib/format'
+import { formatDate, formatNaira, formatNumber, humanize } from '@/lib/format'
 import {
   Badge,
   Button,
@@ -73,8 +73,8 @@ export default function MyTasks() {
   )
 
   const move = (task: Task, status: TaskStatus, message: string) => {
-    setTaskStatus(task.id as string, status)
-    toast.success(message)
+    const adjustment = setTaskStatus(task.id as string, status)
+    toast.success(adjustment ? `${message} ${formatNaira(adjustment.amount)} is on its way to your payslip.` : message)
   }
 
   const columns: Array<Column<Task>> = [
@@ -88,6 +88,14 @@ export default function MyTasks() {
           {row.relatedEntityRef && (
             <span className="block truncate text-body-12 text-text-secondary">
               {row.relatedEntityType} · {row.relatedEntityRef}
+            </span>
+          )}
+          {row.incentive && (
+            <span className="mt-0.5 flex items-center gap-1 text-body-12 text-accent">
+              <Gift size={12} />
+              {row.incentive.type === 'money'
+                ? `${formatNaira(row.incentive.amount ?? 0)}${row.incentivePayrollAdjustmentId ? ' — on your payslip' : ' on completion'}`
+                : row.incentive.note}
             </span>
           )}
         </span>
@@ -132,10 +140,11 @@ export default function MyTasks() {
       key: 'act',
       header: '',
       width: 210,
+      align: 'right',
       cell: (row) => {
         if (row.status === 'done' || row.status === 'cancelled') return null
         return (
-          <span className="flex items-center gap-1.5">
+          <span className="flex w-full items-center justify-end gap-1.5">
             {row.status === 'open' && (
               <Button size="sm" variant="secondary" onClick={() => move(row, 'in_progress', 'Marked as started.')}>
                 Start

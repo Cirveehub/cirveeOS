@@ -1,35 +1,62 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
+import { Plus } from 'lucide-react'
 import {
   Badge,
   Button,
   Card,
   CardBody,
+  CurrencyInput,
   DataTable,
   Drawer,
   EmptyState,
+  Field,
   FilterBar,
+  Input,
   KeyValue,
   KeyValueList,
+  Modal,
   PageHeader,
+  Select,
   Skeleton,
   StatusBadge,
   type Column,
 } from '@/ui'
 import { branchesCollection, companyAssetsCollection, useCollection, TODAY } from '@/mocks'
-import type { CompanyAsset } from '@/mocks'
+import { companyAssetId as asCompanyAssetId } from '@/mocks/types'
+import type { AssetCondition, CompanyAsset } from '@/mocks'
 import { formatDate, formatNaira, humanize } from '@/lib/format'
-import { branchName, personName, useScreenState } from './shared'
+import { branchName, personName, useActingUser, useScreenState } from './shared'
+import { writeAudit } from './engine'
 
 const NOT_BUILT = 'Not built in this prototype — this would write an asset movement record.'
+const CATEGORY_SUGGESTIONS = ['Laptop', 'Desktop', 'Projector', 'NFC reader', 'Router', 'UPS', 'Camera', 'Generator', 'Air conditioner']
+
+function nextAssetId(assets: CompanyAsset[]): string {
+  const numbers = assets.map((a) => Number(a.assetId.split('-').pop() ?? 0)).filter((n) => Number.isFinite(n))
+  return `AST-${String(Math.max(0, ...numbers) + 1).padStart(4, '0')}`
+}
 
 export default function Assets() {
   const [params, setParams] = useSearchParams()
   const { loading, error, retry } = useScreenState(params.get('demo') === 'error')
+  const acting = useActingUser()
 
   const assets = useCollection(companyAssetsCollection)
   const branches = useCollection(branchesCollection)
+
+  const [newOpen, setNewOpen] = useState(false)
+  const [form, setForm] = useState({
+    category: '',
+    name: '',
+    serial: '',
+    branchId: '',
+    purchaseDate: TODAY,
+    purchaseValue: null as number | null,
+    condition: 'new' as AssetCondition,
+  })
+  const [formError, setFormError] = useState<string | null>(null)
 
   const set = (key: string, value: string | undefined) => {
     const next = new URLSearchParams(params)
@@ -58,6 +85,67 @@ export default function Assets() {
       .filter((a) => !condition || a.condition === condition)
       .sort((a, b) => a.assetId.localeCompare(b.assetId))
   }, [assets, q, category, status, branch, condition])
+
+  const createAsset = () => {
+    if (!form.category.trim()) {
+      setFormError('Say what kind of asset this is.')
+      return
+    }
+    if (!form.name.trim()) {
+      setFormError('An asset needs a model or name.')
+      return
+    }
+    if (!form.serial.trim()) {
+      setFormError('An asset needs a serial — it is how it gets told apart from an identical one.')
+      return
+    }
+    if (!form.branchId) {
+      setFormError('Say which branch it lives at.')
+      return
+    }
+    if (!form.purchaseValue || form.purchaseValue <= 0) {
+      setFormError('Give it a purchase value.')
+      return
+    }
+    const now = new Date().toISOString()
+    const asset: CompanyAsset = {
+      id: asCompanyAssetId(`ast-ui-${Date.now().toString(36)}`),
+      assetId: nextAssetId(assets),
+      category: form.category.trim(),
+      name: form.name.trim(),
+      serial: form.serial.trim(),
+      purchaseDate: form.purchaseDate,
+      purchaseValue: form.purchaseValue as CompanyAsset['purchaseValue'],
+      currentValue: form.purchaseValue as CompanyAsset['currentValue'],
+      branchId: form.branchId as CompanyAsset['branchId'],
+      assignedToPersonId: null,
+      assignedAt: null,
+      condition: form.condition,
+      status: 'in_store',
+      lastServiceDate: null,
+      returnDueDate: null,
+      serviceHistory: [],
+      createdAt: now,
+      createdBy: acting,
+      updatedAt: now,
+      updatedBy: acting,
+    }
+    companyAssetsCollection.insert(asset)
+    writeAudit({
+      actorUserId: acting,
+      action: 'asset.create',
+      entityType: 'CompanyAsset',
+      entityId: asset.id as string,
+      entityRef: `${asset.assetId} · ${asset.name}`,
+      field: 'status',
+      before: null,
+      after: 'In store',
+    })
+    setNewOpen(false)
+    setForm({ category: '', name: '', serial: '', branchId: '', purchaseDate: TODAY, purchaseValue: null, condition: 'new' })
+    setFormError(null)
+    toast.success(`${asset.assetId} added to the register.`)
+  }
 
   const columns: Array<Column<CompanyAsset>> = [
     { key: 'assetId', header: 'Asset', width: 120, accessor: (a) => a.assetId, sortable: true, pinned: true },
@@ -110,6 +198,11 @@ export default function Assets() {
         title="Assets"
         description="The company asset register — what we own, where it is, who has it and what it is worth now."
         breadcrumbs={[{ label: 'Work', to: '/work' }, { label: 'Assets' }]}
+        actions={
+          <Button leftIcon={<Plus size={16} />} onClick={() => setNewOpen(true)}>
+            New asset
+          </Button>
+        }
       />
 
       <FilterBar
@@ -231,6 +324,87 @@ export default function Assets() {
           </div>
         )}
       </Drawer>
+
+      <Modal
+        open={newOpen}
+        onClose={() => setNewOpen(false)}
+        title="New asset"
+        description="Given the next asset id automatically. Purchase value doubles as its starting current value."
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setNewOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={createAsset}>Add asset</Button>
+          </>
+        }
+      >
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Category" required error={formError && !form.category.trim() ? formError : null}>
+            <Input
+              value={form.category}
+              onChange={(event) => setForm((f) => ({ ...f, category: event.target.value }))}
+              placeholder="Laptop"
+              list="asset-category-suggestions"
+              invalid={Boolean(formError) && !form.category.trim()}
+            />
+            <datalist id="asset-category-suggestions">
+              {CATEGORY_SUGGESTIONS.map((c) => (
+                <option key={c} value={c} />
+              ))}
+            </datalist>
+          </Field>
+          <Field label="Model / name" required error={formError && !form.name.trim() ? formError : null}>
+            <Input
+              value={form.name}
+              onChange={(event) => setForm((f) => ({ ...f, name: event.target.value }))}
+              placeholder="HP ProBook 450 G9"
+              invalid={Boolean(formError) && !form.name.trim()}
+            />
+          </Field>
+        </div>
+        <Field className="mt-3" label="Serial" required error={formError && !form.serial.trim() ? formError : null}>
+          <Input
+            value={form.serial}
+            onChange={(event) => setForm((f) => ({ ...f, serial: event.target.value }))}
+            placeholder="CIR-LAP-00000"
+            invalid={Boolean(formError) && !form.serial.trim()}
+          />
+        </Field>
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          <Field label="Branch" required error={formError && !form.branchId ? formError : null}>
+            <Select
+              placeholder="Pick a branch"
+              value={form.branchId}
+              onChange={(event) => setForm((f) => ({ ...f, branchId: event.target.value }))}
+              options={branches.map((b) => ({ value: b.id as string, label: b.name }))}
+              invalid={Boolean(formError) && !form.branchId}
+            />
+          </Field>
+          <Field label="Condition">
+            <Select
+              value={form.condition}
+              onChange={(event) => setForm((f) => ({ ...f, condition: event.target.value as AssetCondition }))}
+              options={['new', 'good', 'fair', 'needs_repair', 'retired'].map((c) => ({ value: c, label: humanize(c) }))}
+            />
+          </Field>
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          <Field label="Purchase date">
+            <Input
+              type="date"
+              value={form.purchaseDate}
+              onChange={(event) => setForm((f) => ({ ...f, purchaseDate: event.target.value }))}
+            />
+          </Field>
+          <Field label="Purchase value" required error={formError && (!form.purchaseValue || form.purchaseValue <= 0) ? formError : null}>
+            <CurrencyInput
+              value={form.purchaseValue}
+              onChange={(kobo) => setForm((f) => ({ ...f, purchaseValue: kobo }))}
+            />
+          </Field>
+        </div>
+      </Modal>
     </div>
   )
 }

@@ -5,8 +5,8 @@ export {
   personaById,
   resolvePersona,
   DEFAULT_PERSONA_ID,
-} from './personas'
-export type { Persona, HomeShape, ResolvedPersona } from './personas'
+} from "./personas";
+export type { Persona, HomeShape, ResolvedPersona } from "./personas";
 
 export {
   signIn,
@@ -19,5 +19,5 @@ export {
   grantsOf,
   scopeFor,
   parsePermission,
-} from './session'
-export type { Session, PermissionString } from './session'
+} from "./session";
+export type { Session, PermissionString } from "./session";

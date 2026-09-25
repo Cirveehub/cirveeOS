@@ -668,11 +668,27 @@ const TASK_TITLES = [
 
 const TASK_OWNERS = [U.chidinma, U.fatima, U.emeka, U.ibrahim, U.amarachi, U.damilola, U.folake, U.yetunde, U.adebayo]
 
+const OTHER_INCENTIVES = [
+  'A shout-out in the all-hands',
+  'Half a day off in lieu',
+  'First pick of the next conference slot',
+]
+
 export const tasks: Task[] = Array.from({ length: 94 }, (_, i) => {
   const overdue = i < 9
   const status: Task['status'] =
     i < 62 ? (i % 7 === 0 ? 'in_progress' : i % 13 === 0 ? 'blocked' : 'open') : i % 9 === 0 ? 'cancelled' : 'done'
   const dueDay = overdue ? daysAgo(int(r, 1, 12)) : addDays(TODAY, int(r, 0, 21))
+  // Only tasks still open for one to be earned carry an incentive here — a
+  // 'done' seed row with an unpaid incentive would look like a broken
+  // payout, and the real payout only ever happens through setTaskStatus.
+  const stillOpen = status !== 'done' && status !== 'cancelled'
+  const incentive: Task['incentive'] =
+    stillOpen && i % 8 === 0
+      ? { type: 'money', amount: ngn(pick(r, [5_000, 10_000, 15_000, 20_000, 25_000])), note: null }
+      : stillOpen && i % 11 === 0
+        ? { type: 'other', amount: null, note: pick(r, OTHER_INCENTIVES) }
+        : null
   return {
     id: asTaskId(`tsk-${pad(i + 1, 4)}`),
     title: TASK_TITLES[i % TASK_TITLES.length],
@@ -686,6 +702,8 @@ export const tasks: Task[] = Array.from({ length: 94 }, (_, i) => {
     priority: overdue ? 'high' : (['low', 'normal', 'normal', 'high', 'urgent'] as const)[i % 5],
     status,
     completedAt: status === 'done' ? at(daysAgo(int(r, 1, 30)), 16, 0) : null,
+    incentive,
+    incentivePayrollAdjustmentId: null,
     ...audit(at(daysAgo(int(r, 5, 60)), 9, 0), U.adebayo),
   }
 })

@@ -1690,6 +1690,16 @@ export interface ApprovalRoute extends Auditable {
 export type TaskPriority = 'low' | 'normal' | 'high' | 'urgent'
 export type TaskStatus = 'open' | 'in_progress' | 'blocked' | 'done' | 'cancelled'
 
+export type TaskIncentiveType = 'money' | 'other'
+
+export interface TaskIncentive {
+  type: TaskIncentiveType
+  /** Set when `type` is 'money'; null otherwise. */
+  amount: Kobo | null
+  /** The reward description when `type` is 'other'; an optional note when 'money'. */
+  note: string | null
+}
+
 export interface Task extends Auditable {
   id: TaskId
   title: string
@@ -1703,6 +1713,14 @@ export interface Task extends Auditable {
   priority: TaskPriority
   status: TaskStatus
   completedAt: ISODateTime | null
+  incentive: TaskIncentive | null
+  /**
+   * Set once a money incentive has actually been posted to payroll — on the
+   * task moving to `done`, never before. Stays null for an 'other' incentive,
+   * or for a money incentive that could not be posted (no open payroll
+   * period, or the owner isn't a paid employee).
+   */
+  incentivePayrollAdjustmentId: PayrollAdjustmentId | null
 }
 
 export interface DocumentTemplate extends Auditable {
