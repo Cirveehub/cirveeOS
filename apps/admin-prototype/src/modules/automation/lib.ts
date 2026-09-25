@@ -212,12 +212,20 @@ export const ACTIONS: Record<AutomationActionType, ActionMeta> = {
   add_tag: { label: 'Add tag', blurb: 'Add a tag to the person record.', module: 'CRM' },
   update_field: { label: 'Update field', blurb: 'Write a value to a field on a record.', module: 'CRM' },
   webhook: {
-    label: 'Webhook',
+    label: 'Send data to another app',
     blurb: 'Post the trigger payload to an external URL. Not executable in this prototype.',
     module: 'System',
     disabled: true,
   },
 }
+
+export const ACTION_GROUPS: Array<{ label: string; actions: AutomationActionType[] }> = [
+  { label: 'Notify', actions: ['send_message'] },
+  { label: 'Update', actions: ['assign_owner', 'change_status', 'update_field', 'add_tag'] },
+  { label: 'Create', actions: ['create_task', 'generate_document', 'request_approval'] },
+  { label: 'Money and access', actions: ['calculate_commission', 'issue_card', 'grant_lms_access'] },
+  { label: 'Advanced', actions: ['webhook'] },
+]
 
 export function actionLabel(a: AutomationActionType): string {
   return ACTIONS[a]?.label ?? a
@@ -241,12 +249,12 @@ export const ACTION_ORDER: AutomationActionType[] = [
 export type NodeKind = AutomationNode['kind']
 
 export const NODE_LABEL: Record<NodeKind, string> = {
-  trigger: 'Trigger',
-  condition: 'Condition',
-  delay: 'Delay',
-  branch: 'Branch',
-  action: 'Action',
-  stop: 'Stop condition',
+  trigger: 'When',
+  condition: 'Only if',
+  delay: 'Wait',
+  branch: 'Split into paths',
+  action: 'Then',
+  stop: 'Stop when',
 }
 
 export const NODE_STYLE: Record<NodeKind, { chip: string; rail: string; tone: BadgeTone }> = {
@@ -408,6 +416,30 @@ export function fieldMeta(path: string): FieldMeta | undefined {
 
 export function fieldLabel(path: string): string {
   return fieldMeta(path)?.label ?? path
+}
+
+const TRIGGER_CATEGORY_ENTITIES: Record<TriggerMeta['category'], string[]> = {
+  Sales: ['Lead', 'Person', 'Admission'],
+  Money: ['Invoice', 'Person', 'Commission', 'Admission'],
+  Academy: ['Enrolment', 'Progress', 'Person', 'Admission'],
+  People: ['Employee', 'Person'],
+  Physical: ['Person'],
+  Schedule: [],
+}
+
+/**
+ * Condition/delay/stop dropdowns list every field on every entity by default,
+ * whatever the trigger — an operations user picking "Invoice overdue" still
+ * has to scroll past lead, employee and commission fields to find one about
+ * an invoice. Scoping the list to the entities the chosen trigger actually
+ * concerns removes that scroll. A trigger with no scoped entities (or none
+ * chosen yet) falls back to the full list rather than showing nothing.
+ */
+export function fieldsForTrigger(triggerType: AutomationTriggerType | undefined): FieldMeta[] {
+  const category = triggerType ? TRIGGERS[triggerType].category : undefined
+  const entities = category ? TRIGGER_CATEGORY_ENTITIES[category] : []
+  if (!entities.length) return FIELDS
+  return FIELDS.filter((f) => entities.includes(f.entity))
 }
 
 export interface OperatorMeta {
@@ -640,6 +672,37 @@ export function nodeSummary(node: AutomationNode): string {
   }
 }
 
+/**
+ * The one sentence pinned above the canvas so a non-technical reader can
+ * confirm what this automation does without tracing nodes and lanes —
+ * "When X, only if Y, then Z" mirrors the order the builder itself now
+ * asks for those three things in.
+ */
+export function planEnglishSummary(nodes: AutomationNode[]): string {
+  const trigger = nodes.find((n): n is Extract<AutomationNode, { kind: 'trigger' }> => n.kind === 'trigger')
+  if (!trigger || !trigger.summary) return 'Choose a trigger below to describe what this automation does.'
+
+  let sentence = `When ${TRIGGERS[trigger.triggerType].label.toLowerCase()}`
+
+  const conditions = topLevelNodes(nodes).filter(
+    (n): n is Extract<AutomationNode, { kind: 'condition' }> => n.kind === 'condition',
+  )
+  if (conditions.length) {
+    sentence += `, only if ${conditions.map((c) => groupText(c.group)).join(' and ')}`
+  }
+
+  const actions = topLevelNodes(nodes).filter(
+    (n): n is Extract<AutomationNode, { kind: 'action' }> => n.kind === 'action',
+  )
+  if (actions.length) {
+    sentence += `, then ${actions.map((a) => actionLabel(a.actionType).toLowerCase()).join(', then ')}`
+  } else {
+    sentence += ', then — add at least one action below'
+  }
+
+  return `${sentence}.`
+}
+
 export function laneChildIds(nodes: AutomationNode[]): Set<string> {
   const ids = new Set<string>()
   for (const n of nodes) {
@@ -754,15 +817,15 @@ export function idempotencyPreview(key: string, fields: string[]): string {
 }
 
 export const ON_FAILURE_LABEL: Record<Automation['reliability']['onFailure'], string> = {
-  retry_then_exception: 'Retry, then send to the exception queue',
-  skip: 'Skip the action and carry on',
-  stop_automation: 'Stop the automation for this subject',
+  retry_then_exception: 'Try again, then flag it for someone to review',
+  skip: 'Skip the step and carry on',
+  stop_automation: 'Stop the automation for this person',
 }
 
 export function retrySentence(r: Automation['reliability']): string {
   const attempts = `${r.retryAttempts} attempt${r.retryAttempts === 1 ? '' : 's'}`
-  const backoff = r.retryBackoff === 'exponential' ? 'exponential backoff' : 'a fixed interval'
-  return `${attempts} with ${backoff}, then: ${ON_FAILURE_LABEL[r.onFailure].toLowerCase()}.`
+  const backoff = r.retryBackoff === 'exponential' ? 'each one waiting longer than the last' : 'the same wait each time'
+  return `${attempts}, ${backoff}, then: ${ON_FAILURE_LABEL[r.onFailure].toLowerCase()}.`
 }
 
 export function versionsOf(automationKey: string): Automation[] {

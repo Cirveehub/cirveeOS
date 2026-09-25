@@ -13,6 +13,152 @@ export const CHANNEL_LABEL: Record<Channel, string> = {
   in_app: 'In-app',
 }
 
+export interface EmailDesign {
+  id: string
+  name: string
+  description: string
+  headerClass: string
+  footerClass: string
+}
+
+/**
+ * A content template holds the words; a design decides what the email looks
+ * like around them — a logo, a colour bar, a footer. Without this, every
+ * email a campaign sends is unstyled body text regardless of channel, which
+ * is not what an email from a real organisation looks like. These three are
+ * fixed presets rather than a records collection because nothing here is a
+ * business record — nobody reports on a design or approves one.
+ */
+export const EMAIL_DESIGNS: EmailDesign[] = [
+  {
+    id: 'plain',
+    name: 'Plain text',
+    description: 'No header or footer — reads like a personal email, not a broadcast.',
+    headerClass: 'bg-surface-sunken',
+    footerClass: 'bg-surface-sunken',
+  },
+  {
+    id: 'branded-header',
+    name: 'Branded header',
+    description: 'A logo bar above the message and an unsubscribe line below.',
+    headerClass: 'bg-accent',
+    footerClass: 'bg-surface-sunken',
+  },
+  {
+    id: 'announcement',
+    name: 'Announcement banner',
+    description: 'The subject becomes a full-width headline — built for one big update.',
+    headerClass: 'bg-info-600',
+    footerClass: 'bg-surface-sunken',
+  },
+]
+
+export function emailDesign(id: string | null | undefined): EmailDesign {
+  return EMAIL_DESIGNS.find((d) => d.id === id) ?? EMAIL_DESIGNS[0]
+}
+
+function DesignSwatch({ design }: { design: EmailDesign }) {
+  return (
+    <div className="w-full overflow-hidden rounded-md border border-border" aria-hidden="true">
+      <div className={cn('h-2.5', design.headerClass)} />
+      <div className="h-6 bg-surface" />
+      <div className={cn('h-1.5', design.footerClass)} />
+    </div>
+  )
+}
+
+export function EmailDesignPicker({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string
+  onChange: (id: string) => void
+  disabled?: boolean
+}) {
+  return (
+    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3" role="radiogroup" aria-label="Email design">
+      {EMAIL_DESIGNS.map((design) => {
+        const selected = value === design.id
+        return (
+          <button
+            key={design.id}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            disabled={disabled}
+            onClick={() => onChange(design.id)}
+            className={cn(
+              'flex flex-col gap-2 rounded-xl border p-2.5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+              selected ? 'border-accent bg-accent-subtle' : 'border-border hover:border-border-strong',
+            )}
+          >
+            <DesignSwatch design={design} />
+            <span>
+              <span className="block text-body-13 font-semibold text-text">{design.name}</span>
+              <span className="block text-body-12 text-text-secondary">{design.description}</span>
+            </span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+export function EmailPreviewChrome({
+  design,
+  subject,
+  body,
+}: {
+  design: EmailDesign
+  subject: string | null
+  body: string
+}) {
+  if (design.id === 'plain') {
+    return (
+      <div className="px-4 py-3">
+        {subject && <p className="text-body-14 font-semibold text-text">{subject}</p>}
+        <p className="mt-1 whitespace-pre-line text-body-13 text-text-secondary">{body}</p>
+      </div>
+    )
+  }
+
+  if (design.id === 'announcement') {
+    return (
+      <>
+        <div className={cn('px-4 py-6 text-center', design.headerClass)}>
+          <p className="text-label-11 uppercase tracking-wide text-on-accent">Cirvee</p>
+          {subject && <p className="mt-1 text-heading-20 font-bold text-on-accent">{subject}</p>}
+        </div>
+        <div className="px-4 py-3">
+          <p className="whitespace-pre-line text-body-13 text-text-secondary">{body}</p>
+        </div>
+        <div className="border-t border-border px-4 py-2 text-center text-body-12 text-text-muted">
+          You are receiving this because you are on a Cirvee mailing list. Unsubscribe
+        </div>
+      </>
+    )
+  }
+
+  return (
+    <>
+      <div className={cn('flex items-center gap-2 px-4 py-2.5', design.headerClass)}>
+        <span className="grid size-6 shrink-0 place-items-center rounded bg-surface text-body-12 font-bold text-accent">
+          C
+        </span>
+        <span className="text-body-13 font-semibold text-on-accent">Cirvee</span>
+      </div>
+      <div className="px-4 py-3">
+        {subject && <p className="text-body-14 font-semibold text-text">{subject}</p>}
+        <p className="mt-1 whitespace-pre-line text-body-13 text-text-secondary">{body}</p>
+      </div>
+      <div className="border-t border-border px-4 py-2 text-center text-body-12 text-text-muted">
+        You are receiving this because you are on a Cirvee mailing list. Unsubscribe
+      </div>
+    </>
+  )
+}
+
 export function Screen({ children }: { children: ReactNode }) {
   return <div className="mx-auto w-full max-w-[1560px] px-6 py-6">{children}</div>
 }

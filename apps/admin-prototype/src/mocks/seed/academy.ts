@@ -440,6 +440,10 @@ for (const s of COHORT_SPECS) {
     const delivered = date < TODAY
     const expected = s.enrolled
     const present = delivered ? Math.max(0, Math.round((expected * s.attendance) / 100) + int(r, -1, 1)) : 0
+    // Most delivered sessions have a recording within a day or two; the most
+    // recent one or two are plausibly still processing, so this isn't 100%.
+    const daysSinceDelivered = delivered ? Math.round((Date.parse(TODAY) - Date.parse(date)) / 86_400_000) : 0
+    const hasRecording = delivered && daysSinceDelivered >= 2 && int(r, 1, 10) <= 8
     classSessions.push({
       id: sessionId(`ses-${pad(sessSeq, 4)}`),
       cohortId: cid,
@@ -450,6 +454,7 @@ for (const s of COHORT_SPECS) {
       endTime: s.schedule.includes('09:00') ? '12:00' : s.schedule.includes('10:00') ? '14:00' : s.schedule.includes('16:00') ? '18:00' : s.schedule.includes('19:00') ? '21:00' : '20:00',
       room: s.mode === 'virtual' ? null : pick(r, ['Bodija Lab 1', 'Bodija Lab 2', 'Yaba Studio', 'Bodija Seminar Room']),
       meetingUrl: s.mode === 'on_campus' ? null : `https://meet.cirvee.com/${s.code.toLowerCase()}-${i + 1}`,
+      recordingUrl: hasRecording ? `https://recordings.cirvee.com/${s.code.toLowerCase()}/session-${i + 1}` : null,
       tutorPersonId: s.tutor,
       expectedCount: expected,
       presentCount: present,

@@ -28,6 +28,7 @@ import AttendanceTab from './tabs/AttendanceTab'
 import MaterialsTab from './tabs/MaterialsTab'
 import AssignmentsTab from './tabs/AssignmentsTab'
 import TimetableTab from './tabs/TimetableTab'
+import RecordingsTab from './tabs/RecordingsTab'
 
 export interface UploadTarget {
   lessonId: LessonId | null
@@ -156,6 +157,11 @@ export default function CohortScreen() {
       id: 'timetable',
       label: 'Timetable',
       content: <TimetableTab cohort={cohort} sessions={cohortSessions} />,
+    },
+    {
+      id: 'recordings',
+      label: 'Recordings',
+      content: <RecordingsTab sessions={cohortSessions} actorUserId={actorUserId} />,
     },
     {
       id: 'discussion',

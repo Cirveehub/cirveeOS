@@ -3,6 +3,7 @@ import {
   TODAY,
   assignmentsCollection,
   auditEventsCollection,
+  classSessionsCollection,
   cohortDiscussionPostsCollection,
   cohortsCollection,
   contentAssetsCollection,
@@ -26,6 +27,8 @@ import {
   type AttendanceConsequence,
   type AuditEvent,
   type AuditSource,
+  type ClassSession,
+  type ClassSessionId,
   type CohortId,
   type ContentAsset,
   type ContentFormat,
@@ -476,6 +479,38 @@ export function uploadMaterial(input: UploadMaterialInput): UploadMaterialResult
   })
 
   return { lesson: patchedLesson, asset, lessonCreated }
+}
+
+export function setSessionRecording(
+  sessionId: ClassSessionId,
+  recordingUrl: string | null,
+  actorUserId: UserId = CURRENT_USER_ID,
+): ClassSession {
+  const at = nowIso()
+  const session = classSessionsCollection.find(sessionId)
+  if (!session) throw new Error('That session is no longer on the timetable.')
+  if (session.status !== 'delivered') throw new Error('A session only gets a recording once it has been delivered.')
+
+  const trimmed = recordingUrl?.trim() || null
+  const updated = classSessionsCollection.update(sessionId, {
+    recordingUrl: trimmed,
+    updatedAt: at,
+    updatedBy: actorUserId,
+  })
+  if (!updated) throw new Error('That session is no longer on the timetable.')
+
+  emitAudit({
+    action: trimmed ? 'class_session.recording_added' : 'class_session.recording_removed',
+    entityType: 'ClassSession',
+    entityId: session.id,
+    entityRef: `${session.topic} (session ${session.sequence})`,
+    field: 'recordingUrl',
+    before: session.recordingUrl,
+    after: trimmed,
+    actorUserId,
+  })
+
+  return updated
 }
 
 export interface ProfileInput {

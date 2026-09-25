@@ -15,17 +15,18 @@ import {
   type FieldMeta,
 } from './lib'
 
-const ENTITIES = [...new Set(FIELDS.map((f) => f.entity))]
-
 function FieldSelect({
   value,
   onChange,
   label,
+  fields,
 }: {
   value: string
   onChange: (path: string) => void
   label: string
+  fields: FieldMeta[]
 }) {
+  const entities = [...new Set(fields.map((f) => f.entity))]
   return (
     <Select
       selectSize="sm"
@@ -34,9 +35,9 @@ function FieldSelect({
       aria-label={label}
       onChange={(e) => onChange(e.target.value)}
     >
-      {ENTITIES.map((entity) => (
+      {entities.map((entity) => (
         <optgroup key={entity} label={entity}>
-          {FIELDS.filter((f) => f.entity === entity).map((f) => (
+          {fields.filter((f) => f.entity === entity).map((f) => (
             <option key={f.path} value={f.path}>
               {f.label}
             </option>
@@ -178,6 +179,7 @@ export interface ConditionEditorProps {
   depth?: number
   showSummary?: boolean
   emptyHint?: string
+  fields?: FieldMeta[]
 }
 
 export function ConditionEditor({
@@ -186,6 +188,7 @@ export function ConditionEditor({
   depth = 0,
   showSummary = true,
   emptyHint = 'No rows yet. Without a condition, every trigger passes straight through.',
+  fields = FIELDS,
 }: ConditionEditorProps) {
   const setRule = (index: number, patch: Partial<ConditionRule>) => {
     const rules = group.rules.map((r, i) => (i === index && !isGroup(r) ? { ...(r as ConditionRule), ...patch } : r))
@@ -251,6 +254,7 @@ export function ConditionEditor({
                   onChange={(next) => setNested(index, next)}
                   depth={depth + 1}
                   showSummary={false}
+                  fields={fields}
                 />
               </li>
             )
@@ -261,7 +265,12 @@ export function ConditionEditor({
           const ops = operatorsFor(meta?.type)
           return (
             <li key={`rule-${index}`} className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,0.9fr)_minmax(0,1.2fr)_auto] items-start gap-2">
-              <FieldSelect value={r.field} onChange={(path) => setRule(index, { field: path, value: '' })} label={`Row ${index + 1} field`} />
+              <FieldSelect
+                value={r.field}
+                onChange={(path) => setRule(index, { field: path, value: '' })}
+                label={`Row ${index + 1} field`}
+                fields={fields}
+              />
               <Select
                 selectSize="sm"
                 aria-label={`Row ${index + 1} operator`}

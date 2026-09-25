@@ -343,6 +343,7 @@ export function scheduleSession(input: ScheduleSessionInput): ClassSession {
     endTime: input.endTime,
     room: input.room?.trim() || null,
     meetingUrl: input.meetingUrl?.trim() || null,
+    recordingUrl: null,
     tutorPersonId: input.tutorPersonId,
     expectedCount: expectedFor(input.cohortId),
     presentCount: 0,

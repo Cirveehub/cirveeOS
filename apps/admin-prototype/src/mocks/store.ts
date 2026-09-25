@@ -191,13 +191,14 @@ import {
 import {
   automationExceptions,
   automationRuns,
-  automations,
+  automations as seededAutomations,
   campaigns,
-  messageTemplates,
+  messageTemplates as seededMessageTemplates,
   messages,
   notifications,
   segments,
 } from '@/mocks/seed/automation'
+import { crmAutomations, crmMessageTemplates } from '@/mocks/seed/crm-nurture'
 import {
   actionItems,
   cards,
@@ -311,6 +312,12 @@ export const payrollAdjustmentsCollection = new Collection<PayrollAdjustment>('p
 export const payslipsCollection = new Collection<Payslip>('payslips', payslips)
 
 /* Automation & engage */
+// `crmAutomations`/`crmMessageTemplates` are draft shells built from Cirvee's
+// real CRM operating document (see mocks/seed/crm-nurture.ts) — merged in
+// here rather than into the seed file's own arrays so Flow 4's reference
+// journey in seed/automation.ts stays untouched.
+const automations = [...seededAutomations, ...crmAutomations]
+const messageTemplates = [...seededMessageTemplates, ...crmMessageTemplates]
 export const automationsCollection = new Collection<Automation>('automations', automations)
 export const automationRunsCollection = new Collection<AutomationRun>('automationRuns', automationRuns)
 export const automationExceptionsCollection = new Collection<AutomationException>('automationExceptions', automationExceptions)

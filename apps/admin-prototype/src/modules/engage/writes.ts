@@ -103,6 +103,7 @@ export interface CampaignInput {
   channel: Channel
   segmentId: string
   templateId: string
+  emailDesignId?: string | null
   unitId: string
   budget: number | null
   scheduledAt: string | null
@@ -151,6 +152,7 @@ export function createCampaign(input: CampaignInput): Campaign {
     segmentId: input.segmentId as Campaign['segmentId'],
     audienceSize: segment?.memberCount ?? 0,
     templateId: input.templateId as Campaign['templateId'],
+    emailDesignId: input.emailDesignId ?? null,
     ownerUserId: CURRENT_USER_ID,
     unitId: input.unitId as Campaign['unitId'],
     budget: input.budget === null ? null : (input.budget as Kobo),
@@ -196,6 +198,7 @@ export function updateCampaign(id: string, input: CampaignInput): Campaign | und
     segmentId: input.segmentId as Campaign['segmentId'],
     audienceSize: segment?.memberCount ?? existing.audienceSize,
     templateId: input.templateId as Campaign['templateId'],
+    emailDesignId: input.emailDesignId ?? null,
     unitId: input.unitId as Campaign['unitId'],
     budget: input.budget === null ? null : (input.budget as Kobo),
     scheduledAt: input.scheduledAt,

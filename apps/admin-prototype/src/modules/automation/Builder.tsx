@@ -4,6 +4,8 @@ import {
   AlertTriangle,
   ArrowDown,
   ArrowUp,
+  ChevronDown,
+  ChevronRight,
   Copy,
   FlaskConical,
   GitBranch,
@@ -67,6 +69,7 @@ import { ConditionEditor } from './ConditionEditor'
 import { TestRunModal } from './TestRun'
 import {
   ACTIONS,
+  ACTION_GROUPS,
   ACTION_ORDER,
   CHANNEL_LABEL,
   IDEMPOTENCY_FIELDS,
@@ -81,16 +84,19 @@ import {
   conditionCount,
   delaySummary,
   emptyGroup,
+  fieldsForTrigger,
   groupText,
   idempotencyPreview,
   laneChildIds,
   nextNodeId,
   nodeSummary,
   nodeTitle,
+  planEnglishSummary,
   slugify,
   userName,
   validate,
   versionsOf,
+  type FieldMeta,
   type Issue,
 } from './lib'
 import { AutomationStatusBadge, KeyChip, LoadFailed, NodeKindBadge, Screen, VersionBadge, useScreenState } from './parts'
@@ -307,6 +313,11 @@ export default function Builder() {
   const selected = draft.nodes.find((n) => n.id === selectedId)
   const subjects = useMemo(() => testSubjects(6), [])
   const sampleSubject = subjects[0]
+  const triggerNode = draft.nodes.find((n): n is Extract<AutomationNode, { kind: 'trigger' }> => n.kind === 'trigger')
+  const scopedFields = useMemo(
+    () => fieldsForTrigger(triggerNode?.summary ? triggerNode.triggerType : undefined),
+    [triggerNode?.summary, triggerNode?.triggerType],
+  )
 
   if (errored) {
     return (
@@ -378,13 +389,18 @@ export default function Builder() {
         }
         meta={
           <div className="flex flex-wrap items-center gap-2">
-            {record ? <AutomationStatusBadge status={record.status} /> : <Badge tone="neutral" variant="subtle" size="sm">Not saved yet</Badge>}
-            <VersionBadge version={record?.version ?? 1} />
-            {dirty && (
+            {!record && (
+              <Badge tone="neutral" variant="subtle" size="sm">
+                Not saved yet
+              </Badge>
+            )}
+            {record && dirty && (
               <Badge tone="warning" variant="subtle" size="sm">
                 Unsaved changes
               </Badge>
             )}
+            {record && !dirty && <AutomationStatusBadge status={record.status} />}
+            {record && <VersionBadge version={record.version} />}
             {record && (
               <span className="text-body-12 text-text-secondary">
                 Last edited {formatDateTime(record.updatedAt)} by {userName(record.updatedBy)}
@@ -393,35 +409,49 @@ export default function Builder() {
           </div>
         }
         actions={
-          <div className="flex flex-wrap items-center gap-2">
-            {record && record.status !== 'draft' && (
-              <Button
-                variant="secondary"
-                onClick={() => setAutomationStatus(record, record.status === 'active' ? 'paused' : 'active')}
-                leftIcon={<Hand size={16} />}
-              >
-                {record.status === 'active' ? 'Pause' : 'Resume'}
+          <div className="flex flex-col items-end gap-1.5">
+            <div className="flex flex-wrap items-center gap-2">
+              {record && record.status !== 'draft' && (
+                <Button
+                  variant="secondary"
+                  onClick={() => setAutomationStatus(record, record.status === 'active' ? 'paused' : 'active')}
+                  leftIcon={<Hand size={16} />}
+                >
+                  {record.status === 'active' ? 'Pause' : 'Resume'}
+                </Button>
+              )}
+              <Button variant="secondary" onClick={() => setTestOpen(true)} leftIcon={<FlaskConical size={16} />}>
+                Test run
               </Button>
+              <Button variant="secondary" onClick={onSave} leftIcon={<Save size={16} />}>
+                Save draft
+              </Button>
+              <Button
+                onClick={() => setActivateOpen(true)}
+                disabled={!record || record.status === 'active' || errors.length > 0}
+                leftIcon={<Zap size={16} />}
+              >
+                Activate
+              </Button>
+            </div>
+            {errors.length > 0 && (
+              <p className="max-w-[360px] text-right text-body-12 text-text-secondary">
+                Before this can go live: {errors.map((issue) => issue.message).join(' ')}
+              </p>
             )}
-            <Button variant="secondary" onClick={() => setTestOpen(true)} leftIcon={<FlaskConical size={16} />}>
-              Test run
-            </Button>
-            <Button variant="secondary" onClick={onSave} leftIcon={<Save size={16} />}>
-              Save draft
-            </Button>
-            <Button
-              onClick={() => setActivateOpen(true)}
-              disabled={!record || record.status === 'active' || errors.length > 0}
-              leftIcon={<Zap size={16} />}
-            >
-              Activate
-            </Button>
           </div>
         }
       />
 
       <Screen wide>
         <div className="flex flex-col gap-4">
+          <Card padding="tight" className="bg-accent-subtle">
+            <p className="text-body-14 text-text">
+              <span className="font-semibold">In plain terms — </span>
+              {planEnglishSummary(draft.nodes)}
+            </p>
+          </Card>
+
           {saveNote && (
             <Alert tone="success" title="Saved" onDismiss={() => setSaveNote(null)}>
               {saveNote}
@@ -457,10 +487,15 @@ export default function Builder() {
               onRemove={removeNode}
               onDuplicate={duplicateNode}
               onMove={moveNode}
+              onTriggerChange={(triggerType) =>
+                updateNode(triggerNode?.id ?? 'n1', (n) =>
+                  n.kind === 'trigger' ? { ...n, triggerType, summary: TRIGGERS[triggerType].runsWhen } : n,
+                )
+              }
             />
 
             <div className="flex flex-col gap-4 xl:sticky xl:top-6">
-              <Inspector node={selected} onChange={updateNode} sampleSubjectId={sampleSubject?.id} />
+              <Inspector node={selected} onChange={updateNode} sampleSubjectId={sampleSubject?.id} fields={scopedFields} />
               <ReliabilityPanel
                 draft={draft}
                 onChange={(reliability) => patch({ reliability })}
@@ -541,6 +576,13 @@ const BREADCRUMBS = [
   { label: 'Builder' },
 ]
 
+const STEP_CAPTION: Record<'condition' | 'delay' | 'branch' | 'stop', string> = {
+  condition: 'Skip the rest below for anyone who doesn’t match',
+  delay: 'Pause before continuing',
+  branch: 'Send different people down different paths',
+  stop: 'End the automation entirely for anyone who matches',
+}
+
 function Palette({
   onAdd,
 }: {
@@ -548,46 +590,53 @@ function Palette({
 }) {
   return (
     <Card padding="tight">
-      <SectionHeader title="Add a node" size="sm" />
+      <SectionHeader title="Add a step" size="sm" />
       <ul className="mt-3 flex flex-col gap-1.5">
         {(
           [
-            ['condition', 'Condition', SlidersHorizontal],
-            ['delay', 'Delay', Timer],
-            ['branch', 'Branch', GitBranch],
-            ['stop', 'Stop condition', Hand],
+            ['condition', 'Only if', SlidersHorizontal],
+            ['delay', 'Wait', Timer],
+            ['branch', 'Split into paths', GitBranch],
+            ['stop', 'Stop when', Hand],
           ] as const
         ).map(([kind, label, Icon]) => (
           <li key={kind}>
             <button
               type="button"
               onClick={() => onAdd(kind)}
-              className="flex w-full items-center gap-2 rounded-lg border border-border px-2.5 py-2 text-left text-body-13 text-text transition-colors hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              className="flex w-full items-start gap-2 rounded-lg border border-border px-2.5 py-2 text-left transition-colors hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             >
-              <span className={`flex size-6 items-center justify-center rounded-md ${NODE_STYLE[kind].chip}`}>
+              <span className={`mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md ${NODE_STYLE[kind].chip}`}>
                 <Icon size={14} aria-hidden="true" />
               </span>
-              {label}
+              <span className="min-w-0">
+                <span className="block text-body-13 text-text">{label}</span>
+                <span className="block text-body-12 text-text-secondary">{STEP_CAPTION[kind]}</span>
+              </span>
             </button>
           </li>
         ))}
       </ul>
 
-      <p className="mt-4 text-label-11 uppercase tracking-wide text-text-label">Actions</p>
-      <ul className="mt-2 flex flex-col gap-1">
-        {ACTION_ORDER.map((type) => (
-          <li key={type}>
-            <button
-              type="button"
-              onClick={() => onAdd('action', type)}
-              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-body-13 text-text-secondary transition-colors hover:bg-surface-hover hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-            >
-              <Plus size={14} aria-hidden="true" />
-              {ACTIONS[type].label}
-            </button>
-          </li>
-        ))}
-      </ul>
+      {ACTION_GROUPS.map((group) => (
+        <div key={group.label}>
+          <p className="mt-4 text-label-11 uppercase tracking-wide text-text-label">{group.label}</p>
+          <ul className="mt-2 flex flex-col gap-1">
+            {group.actions.map((type) => (
+              <li key={type}>
+                <button
+                  type="button"
+                  onClick={() => onAdd('action', type)}
+                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-body-13 text-text-secondary transition-colors hover:bg-surface-hover hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                >
+                  <Plus size={14} aria-hidden="true" />
+                  {ACTIONS[type].label}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
     </Card>
   )
 }
@@ -605,9 +654,10 @@ interface CanvasProps {
   onRemove: (id: string) => void
   onDuplicate: (id: string) => void
   onMove: (id: string, delta: -1 | 1) => void
+  onTriggerChange: (triggerType: AutomationTriggerType) => void
 }
 
-function Canvas({ nodes, selectedId, issues, onSelect, onAdd, onRemove, onDuplicate, onMove }: CanvasProps) {
+function Canvas({ nodes, selectedId, issues, onSelect, onAdd, onRemove, onDuplicate, onMove, onTriggerChange }: CanvasProps) {
   const nested = laneChildIds(nodes)
   const top = nodes.filter((n) => !nested.has(n.id))
   const byId = new Map(nodes.map((n) => [n.id, n]))
@@ -626,6 +676,7 @@ function Canvas({ nodes, selectedId, issues, onSelect, onAdd, onRemove, onDuplic
               onDuplicate={node.kind === 'trigger' ? undefined : () => onDuplicate(node.id)}
               onMoveUp={index > 0 ? () => onMove(node.id, -1) : undefined}
               onMoveDown={index < top.length - 1 ? () => onMove(node.id, 1) : undefined}
+              onTriggerChange={node.kind === 'trigger' ? onTriggerChange : undefined}
             />
 
             {node.kind === 'branch' && (
@@ -686,13 +737,13 @@ function Connector({
         onOpenChange={setOpen}
         content={
           <>
-            <PopoverLabel>Insert a node here</PopoverLabel>
+            <PopoverLabel>Insert a step here</PopoverLabel>
             {(
               [
-                ['condition', 'Condition'],
-                ['delay', 'Delay'],
-                ['branch', 'Branch'],
-                ['stop', 'Stop condition'],
+                ['condition', 'Only if'],
+                ['delay', 'Wait'],
+                ['branch', 'Split into paths'],
+                ['stop', 'Stop when'],
               ] as const
             ).map(([kind, label]) => (
               <PopoverItem
@@ -722,7 +773,7 @@ function Connector({
       >
         <button
           type="button"
-          aria-label="Insert a node here"
+          aria-label="Insert a step here"
           className="flex size-6 items-center justify-center rounded-full border border-border-strong bg-surface text-text-secondary transition-colors hover:border-accent hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
           <Plus size={14} aria-hidden="true" />
@@ -788,6 +839,7 @@ function NodeCard({
   onDuplicate,
   onMoveUp,
   onMoveDown,
+  onTriggerChange,
 }: {
   node: AutomationNode
   selected: boolean
@@ -798,6 +850,7 @@ function NodeCard({
   onDuplicate?: () => void
   onMoveUp?: () => void
   onMoveDown?: () => void
+  onTriggerChange?: (triggerType: AutomationTriggerType) => void
 }) {
   const style = NODE_STYLE[node.kind]
   const unchosen = node.kind === 'trigger' && !node.summary
@@ -805,42 +858,62 @@ function NodeCard({
 
   return (
     <div
-      className={`relative flex items-start gap-3 overflow-hidden rounded-xl border bg-surface p-4 transition-colors ${
+      className={`relative flex flex-col gap-3 overflow-hidden rounded-xl border bg-surface p-4 transition-colors ${
         selected ? 'border-accent shadow-sm' : 'border-border hover:border-border-strong'
       } ${compact ? 'p-3' : ''}`}
     >
       <span className={`absolute inset-y-0 left-0 w-1 ${style.rail}`} aria-hidden="true" />
 
-      <button
-        type="button"
-        onClick={onSelect}
-        aria-pressed={selected}
-        className="min-w-0 flex-1 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-      >
-        <span className="flex flex-wrap items-center gap-2">
-          <NodeKindBadge kind={node.kind} />
-          <span className="text-body-14 font-semibold text-text">
-            {unchosen ? 'Choose a trigger' : nodeTitle(node)}
+      <div className="flex items-start gap-3">
+        <button
+          type="button"
+          onClick={onSelect}
+          aria-pressed={selected}
+          className="min-w-0 flex-1 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        >
+          <span className="flex flex-wrap items-center gap-2">
+            <NodeKindBadge kind={node.kind} />
+            <span className="text-body-14 font-semibold text-text">
+              {unchosen ? 'Choose what starts this automation' : nodeTitle(node)}
+            </span>
+            {hasError && (
+              <Badge tone="danger" variant="subtle" size="sm">
+                Needs attention
+              </Badge>
+            )}
           </span>
-          {hasError && (
-            <Badge tone="danger" variant="subtle" size="sm">
-              Needs attention
-            </Badge>
-          )}
-        </span>
-        <span className="mt-1 block text-body-13 text-text-secondary">
-          {unchosen
-            ? 'Every automation starts with one trigger. Open the inspector and pick the event that starts this.'
-            : nodeSummary(node)}
-        </span>
-      </button>
+          {!unchosen && <span className="mt-1 block text-body-13 text-text-secondary">{nodeSummary(node)}</span>}
+        </button>
 
-      <div className="flex shrink-0 items-center gap-0.5">
-        {onMoveUp && <IconButton icon={ArrowUp} label={`Move ${NODE_LABEL[node.kind]} up`} variant="ghost" size="sm" onClick={onMoveUp} />}
-        {onMoveDown && <IconButton icon={ArrowDown} label={`Move ${NODE_LABEL[node.kind]} down`} variant="ghost" size="sm" onClick={onMoveDown} />}
-        {onDuplicate && <IconButton icon={Copy} label={`Duplicate ${NODE_LABEL[node.kind]}`} variant="ghost" size="sm" onClick={onDuplicate} />}
-        {onRemove && <IconButton icon={Trash2} label={`Remove ${NODE_LABEL[node.kind]}`} variant="ghost" size="sm" onClick={onRemove} />}
+        <div className="flex shrink-0 items-center gap-0.5">
+          {onMoveUp && <IconButton icon={ArrowUp} label={`Move ${NODE_LABEL[node.kind]} up`} variant="ghost" size="sm" onClick={onMoveUp} />}
+          {onMoveDown && <IconButton icon={ArrowDown} label={`Move ${NODE_LABEL[node.kind]} down`} variant="ghost" size="sm" onClick={onMoveDown} />}
+          {onDuplicate && <IconButton icon={Copy} label={`Duplicate ${NODE_LABEL[node.kind]}`} variant="ghost" size="sm" onClick={onDuplicate} />}
+          {onRemove && <IconButton icon={Trash2} label={`Remove ${NODE_LABEL[node.kind]}`} variant="ghost" size="sm" onClick={onRemove} />}
+        </div>
       </div>
+
+      {node.kind === 'trigger' && onTriggerChange && (
+        <Select
+          selectSize="sm"
+          value={node.summary ? node.triggerType : ''}
+          placeholder="Choose an event"
+          aria-label="What starts this automation"
+          onChange={(e) => onTriggerChange(e.target.value as AutomationTriggerType)}
+        >
+          {TRIGGER_CATEGORIES.map((category) => (
+            <optgroup key={category} label={category}>
+              {(Object.keys(TRIGGERS) as AutomationTriggerType[])
+                .filter((t) => TRIGGERS[t].category === category)
+                .map((t) => (
+                  <option key={t} value={t}>
+                    {TRIGGERS[t].label}
+                  </option>
+                ))}
+            </optgroup>
+          ))}
+        </Select>
+      )}
     </div>
   )
 }
@@ -849,10 +922,12 @@ function Inspector({
   node,
   onChange,
   sampleSubjectId,
+  fields,
 }: {
   node: AutomationNode | undefined
   onChange: (id: string, updater: (node: AutomationNode) => AutomationNode) => void
   sampleSubjectId: string | undefined
+  fields: FieldMeta[]
 }) {
   if (!node) {
     return (
@@ -881,17 +956,18 @@ function Inspector({
         {node.kind === 'condition' && (
           <ConditionEditor
             group={node.group}
+            fields={fields}
             onChange={(group) =>
               onChange(node.id, (n) => (n.kind === 'condition' ? { ...n, group, summary: groupText(group) } : n))
             }
           />
         )}
-        {node.kind === 'delay' && <DelayInspector node={node} onChange={onChange} />}
-        {node.kind === 'branch' && <BranchInspector node={node} onChange={onChange} />}
+        {node.kind === 'delay' && <DelayInspector node={node} onChange={onChange} fields={fields} />}
+        {node.kind === 'branch' && <BranchInspector node={node} onChange={onChange} fields={fields} />}
         {node.kind === 'action' && (
           <ActionInspector node={node} onChange={onChange} sampleSubjectId={sampleSubjectId} />
         )}
-        {node.kind === 'stop' && <StopInspector node={node} onChange={onChange} />}
+        {node.kind === 'stop' && <StopInspector node={node} onChange={onChange} fields={fields} />}
       </CardBody>
     </Card>
   )
@@ -907,36 +983,18 @@ function TriggerInspector({
   onChange: Updater
 }) {
   const meta = TRIGGERS[node.triggerType]
-  const set = (triggerType: AutomationTriggerType) =>
-    onChange(node.id, (n) =>
-      n.kind === 'trigger' ? { ...n, triggerType, summary: TRIGGERS[triggerType].runsWhen } : n,
-    )
   const setParam = (key: string, value: unknown) =>
     onChange(node.id, (n) => (n.kind === 'trigger' ? { ...n, params: { ...n.params, [key]: value } } : n))
 
   return (
     <div className="flex flex-col gap-4">
-      <Field label="Trigger type" hint="Exactly one trigger. It is what starts every run.">
-        <Select value={node.summary ? node.triggerType : ''} placeholder="Choose a trigger" onChange={(e) => set(e.target.value as AutomationTriggerType)}>
-          {TRIGGER_CATEGORIES.map((category) => (
-            <optgroup key={category} label={category}>
-              {(Object.keys(TRIGGERS) as AutomationTriggerType[])
-                .filter((t) => TRIGGERS[t].category === category)
-                .map((t) => (
-                  <option key={t} value={t}>
-                    {TRIGGERS[t].label}
-                  </option>
-                ))}
-            </optgroup>
-          ))}
-        </Select>
-      </Field>
-
-      {node.summary && (
+      {node.summary ? (
         <div className="rounded-xl border border-accent-subtle bg-accent-subtle px-3 py-2">
           <p className="text-label-11 uppercase tracking-wide text-accent">Runs when</p>
           <p className="mt-0.5 text-body-13 text-text">{meta.runsWhen}</p>
         </div>
+      ) : (
+        <p className="text-body-13 text-text-secondary">Choose what starts this automation on the card above.</p>
       )}
 
       {node.triggerType === 'scheduled' && (
@@ -1009,9 +1067,11 @@ function TriggerInspector({
 function DelayInspector({
   node,
   onChange,
+  fields,
 }: {
   node: Extract<AutomationNode, { kind: 'delay' }>
   onChange: Updater
+  fields: FieldMeta[]
 }) {
   const mode = 'amount' in node.wait ? 'amount' : 'untilField' in node.wait ? 'field' : 'condition'
 
@@ -1090,6 +1150,7 @@ function DelayInspector({
         <>
           <ConditionEditor
             group={node.wait.untilCondition}
+            fields={fields}
             onChange={(group) =>
               setWait({
                 untilCondition: group,
@@ -1133,9 +1194,11 @@ function DelayInspector({
 function BranchInspector({
   node,
   onChange,
+  fields,
 }: {
   node: Extract<AutomationNode, { kind: 'branch' }>
   onChange: Updater
+  fields: FieldMeta[]
 }) {
   const setLane = (index: number, patch: Partial<(typeof node.lanes)[number]>) =>
     onChange(node.id, (n) =>
@@ -1155,7 +1218,7 @@ function BranchInspector({
           </Field>
           <div className="mt-3">
             {lane.condition ? (
-              <ConditionEditor group={lane.condition} onChange={(group) => setLane(index, { condition: group })} />
+              <ConditionEditor group={lane.condition} fields={fields} onChange={(group) => setLane(index, { condition: group })} />
             ) : (
               <p className="text-body-13 text-text-secondary">
                 This is the fallback lane. Anything that did not match an earlier lane comes here.
@@ -1171,9 +1234,11 @@ function BranchInspector({
 function StopInspector({
   node,
   onChange,
+  fields,
 }: {
   node: Extract<AutomationNode, { kind: 'stop' }>
   onChange: Updater
+  fields: FieldMeta[]
 }) {
   const presets: Array<{ field: string; op: string; value: unknown; label: string }> = [
     { field: 'admission.status', op: 'is', value: 'withdrawn', label: 'Admission withdrawn' },
@@ -1211,6 +1276,7 @@ function StopInspector({
 
       <ConditionEditor
         group={node.condition}
+        fields={fields}
         onChange={(condition) =>
           onChange(node.id, (n) => (n.kind === 'stop' ? { ...n, condition, summary: groupText(condition) } : n))
         }
@@ -1575,6 +1641,7 @@ function ReliabilityPanel({
   onChange: (reliability: Automation['reliability']) => void
   automationKey: string
 }) {
+  const [advancedOpen, setAdvancedOpen] = useState(false)
   const r = draft.reliability
   const toggleField = (path: string) => {
     const on = r.idempotencyKeyFields.includes(path)
@@ -1589,15 +1656,14 @@ function ReliabilityPanel({
   return (
     <Card padding="none">
       <CardHeader
-        title="Reliability"
-        description="What happens when the same trigger fires twice, and what happens when an action fails."
+        title="Duplicate protection and failure handling"
+        description="What happens when the same trigger fires twice, and what happens when a step fails."
       />
       <CardBody className="flex flex-col gap-5">
         <div>
-          <p className="text-label-11 uppercase tracking-wide text-text-label">Idempotency key</p>
+          <p className="text-label-11 uppercase tracking-wide text-text-label">Treat these as the same person</p>
           <p className="mt-1 text-body-12 text-text-secondary">
-            The fields that make one run unique. Two triggers producing the same key are the same piece of work, and
-            the second is refused rather than executed.
+            If two triggers match on everything checked here, the second one is skipped instead of running again.
           </p>
           <ul className="mt-2 flex flex-col gap-1">
             {IDEMPOTENCY_FIELDS.map((f) => (
@@ -1611,42 +1677,14 @@ function ReliabilityPanel({
               </li>
             ))}
           </ul>
-          <div className="mt-2">
-            <p className="text-label-11 uppercase tracking-wide text-text-label">Key preview</p>
-            <KeyChip value={idempotencyPreview(automationKey, r.idempotencyKeyFields)} className="mt-1" />
-          </div>
           {r.idempotencyKeyFields.length === 0 && (
             <p className="mt-2 text-body-12 text-danger-text">
-              With no fields, every trigger runs again. Duplicate messages and duplicate commissions follow.
+              With nothing checked, every trigger runs again. Duplicate messages and duplicate commissions follow.
             </p>
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Retry attempts">
-            <Input
-              type="number"
-              min={0}
-              max={10}
-              inputSize="sm"
-              value={String(r.retryAttempts)}
-              onChange={(e) => onChange({ ...r, retryAttempts: Number(e.target.value) })}
-            />
-          </Field>
-          <Field label="Backoff">
-            <Select
-              selectSize="sm"
-              value={r.retryBackoff}
-              onChange={(e) => onChange({ ...r, retryBackoff: e.target.value as 'fixed' | 'exponential' })}
-              options={[
-                { value: 'exponential', label: 'Exponential' },
-                { value: 'fixed', label: 'Fixed' },
-              ]}
-            />
-          </Field>
-        </div>
-
-        <Field label="When an action keeps failing">
+        <Field label="If a step keeps failing">
           <Select
             selectSize="sm"
             value={r.onFailure}
@@ -1658,25 +1696,70 @@ function ReliabilityPanel({
           />
         </Field>
 
-        <Field
-          label="Maximum runs per person per month"
-          hint="Leave empty for no cap. A cap stops one person being messaged on a loop."
+        <button
+          type="button"
+          onClick={() => setAdvancedOpen((v) => !v)}
+          className="flex items-center gap-1.5 self-start text-body-13 font-medium text-text-secondary transition-colors hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
-          <Input
-            type="number"
-            min={1}
-            inputSize="sm"
-            value={r.maxRunsPerPersonPerPeriod === null ? '' : String(r.maxRunsPerPersonPerPeriod)}
-            onChange={(e) =>
-              onChange({ ...r, maxRunsPerPersonPerPeriod: e.target.value === '' ? null : Number(e.target.value) })
-            }
-          />
-        </Field>
+          {advancedOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          Advanced settings
+        </button>
 
-        <KeyValueList>
-          <KeyValue label="Conditions configured">{conditionCount(draft.nodes)}</KeyValue>
-          <KeyValue label="Actions configured">{draft.nodes.filter((n) => n.kind === 'action').length}</KeyValue>
-        </KeyValueList>
+        {advancedOpen && (
+          <div className="flex flex-col gap-5 border-t border-border pt-4">
+            <div>
+              <p className="text-label-11 uppercase tracking-wide text-text-label">Key preview</p>
+              <p className="mt-1 text-body-12 text-text-secondary">
+                What the fields above resolve to for one real run.
+              </p>
+              <KeyChip value={idempotencyPreview(automationKey, r.idempotencyKeyFields)} className="mt-1" />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Number of tries">
+                <Input
+                  type="number"
+                  min={0}
+                  max={10}
+                  inputSize="sm"
+                  value={String(r.retryAttempts)}
+                  onChange={(e) => onChange({ ...r, retryAttempts: Number(e.target.value) })}
+                />
+              </Field>
+              <Field label="Wait between tries">
+                <Select
+                  selectSize="sm"
+                  value={r.retryBackoff}
+                  onChange={(e) => onChange({ ...r, retryBackoff: e.target.value as 'fixed' | 'exponential' })}
+                  options={[
+                    { value: 'exponential', label: 'Increasing each time' },
+                    { value: 'fixed', label: 'Same each time' },
+                  ]}
+                />
+              </Field>
+            </div>
+
+            <Field
+              label="Maximum runs per person per month"
+              hint="Leave empty for no cap. A cap stops one person being messaged on a loop."
+            >
+              <Input
+                type="number"
+                min={1}
+                inputSize="sm"
+                value={r.maxRunsPerPersonPerPeriod === null ? '' : String(r.maxRunsPerPersonPerPeriod)}
+                onChange={(e) =>
+                  onChange({ ...r, maxRunsPerPersonPerPeriod: e.target.value === '' ? null : Number(e.target.value) })
+                }
+              />
+            </Field>
+
+            <KeyValueList>
+              <KeyValue label="Conditions configured">{conditionCount(draft.nodes)}</KeyValue>
+              <KeyValue label="Actions configured">{draft.nodes.filter((n) => n.kind === 'action').length}</KeyValue>
+            </KeyValueList>
+          </div>
+        )}
       </CardBody>
     </Card>
   )

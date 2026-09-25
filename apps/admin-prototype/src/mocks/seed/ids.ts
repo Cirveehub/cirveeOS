@@ -420,10 +420,58 @@ export const MSGT = {
   reviewRequest: msgTemplateId('mt-review-request'),
 } as const
 
+/**
+ * CRM nurture content, transcribed from `docs/CRM Flow + Course Details..docx`
+ * — the real WhatsApp/email copy Cirvee already uses (or drafted) for the
+ * lead-to-alumnus lifecycle. See `mocks/seed/crm-nurture.ts`.
+ */
+export const CRM_MSGT = {
+  whatsappInitialResponse: msgTemplateId('mt-crm-whatsapp-initial-response'),
+  day0Welcome: msgTemplateId('mt-crm-day0-welcome'),
+  day1ProductDesign: msgTemplateId('mt-crm-day1-product-design'),
+  day1Ai: msgTemplateId('mt-crm-day1-ai'),
+  day1DataAnalysis: msgTemplateId('mt-crm-day1-data-analysis'),
+  day1Cyber: msgTemplateId('mt-crm-day1-cyber'),
+  day1Frontend: msgTemplateId('mt-crm-day1-frontend'),
+  day1Backend: msgTemplateId('mt-crm-day1-backend'),
+  day1Fullstack: msgTemplateId('mt-crm-day1-fullstack'),
+  day1DigitalMarketing: msgTemplateId('mt-crm-day1-digital-marketing'),
+  day1ProjectMgmt: msgTemplateId('mt-crm-day1-project-mgmt'),
+  day2SuccessStories: msgTemplateId('mt-crm-day2-success-stories'),
+  day3Pricing: msgTemplateId('mt-crm-day3-pricing'),
+  day4LimitedSlots: msgTemplateId('mt-crm-day4-limited-slots'),
+  day5FinalPush: msgTemplateId('mt-crm-day5-final-push'),
+  cohortAnnouncement: msgTemplateId('mt-crm-cohort-announcement'),
+  walkinThankYou: msgTemplateId('mt-crm-walkin-thank-you'),
+  walkin24h: msgTemplateId('mt-crm-walkin-24h'),
+  walkin72h: msgTemplateId('mt-crm-walkin-72h'),
+  walkinCourtesy: msgTemplateId('mt-crm-walkin-courtesy'),
+  registrationReminder: msgTemplateId('mt-crm-registration-reminder'),
+  tuitionReminder: msgTemplateId('mt-crm-tuition-reminder'),
+  classStartingReminder: msgTemplateId('mt-crm-class-starting-reminder'),
+  welcomeOnboarding: msgTemplateId('mt-crm-welcome-onboarding'),
+  orientationVideo: msgTemplateId('mt-crm-orientation-video'),
+  meetTutor: msgTemplateId('mt-crm-meet-tutor'),
+  accessPhysical: msgTemplateId('mt-crm-access-physical'),
+  accessVirtual: msgTemplateId('mt-crm-access-virtual'),
+  accessPrivate: msgTemplateId('mt-crm-access-private'),
+} as const
+
 export const AUTO = {
   /** The PRD's reference journey, built live in Flow 4. Seeded at v1. */
   tuitionPaid: automationId('auto-tuition-paid-v1'),
   leadFirstTouch: automationId('auto-lead-first-touch-v2'),
   overdueChase: automationId('auto-overdue-chase-v1'),
   certificateCascade: automationId('auto-certificate-cascade-v1'),
+} as const
+
+/** Draft automation shells built from the CRM nurture document — see `crm-nurture.ts`. */
+export const CRM_AUTO = {
+  newLeadNurture: automationId('auto-crm-new-lead-nurture-v1'),
+  walkinNurture: automationId('auto-crm-walkin-nurture-v1'),
+  walkinCourtesy: automationId('auto-crm-walkin-courtesy-v1'),
+  registrationReminder: automationId('auto-crm-registration-reminder-v1'),
+  tuitionReminder: automationId('auto-crm-tuition-reminder-v1'),
+  classStartingReminder: automationId('auto-crm-class-starting-reminder-v1'),
+  postEnrolmentOnboarding: automationId('auto-crm-post-enrolment-onboarding-v1'),
 } as const

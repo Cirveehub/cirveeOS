@@ -19,6 +19,7 @@ import { ContentTab } from './tabs/ContentTab'
 import { AssignmentsTab } from './tabs/AssignmentsTab'
 import { AttendanceTab } from './tabs/AttendanceTab'
 import { TimetableTab } from './tabs/TimetableTab'
+import { RecordingsTab } from './tabs/RecordingsTab'
 
 export default function MyCourse() {
   const query = useQueryState()
@@ -94,6 +95,7 @@ function CourseHub({ enrolment }: { enrolment: Enrollment }) {
     },
     { id: 'attendance', label: 'Attendance', content: <AttendanceTab enrolment={enrolment} /> },
     { id: 'timetable', label: 'Timetable', content: <TimetableTab enrolment={enrolment} /> },
+    { id: 'recordings', label: 'Recordings', content: <RecordingsTab enrolment={enrolment} /> },
     {
       id: 'discussion',
       label: 'Discussion',

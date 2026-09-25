@@ -36,7 +36,7 @@ import {
   type Channel,
 } from '@/mocks'
 
-import { CHANNEL_LABEL, Screen, useUserName } from './parts'
+import { CHANNEL_LABEL, EmailDesignPicker, EmailPreviewChrome, Screen, emailDesign, useUserName } from './parts'
 import { createCampaign, derivedUtm, updateCampaign } from './writes'
 
 const CHANNELS: Array<{ value: Channel; label: string }> = (['whatsapp', 'email', 'sms', 'in_app'] as Channel[]).map(
@@ -73,6 +73,7 @@ export default function CampaignBuilder() {
   const [segmentId, setSegmentId] = useState<string>((existing?.segmentId as string) ?? '')
   const [channel, setChannel] = useState<Channel>(existing?.channel ?? 'whatsapp')
   const [templateId, setTemplateId] = useState<string>((existing?.templateId as string) ?? '')
+  const [emailDesignId, setEmailDesignId] = useState<string>(existing?.emailDesignId ?? 'plain')
   const [timing, setTiming] = useState<'now' | 'at'>(existing?.scheduledAt ? 'at' : 'now')
   const [sendDate, setSendDate] = useState(existing?.scheduledAt?.slice(0, 10) ?? TODAY)
   const [sendTime, setSendTime] = useState(existing?.scheduledAt?.slice(11, 16) ?? '09:00')
@@ -159,6 +160,7 @@ export default function CampaignBuilder() {
       channel,
       segmentId,
       templateId,
+      emailDesignId: channel === 'email' ? emailDesignId : null,
       unitId,
       budget,
       scheduledAt,
@@ -205,6 +207,7 @@ export default function CampaignBuilder() {
               setObjective('')
               setSegmentId('')
               setTemplateId('')
+              setEmailDesignId('plain')
               setBudget(null)
               setTouched({ 1: false, 2: false, 3: false, 4: false, 5: false })
             }}
@@ -433,6 +436,12 @@ export default function CampaignBuilder() {
                   ))}
                 </RadioGroup>
 
+                {channel === 'email' && (
+                  <Field label="Email design" hint="How the message looks — separate from the words in it.">
+                    <EmailDesignPicker value={emailDesignId} onChange={setEmailDesignId} disabled={locked} />
+                  </Field>
+                )}
+
                 <Field label="Template" required error={touched[3] ? templateError : undefined}>
                   <Select
                     value={templateId}
@@ -484,17 +493,30 @@ export default function CampaignBuilder() {
                       <Badge tone="neutral" variant="outline" size="sm">
                         v{template.version}
                       </Badge>
-                    </div>
-                    <div className="px-4 py-3">
-                      {template.subject && <p className="text-body-14 font-semibold text-text">{template.subject}</p>}
-                      <p className="mt-1 whitespace-pre-line text-body-13 text-text-secondary">{template.body}</p>
-                      {template.mergeFields.length > 0 && (
-                        <p className="mt-3 text-body-12 text-text-secondary">
-                          Merge fields: {template.mergeFields.map((f) => `{{${f}}}`).join(', ')} — each resolved from the
-                          Person record at send time.
-                        </p>
+                      {channel === 'email' && (
+                        <Badge tone="accent" variant="subtle" size="sm">
+                          {emailDesign(emailDesignId).name}
+                        </Badge>
                       )}
                     </div>
+                    {channel === 'email' ? (
+                      <EmailPreviewChrome
+                        design={emailDesign(emailDesignId)}
+                        subject={template.subject}
+                        body={template.body}
+                      />
+                    ) : (
+                      <div className="px-4 py-3">
+                        {template.subject && <p className="text-body-14 font-semibold text-text">{template.subject}</p>}
+                        <p className="mt-1 whitespace-pre-line text-body-13 text-text-secondary">{template.body}</p>
+                      </div>
+                    )}
+                    {template.mergeFields.length > 0 && (
+                      <p className="border-t border-border px-4 py-2.5 text-body-12 text-text-secondary">
+                        Merge fields: {template.mergeFields.map((f) => `{{${f}}}`).join(', ')} — each resolved from the
+                        Person record at send time.
+                      </p>
+                    )}
                   </div>
                 )}
 
@@ -604,6 +626,11 @@ export default function CampaignBuilder() {
                       <KeyValue label="Template" divided>
                         {template ? `${template.name} v${template.version}` : '—'}
                       </KeyValue>
+                      {channel === 'email' && (
+                        <KeyValue label="Email design" divided>
+                          {emailDesign(emailDesignId).name}
+                        </KeyValue>
+                      )}
                       <KeyValue label="Schedule" divided>
                         {scheduledAt ? formatDateTime(scheduledAt) : 'Held as a draft'}
                       </KeyValue>
@@ -658,6 +685,11 @@ export default function CampaignBuilder() {
               <KeyValue label="Template" divided>
                 {template ? template.name : <span className="text-text-secondary">Not chosen</span>}
               </KeyValue>
+              {channel === 'email' && (
+                <KeyValue label="Email design" divided>
+                  {emailDesign(emailDesignId).name}
+                </KeyValue>
+              )}
               <KeyValue label="Schedule" divided>
                 {scheduledAt ? formatDateTime(scheduledAt) : 'Draft'}
               </KeyValue>

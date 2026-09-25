@@ -1114,6 +1114,7 @@ export interface ClassSession extends Auditable {
   endTime: string
   room: string | null
   meetingUrl: string | null
+  recordingUrl: string | null
   tutorPersonId: PersonId
   expectedCount: number
   presentCount: number
@@ -2374,6 +2375,7 @@ export interface Campaign extends Auditable {
   segmentId: SegmentId
   audienceSize: number
   templateId: MessageTemplateId
+  emailDesignId?: string | null
   ownerUserId: UserId
   unitId: UnitId
   budget: Kobo | null
